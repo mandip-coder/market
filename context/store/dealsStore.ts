@@ -43,11 +43,10 @@ interface AddMeetingValues {
 
 export interface AddFollowUpValues {
   subject: string;
-  priority: "Low" | "Medium" | "High" | "Urgent";
-  scheduledDateTime: Dayjs;
+  scheduledDateTime: string;
   contactPersons: string[];
   remark?: string;
-  reminder: "Email" | "Notification" | "None"
+  followUpUUId: string
 }
 
 export interface CompleteFollowUpValues {
@@ -64,6 +63,7 @@ export interface RescheduleFollowUpValues {
 }
 
 interface LogCallValues {
+  callLogUUID: string;
   subject: string;
   callStartTime: Dayjs;
   duration: string;
@@ -103,6 +103,7 @@ export interface stageValues {
 }
 
 interface ReminderValues {
+  reminderUUID: string,
   notifyDate: Dayjs,
   setReminderTo: string,
   description: string
@@ -160,28 +161,28 @@ interface DealStore {
   updateMeeting: (meetingId: string, values: Meeting) => void;
   // FollowUps Actions
   addFollowUp: (values: AddFollowUpValues) => void;
-  updateFollowUp: (followUpId: number, values: AddFollowUpValues) => void;
-  completeFollowUp: (followUpId: number, values: CompleteFollowUpValues) => void;
-  cancelFollowUp: (followUpId: number, values: CancelFollowUpValues) => void;
-  rescheduleFollowUp: (followUpId: number, values: RescheduleFollowUpValues) => void;
-  deleteFollowUp: (followUpId: number) => void;
+  updateFollowUp: (followUpUUId: string, values: AddFollowUpValues) => void;
+  completeFollowUp: (followUpUUId: string, values: CompleteFollowUpValues) => void;
+  cancelFollowUp: (followUpUUId: string, values: CancelFollowUpValues) => void;
+  rescheduleFollowUp: (followUpUUId: string, values: RescheduleFollowUpValues) => void;
+  deleteFollowUp: (followUpUUId: string) => void;
 
   // Calls Actions
   logCall: (values: LogCallValues) => void;
-  updateCall: (callId: number, values: LogCallValues) => void;
-  deleteCall: (callId: number) => void;
+  updateCall: (callId: string, values: LogCallValues) => void;
+  deleteCall: (callId: string) => void;
   // Emails Actions
   sendEmail: (values: SendEmailValues, recipients: string[]) => void;
 
   // Notes Actions
   addNote: (values: AddNoteValues) => void;
-  deleteNote: (noteId: number) => void;
-  updateNote: (noteId: number, values: AddNoteValues) => void;
+  deleteNote: (noteId: string) => void;
+  updateNote: (noteId: string, values: AddNoteValues) => void;
 
   // Reminders Actions
   addReminder: (values: ReminderValues) => void;
-  deleteReminder: (reminderId: number) => void;
-  updateReminder: (reminderId: number, values: ReminderValues) => void;
+  deleteReminder: (reminderId: string) => void;
+  updateReminder: (reminderId: string, values: ReminderValues) => void;
 
   // Timeline Actions
   addTimelineEvent: (event: Omit<TimelineEvent, 'id'>) => void;
@@ -424,13 +425,11 @@ export const useDealStore = create<DealStore>((set, get,) => ({
   addFollowUp: (values: AddFollowUpValues) => {
     const { followUps, addTimelineEvent } = get();
     const newFollowUp: FollowUP = {
-      id: followUps.length + 1,
+      followUpUUId: generateUniqueId(),
       subject: values.subject,
-      priority: values.priority,
       scheduledDateTime: dayjs(values.scheduledDateTime).toISOString(),
       contactPersons: values.contactPersons,
       remark: values.remark,
-      reminder: values.reminder,
       isCompleted: false,
       isCancelled: false,
     };
@@ -448,18 +447,16 @@ export const useDealStore = create<DealStore>((set, get,) => ({
     });
   },
 
-  updateFollowUp: (followUpId: number, values: AddFollowUpValues) => {
+  updateFollowUp: (followUpUUId: string, values: AddFollowUpValues) => {
     const { followUps, addTimelineEvent } = get();
-    const followUpIndex = followUps.findIndex((f) => f.id === followUpId);
+    const followUpIndex = followUps.findIndex((f) => f.followUpUUId === followUpUUId);
     if (followUpIndex !== -1) {
       const updatedFollowUp: FollowUP = {
         ...followUps[followUpIndex],
         subject: values.subject,
-        priority: values.priority,
         scheduledDateTime: dayjs(values.scheduledDateTime).toISOString(),
         contactPersons: values.contactPersons,
         remark: values.remark,
-        reminder: values.reminder,
       };
 
       const updatedFollowUps = [...followUps];
@@ -479,9 +476,9 @@ export const useDealStore = create<DealStore>((set, get,) => ({
     }
   },
 
-  completeFollowUp: (followUpId: number, values: CompleteFollowUpValues) => {
+  completeFollowUp: (followUpUUId: string, values: CompleteFollowUpValues) => {
     const { followUps, addTimelineEvent } = get();
-    const followUpIndex = followUps.findIndex((f) => f.id === followUpId);
+    const followUpIndex = followUps.findIndex((f) => f.followUpUUId === followUpUUId);
     if (followUpIndex !== -1) {
       const updatedFollowUp: FollowUP = {
         ...followUps[followUpIndex],
@@ -507,9 +504,9 @@ export const useDealStore = create<DealStore>((set, get,) => ({
     }
   },
 
-  cancelFollowUp: (followUpId: number, values: CancelFollowUpValues) => {
+  cancelFollowUp: (followUpUUId: string, values: CancelFollowUpValues) => {
     const { followUps, addTimelineEvent } = get();
-    const followUpIndex = followUps.findIndex((f) => f.id === followUpId);
+    const followUpIndex = followUps.findIndex((f) => f.followUpUUId === followUpUUId);
     if (followUpIndex !== -1) {
       const updatedFollowUp: FollowUP = {
         ...followUps[followUpIndex],
@@ -535,9 +532,9 @@ export const useDealStore = create<DealStore>((set, get,) => ({
     }
   },
 
-  rescheduleFollowUp: (followUpId: number, values: RescheduleFollowUpValues) => {
+  rescheduleFollowUp: (followUpId: string, values: RescheduleFollowUpValues) => {
     const { followUps, addTimelineEvent } = get();
-    const followUpIndex = followUps.findIndex((f) => f.id === followUpId);
+    const followUpIndex = followUps.findIndex((f) => f.followUpUUId === followUpId);
     if (followUpIndex !== -1) {
       const currentFollowUp = followUps[followUpIndex];
       const updatedFollowUp: FollowUP = {
@@ -565,11 +562,11 @@ export const useDealStore = create<DealStore>((set, get,) => ({
     }
   },
 
-  deleteFollowUp: (followUpId: number) => {
+  deleteFollowUp: (followUpId: string) => {
     const { followUps, addTimelineEvent } = get();
-    const followUp = followUps.find((f) => f.id === followUpId);
+    const followUp = followUps.find((f) => f.followUpUUId === followUpId);
     if (followUp) {
-      set({ followUps: followUps.filter((f) => f.id !== followUpId) });
+      set({ followUps: followUps.filter((f) => f.followUpUUId !== followUpId) });
 
       addTimelineEvent({
         type: 'Follow Up',
@@ -588,7 +585,7 @@ export const useDealStore = create<DealStore>((set, get,) => ({
   logCall: (values: LogCallValues) => {
     const { calls, addTimelineEvent } = get();
     const newCall: CallLog = {
-      id: calls.length + 1,
+      callLogUUID: generateUniqueId(),
       subject: values.subject,
       callStartTime: dayjs(values.callStartTime, "YYYY-MM-DD hh:mm:ss A").format('YYYY-MM-DD HH:mm:ss'),
       duration: values.duration,
@@ -611,9 +608,9 @@ export const useDealStore = create<DealStore>((set, get,) => ({
       details: { call: newCall },
     });
   },
-  updateCall: (callId: number, values: LogCallValues) => {
+  updateCall: (callId: string, values: LogCallValues) => {
     const { calls, addTimelineEvent } = get();
-    const callIndex = calls.findIndex((call) => call.id === callId);
+    const callIndex = calls.findIndex((call) => call.callLogUUID === callId);
     if (callIndex !== -1) {
       const updatedCall: CallLog = {
         ...calls[callIndex],
@@ -643,9 +640,9 @@ export const useDealStore = create<DealStore>((set, get,) => ({
       });
     }
   },
-  deleteCall: (callId: number) => {
+  deleteCall: (callId: string) => {
     const { calls, addTimelineEvent } = get();
-    const updatedCalls = calls.filter((call) => call.id !== callId);
+    const updatedCalls = calls.filter((call) => call.callLogUUID !== callId);
     set({ calls: updatedCalls });
 
     addTimelineEvent({
@@ -656,7 +653,7 @@ export const useDealStore = create<DealStore>((set, get,) => ({
       user: get().user?.name || 'System',
       userUUID: get().user?.userUUID,
       color: 'red',
-      details: { call: calls.find((call) => call.id === callId) },
+      details: { call: calls.find((call) => call.callLogUUID === callId) },
     });
   },
 
@@ -664,7 +661,7 @@ export const useDealStore = create<DealStore>((set, get,) => ({
   sendEmail: (values: SendEmailValues, recipients: string[]) => {
     const { emails, addTimelineEvent } = get();
     const newEmail: Email = {
-      id: emails.length + 1,
+      emailUUID: generateUniqueId(),
       subject: values.subject,
       body: values.body,
       recipients: recipients,
@@ -689,7 +686,7 @@ export const useDealStore = create<DealStore>((set, get,) => ({
   addNote: (values: AddNoteValues) => {
     const { notes, addTimelineEvent } = get();
     const newNote: Note = {
-      id: notes.length + 1,
+      noteUUID: generateUniqueId(),
       title: values.title,
       description: values.description,
       createdAt: new Date().toISOString(),
@@ -708,9 +705,9 @@ export const useDealStore = create<DealStore>((set, get,) => ({
       details: { note: newNote },
     });
   },
-  deleteNote: (noteId: number) => {
+  deleteNote: (noteId: string) => {
     const { notes, addTimelineEvent } = get();
-    const updatedNotes = notes.filter((note) => note.id !== noteId);
+    const updatedNotes = notes.filter((note) => note.noteUUID !== noteId);
     set({ notes: updatedNotes });
 
     addTimelineEvent({
@@ -721,12 +718,12 @@ export const useDealStore = create<DealStore>((set, get,) => ({
       user: get().user?.name || 'System',
       userUUID: get().user?.userUUID,
       color: 'red',
-      details: { note: notes.find((note) => note.id === noteId) },
+      details: { note: notes.find((note) => note.noteUUID === noteId) },
     });
   },
-  updateNote: (noteId: number, values: AddNoteValues) => {
+  updateNote: (noteId: string, values: AddNoteValues) => {
     const { notes, addTimelineEvent } = get();
-    const noteIndex = notes.findIndex((note) => note.id === noteId);
+    const noteIndex = notes.findIndex((note) => note.noteUUID === noteId);
     if (noteIndex !== -1) {
       const updatedNote: Note = {
         ...notes[noteIndex],
@@ -755,7 +752,7 @@ export const useDealStore = create<DealStore>((set, get,) => ({
   addReminder: (values: ReminderValues) => {
     const { reminders, addTimelineEvent } = get();
     const newReminder: Reminder = {
-      id: reminders.length + 1,
+      reminderUUID: values.reminderUUID,
       description: values.description,
       notifyDate: dayjs(values.notifyDate, 'YYYY-MM-DD hh:mm A').toISOString(),
       setReminderTo: values.setReminderTo,
@@ -776,9 +773,9 @@ export const useDealStore = create<DealStore>((set, get,) => ({
       details: { reminder: newReminder },
     });
   },
-  deleteReminder: (reminderId: number) => {
+  deleteReminder: (reminderId: string) => {
     const { reminders, addTimelineEvent } = get();
-    const updatedReminders = reminders.filter((reminder) => reminder.id !== reminderId);
+    const updatedReminders = reminders.filter((reminder) => reminder.reminderUUID !== reminderId);
     set({ reminders: updatedReminders });
 
     addTimelineEvent({
@@ -789,13 +786,13 @@ export const useDealStore = create<DealStore>((set, get,) => ({
       user: get().user?.name || 'System',
       userUUID: get().user?.userUUID,
       color: 'red',
-      details: { reminder: reminders.find((reminder) => reminder.id === reminderId) },
+      details: { reminder: reminders.find((reminder) => reminder.reminderUUID === reminderId) },
     });
 
   },
   updateReminder(reminderId, values: ReminderValues) {
     const { reminders, addTimelineEvent } = get();
-    const reminderIndex = reminders.findIndex((reminder) => reminder.id === reminderId);
+    const reminderIndex = reminders.findIndex((reminder) => reminder.reminderUUID === reminderId);
     if (reminderIndex !== -1) {
       const updatedReminder: Reminder = {
         ...reminders[reminderIndex],

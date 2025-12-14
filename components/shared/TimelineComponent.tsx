@@ -1,5 +1,5 @@
 import { Button, Card, Image, Tag, Timeline } from "antd";
-import { GlobalDate } from "@/Utils/helpers";
+import { formatUserDisplay, GlobalDate } from "@/Utils/helpers";
 import dayjs from "dayjs";
 import {
   Calendar,
@@ -23,15 +23,15 @@ import { STAGE_LABELS } from "@/lib/types";
 export interface TimelineEvent {
   id: number;
   type:
-    | "Product"
-    | "Attachment"
-    | "Meeting"
-    | "Follow Up"
-    | "Call"
-    | "Email"
-    | "Note"
-    | "Stage Change"
-    | "Reminder";
+  | "Product"
+  | "Attachment"
+  | "Meeting"
+  | "Follow Up"
+  | "Call"
+  | "Email"
+  | "Note"
+  | "Stage Change"
+  | "Reminder";
   title: string;
   description: string;
   timestamp: string;
@@ -98,7 +98,6 @@ const CustomDot = ({
   </div>
 );
 
-import { formatUserDisplay } from "@/Utils/userDisplay";
 
 const TimelineComponent: React.FC<TimelineComponentProps> = ({
   timelineEvents,
@@ -280,8 +279,8 @@ const TimelineComponent: React.FC<TimelineComponentProps> = ({
                       <div className="font-medium">
                         {
                           STAGE_LABELS[
-                            event.details
-                              .previousStage as keyof typeof STAGE_LABELS
+                          event.details
+                            .previousStage as keyof typeof STAGE_LABELS
                           ]
                         }
                       </div>
@@ -293,7 +292,7 @@ const TimelineComponent: React.FC<TimelineComponentProps> = ({
                       <div className="font-medium">
                         {
                           STAGE_LABELS[
-                            event.details.newStage as keyof typeof STAGE_LABELS
+                          event.details.newStage as keyof typeof STAGE_LABELS
                           ]
                         }
                       </div>
@@ -418,20 +417,20 @@ const TimelineComponent: React.FC<TimelineComponentProps> = ({
                           event.details.followUp.isCompleted
                             ? "green"
                             : event.details.followUp.isCancelled
-                            ? "red"
-                            : "blue"
+                              ? "red"
+                              : "blue"
                         }
                       >
                         {event.details.followUp.isCompleted
                           ? "Completed"
                           : event.details.followUp.isCancelled
-                          ? "Cancelled"
-                          : "Open"}
+                            ? "Cancelled"
+                            : "Open"}
                       </Tag>
                       <Tag
                         color={
                           event.details.followUp.priority === "High" ||
-                          event.details.followUp.priority === "Urgent"
+                            event.details.followUp.priority === "Urgent"
                             ? "red"
                             : "orange"
                         }

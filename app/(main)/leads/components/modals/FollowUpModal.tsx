@@ -1,32 +1,20 @@
+import { HCOContactPerson } from '@/components/AddNewContactModal/AddNewContactModal';
 import { FollowUpModal as SharedFollowUpModal } from '@/components/shared/modals/FollowUpModal';
-import { useLeadStore } from '@/context/store/leadsStore';
-  import { HCOContactPerson } from '@/components/AddNewContactModal/AddNewContactModal';
+import { useLeadFollowUps } from '@/context/store/optimizedSelectors';
 import { useCallback } from 'react';
 
 export default function FollowUpModal() {
-  const { 
-    followUps, 
-    addFollowUp, 
-    updateFollowUp, 
-    completeFollowUp, 
-    cancelFollowUp, 
-    rescheduleFollowUp, 
-    deleteFollowUp,
-    contactPersons,
-    setContactPersons,
-    hcoUUID,
-    hcoName
-  } = useLeadStore();
-  
-  // Handle adding new contact person to the store
+  const { followUps, addFollowUp, updateFollowUp, completeFollowUp, cancelFollowUp, rescheduleFollowUp, deleteFollowUp, contactPersons, setContactPersons, hcoUUID, hcoName, leadUUID } = useLeadFollowUps();
+
+
   const handleAddContactPerson = useCallback((contact: HCOContactPerson) => {
     setContactPersons([...contactPersons, contact]);
   }, [contactPersons, setContactPersons]);
-  
+
   return (
-    <SharedFollowUpModal 
-      followUps={followUps} 
-      addFollowUp={addFollowUp} 
+    <SharedFollowUpModal
+      followUps={followUps}
+      addFollowUp={addFollowUp}
       updateFollowUp={updateFollowUp}
       completeFollowUp={completeFollowUp}
       cancelFollowUp={cancelFollowUp}
@@ -36,6 +24,7 @@ export default function FollowUpModal() {
       onAddContactPerson={handleAddContactPerson}
       hcoUUID={hcoUUID}
       hcoName={hcoName}
+      leadUUID={leadUUID}
     />
   );
 }

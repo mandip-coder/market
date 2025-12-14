@@ -15,6 +15,7 @@ import { LeadFormData } from "@/app/(main)/leads/components/LeadDrawer";
 
 // Type definitions for actions
 interface LogCallValues {
+  callLogUUID?: string;
   subject: string;
   callStartTime: Dayjs;
   duration: string;
@@ -26,6 +27,7 @@ interface LogCallValues {
 }
 
 interface SendEmailValues {
+  emailUUID?: string;
   subject: string;
   body: string;
 }
@@ -63,16 +65,16 @@ interface LeadsStore {
   // FollowUps Actions
   followUps: FollowUP[];
   addFollowUp: (values: AddFollowUpValues) => void;
-  updateFollowUp: (taskId: number, values: AddFollowUpValues) => void;
-  completeFollowUp: (followUpId: number, values: CompleteFollowUpValues) => void;
-  cancelFollowUp: (followUpId: number, values: CancelFollowUpValues) => void;
-  rescheduleFollowUp: (followUpId: number, values: RescheduleFollowUpValues) => void;
-  deleteFollowUp: (followUpId: number) => void;
+  updateFollowUp: (followUpUUId: string, values: AddFollowUpValues) => void;
+  completeFollowUp: (followUpUUId: string, values: CompleteFollowUpValues) => void;
+  cancelFollowUp: (followUpUUId: string, values: CancelFollowUpValues) => void;
+  rescheduleFollowUp: (followUpUUId: string, values: RescheduleFollowUpValues) => void;
+  deleteFollowUp: (followUpUUId: string) => void;
   // Calls Actions
   calls: CallLog[];
   logCall: (values: LogCallValues) => void;
-  updateCall: (callId: number, values: LogCallValues) => void;
-  deleteCall: (callId: number) => void;
+  updateCall: (callId: string, values: LogCallValues) => void;
+  deleteCall: (callId: string) => void;
   // Emails Actions
   emails: Email[];
   sendEmail: (values: SendEmailValues, recipients: string[]) => void;
@@ -208,13 +210,11 @@ export const useLeadStore = create<LeadsStore>((set, get) => ({
   addFollowUp: (values: AddFollowUpValues) => {
     const { followUps, addTimelineEvent, contactPersons } = get();
     const newFollowUp: FollowUP = {
-      id: followUps.length + 1,
+      followUpUUId: values.followUpUUId,
       subject: values.subject,
-      priority: values.priority,
       scheduledDateTime: dayjs(values.scheduledDateTime).toISOString(),
       contactPersons: values.contactPersons,
       remark: values.remark,
-      reminder: values.reminder,
       isCompleted: false,
       isCancelled: false,
     };
@@ -236,28 +236,21 @@ export const useLeadStore = create<LeadsStore>((set, get) => ({
     });
   },
 
-  updateFollowUp: (followUpId: number, values: AddFollowUpValues) => {
-    const { followUps, addTimelineEvent, contactPersons } = get();
-    const followUpIndex = followUps.findIndex((f) => f.id === followUpId);
+  updateFollowUp: (followUpUUId: string, values: AddFollowUpValues) => {
+    const { followUps, addTimelineEvent } = get();
+    const followUpIndex = followUps.findIndex((f) => f.followUpUUId === followUpUUId);
     if (followUpIndex !== -1) {
       const updatedFollowUp: FollowUP = {
         ...followUps[followUpIndex],
         subject: values.subject,
-        priority: values.priority,
         scheduledDateTime: dayjs(values.scheduledDateTime).toISOString(),
         contactPersons: values.contactPersons,
         remark: values.remark,
-        reminder: values.reminder,
       };
 
       const updatedFollowUps = [...followUps];
       updatedFollowUps[followUpIndex] = updatedFollowUp;
       set({ followUps: updatedFollowUps });
-
-      const contactPersonNames = values.contactPersons.map(id => {
-        const person = contactPersons.find(p => p.hcoContactUUID === id);
-        return person ? person.fullName : 'Unknown';
-      });
 
       addTimelineEvent({
         type: 'Follow Up',
@@ -266,14 +259,14 @@ export const useLeadStore = create<LeadsStore>((set, get) => ({
         timestamp: new Date().toISOString(),
         user: get().user?.name || 'System',
         color: 'orange',
-        details: { followUp: updatedFollowUp, contactPersonNames },
+        details: { followUp: updatedFollowUp },
       });
     }
   },
 
-  completeFollowUp: (followUpId: number, values: CompleteFollowUpValues) => {
-    const { followUps, addTimelineEvent, contactPersons } = get();
-    const followUpIndex = followUps.findIndex((f) => f.id === followUpId);
+  completeFollowUp: (followUpUUId: string, values: CompleteFollowUpValues) => {
+    const { followUps, addTimelineEvent } = get();
+    const followUpIndex = followUps.findIndex((f) => f.followUpUUId === followUpUUId);
     if (followUpIndex !== -1) {
       const updatedFollowUp: FollowUP = {
         ...followUps[followUpIndex],
@@ -286,11 +279,6 @@ export const useLeadStore = create<LeadsStore>((set, get) => ({
       updatedFollowUps[followUpIndex] = updatedFollowUp;
       set({ followUps: updatedFollowUps });
 
-      const contactPersonNames = updatedFollowUp.contactPersons.map(id => {
-        const person = contactPersons.find(p => p.hcoContactUUID === id);
-        return person ? person.fullName : 'Unknown';
-      });
-
       addTimelineEvent({
         type: 'Follow Up',
         title: `FollowUp completed: ${updatedFollowUp.subject}`,
@@ -298,14 +286,14 @@ export const useLeadStore = create<LeadsStore>((set, get) => ({
         timestamp: new Date().toISOString(),
         user: get().user?.name || 'System',
         color: 'green',
-        details: { followUp: updatedFollowUp, contactPersonNames },
+        details: { followUp: updatedFollowUp },
       });
     }
   },
 
-  cancelFollowUp: (followUpId: number, values: CancelFollowUpValues) => {
-    const { followUps, addTimelineEvent, contactPersons } = get();
-    const followUpIndex = followUps.findIndex((f) => f.id === followUpId);
+  cancelFollowUp: (followUpUUId: string, values: CancelFollowUpValues) => {
+    const { followUps, addTimelineEvent } = get();
+    const followUpIndex = followUps.findIndex((f) => f.followUpUUId === followUpUUId);
     if (followUpIndex !== -1) {
       const updatedFollowUp: FollowUP = {
         ...followUps[followUpIndex],
@@ -318,11 +306,6 @@ export const useLeadStore = create<LeadsStore>((set, get) => ({
       updatedFollowUps[followUpIndex] = updatedFollowUp;
       set({ followUps: updatedFollowUps });
 
-      const contactPersonNames = updatedFollowUp.contactPersons.map(id => {
-        const person = contactPersons.find(p => p.hcoContactUUID === id);
-        return person ? person.fullName : 'Unknown';
-      });
-
       addTimelineEvent({
         type: 'Follow Up',
         title: `FollowUp cancelled: ${updatedFollowUp.subject}`,
@@ -330,14 +313,14 @@ export const useLeadStore = create<LeadsStore>((set, get) => ({
         timestamp: new Date().toISOString(),
         user: get().user?.name || 'System',
         color: 'red',
-        details: { followUp: updatedFollowUp, contactPersonNames },
+        details: { followUp: updatedFollowUp },
       });
     }
   },
 
-  rescheduleFollowUp: (followUpId: number, values: RescheduleFollowUpValues) => {
-    const { followUps, addTimelineEvent, contactPersons } = get();
-    const followUpIndex = followUps.findIndex((f) => f.id === followUpId);
+  rescheduleFollowUp: (followUpUUId: string, values: RescheduleFollowUpValues) => {
+    const { followUps, addTimelineEvent } = get();
+    const followUpIndex = followUps.findIndex((f) => f.followUpUUId === followUpUUId);
     if (followUpIndex !== -1) {
       const currentFollowUp = followUps[followUpIndex];
       const updatedFollowUp: FollowUP = {
@@ -352,11 +335,6 @@ export const useLeadStore = create<LeadsStore>((set, get) => ({
       updatedFollowUps[followUpIndex] = updatedFollowUp;
       set({ followUps: updatedFollowUps });
 
-      const contactPersonNames = updatedFollowUp.contactPersons.map(id => {
-        const person = contactPersons.find(p => p.hcoContactUUID === id);
-        return person ? person.fullName : 'Unknown';
-      });
-
       addTimelineEvent({
         type: 'Follow Up',
         title: `FollowUp rescheduled: ${updatedFollowUp.subject}`,
@@ -364,21 +342,16 @@ export const useLeadStore = create<LeadsStore>((set, get) => ({
         timestamp: new Date().toISOString(),
         user: get().user?.name || 'System',
         color: 'blue',
-        details: { followUp: updatedFollowUp, contactPersonNames },
+        details: { followUp: updatedFollowUp },
       });
     }
   },
 
-  deleteFollowUp: (followUpId: number) => {
-    const { followUps, addTimelineEvent, contactPersons } = get();
-    const followUp = followUps.find((f) => f.id === followUpId);
+  deleteFollowUp: (followUpUUId: string) => {
+    const { followUps, addTimelineEvent } = get();
+    const followUp = followUps.find((f) => f.followUpUUId === followUpUUId);
     if (followUp) {
-      set({ followUps: followUps.filter((f) => f.id !== followUpId) });
-
-      const contactPersonNames = followUp.contactPersons.map(id => {
-        const person = contactPersons.find(p => p.hcoContactUUID === id);
-        return person ? person.fullName : 'Unknown';
-      });
+      set({ followUps: followUps.filter((f) => f.followUpUUId !== followUpUUId) });
 
       addTimelineEvent({
         type: 'Follow Up',
@@ -387,7 +360,7 @@ export const useLeadStore = create<LeadsStore>((set, get) => ({
         timestamp: new Date().toISOString(),
         user: get().user?.name || 'System',
         color: 'red',
-        details: { followUp, contactPersonNames },
+        details: { followUp },
       });
     }
   },
@@ -396,7 +369,7 @@ export const useLeadStore = create<LeadsStore>((set, get) => ({
   logCall: (values: LogCallValues) => {
     const { calls, addTimelineEvent } = get();
     const newCall: CallLog = {
-      id: calls.length + 1,
+      callLogUUID: generateUniqueId(),
       subject: values.subject,
       callStartTime: dayjs(values.callStartTime, "YYYY-MM-DD hh:mm:ss A").format('YYYY-MM-DD HH:mm:ss'),
       duration: values.duration,
@@ -419,9 +392,9 @@ export const useLeadStore = create<LeadsStore>((set, get) => ({
     });
   },
 
-  updateCall: (callId: number, values: LogCallValues) => {
+  updateCall: (callId: string, values: LogCallValues) => {
     const { calls, addTimelineEvent } = get();
-    const callIndex = calls.findIndex((call) => call.id === callId);
+    const callIndex = calls.findIndex((call) => call.callLogUUID === callId);
     if (callIndex !== -1) {
       const updatedCall: CallLog = {
         ...calls[callIndex],
@@ -451,10 +424,10 @@ export const useLeadStore = create<LeadsStore>((set, get) => ({
     }
   },
 
-  deleteCall: (callId: number) => {
+  deleteCall: (callId: string) => {
     const { calls, addTimelineEvent } = get();
-    const call = calls.find((c) => c.id === callId); // Find the call to get its details for the timeline event
-    const updatedCalls = calls.filter((c) => c.id !== callId);
+    const call = calls.find((c) => c.callLogUUID === callId); // Find the call to get its details for the timeline event
+    const updatedCalls = calls.filter((c) => c.callLogUUID !== callId);
     set({ calls: updatedCalls });
 
     addTimelineEvent({
@@ -472,7 +445,7 @@ export const useLeadStore = create<LeadsStore>((set, get) => ({
   sendEmail: (values: SendEmailValues, recipients: string[]) => {
     const { emails, addTimelineEvent } = get();
     const newEmail: Email = {
-      id: emails.length + 1,
+      emailUUID: values.emailUUID as string,
       subject: values.subject,
       body: values.body,
       recipients: recipients,

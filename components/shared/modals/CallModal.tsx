@@ -81,8 +81,8 @@ const CallCard = memo<{
   }, [call, onEdit]);
 
   const handleDelete = useCallback(() => {
-    onDelete(call.id.toString());
-  }, [call.id, onDelete]);
+    onDelete(call.callLogUUID.toString());
+  }, [call.callLogUUID, onDelete]);
 
   return (
     <div className="flex flex-col rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 overflow-hidden">
@@ -160,11 +160,11 @@ const CallCard = memo<{
 CallCard.displayName = 'CallCard';
 
 // Memoized CallForm component
-const CallForm = memo<{ 
-  onClose: () => void; 
+const CallForm = memo<{
+  onClose: () => void;
   editingCall: CallLog | null;
   logCall: (data: any) => void;
-  updateCall: (id: number, data: any) => void;
+  updateCall: (id: string, data: any) => void;
 }>(({ onClose, editingCall, logCall, updateCall }) => {
   const initialValues = useMemo(() => {
     if (editingCall) {
@@ -212,7 +212,7 @@ const CallForm = memo<{
   const handleSubmit = useCallback(
     (values: any) => {
       if (editingCall) {
-        updateCall(editingCall.id, values);
+        updateCall(editingCall.callLogUUID, values);
       } else {
         logCall(values);
       }
@@ -220,14 +220,14 @@ const CallForm = memo<{
     },
     [editingCall, logCall, updateCall, onClose]
   );
- 
+
   return (
     <Formik
       initialValues={initialValues}
       validationSchema={validationSchema}
       onSubmit={handleSubmit}
       enableReinitialize
-      key={editingCall?.id || 'new-call'}
+      key={editingCall?.callLogUUID || 'new-call'}
     >
       {({ values }) => (
         <Form id="callForm" className="space-y-4">
@@ -308,8 +308,8 @@ CallForm.displayName = 'CallForm';
 interface CallModalProps {
   calls: CallLog[];
   logCall: (data: any) => void;
-  updateCall: (id: number, data: any) => void;
-  deleteCall: (id: number) => void;
+  updateCall: (id: string, data: any) => void;
+  deleteCall: (id: string) => void;
 }
 
 export const CallModal: React.FC<CallModalProps> = ({ calls, logCall, updateCall, deleteCall }) => {
@@ -358,7 +358,7 @@ export const CallModal: React.FC<CallModalProps> = ({ calls, logCall, updateCall
   }, []);
 
   const handleDeleteClick = useCallback((id: string) => {
-    const call = calls.find(c => c.id.toString() === id);
+    const call = calls.find(c => c.callLogUUID === id);
     if (call) {
       setCallToDelete(call);
       setDeleteModalOpen(true);
@@ -367,7 +367,7 @@ export const CallModal: React.FC<CallModalProps> = ({ calls, logCall, updateCall
 
   const confirmDelete = useCallback(() => {
     if (callToDelete) {
-      deleteCall(callToDelete.id);
+      deleteCall(callToDelete.callLogUUID);
       setDeleteModalOpen(false);
       setCallToDelete(null);
     }
@@ -426,7 +426,7 @@ export const CallModal: React.FC<CallModalProps> = ({ calls, logCall, updateCall
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredCalls.map((call: CallLog) => (
               <CallCard
-                key={call.id}
+                key={call.callLogUUID}
                 call={call}
                 onEdit={handleEdit}
                 onDelete={handleDeleteClick}
@@ -475,7 +475,7 @@ export const CallModal: React.FC<CallModalProps> = ({ calls, logCall, updateCall
         okText="Delete"
         okType="danger"
         cancelText="Cancel"
-        okButtonProps={{type:"primary"}}
+        okButtonProps={{ type: "primary" }}
         centered
       >
         <p>Are you sure you want to delete this call log? This action cannot be undone.</p>

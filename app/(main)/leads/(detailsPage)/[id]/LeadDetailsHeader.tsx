@@ -32,9 +32,13 @@ const headerVariants = {
 const { TextArea } = Input;
 const { Option } = Select;
 const { Title, Text } = Typography;
-
-export default function LeadDetailsHeader({ headerDetails }: { headerDetails: Promise<Lead> }) {
-  const lead = use(headerDetails);
+interface LeadDetails {
+  data: Lead
+}
+export default function LeadDetailsHeader({ headerDetails }: { headerDetails: Promise<LeadDetails> }) {
+  const response = use(headerDetails);
+  const lead = response?.data;
+  console.log(lead);
   const router = useRouter();
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
   const [convertModalVisible, setConvertModalVisible] = useState(false);
@@ -51,7 +55,7 @@ export default function LeadDetailsHeader({ headerDetails }: { headerDetails: Pr
       text: <span className="text-blue-900 dark:text-blue-400">New</span>,
       color: "#8bb5f0",
     },
-    inprogress: {
+    inProgress: {
       text: <div className="flex items-center gap-1">
         <LoadingOutlined className="h-3.5 w-3.5 " spin />
         <span className="text-green-900 dark:text-green-400">In Progress</span>
@@ -68,8 +72,8 @@ export default function LeadDetailsHeader({ headerDetails }: { headerDetails: Pr
   const getStatusIcon = (status: string) => {
     if (status === 'new') {
       return STATUSMAP.new;
-    } else if (status === 'inprogress') {
-      return STATUSMAP.inprogress;
+    } else if (status === 'inProgress') {
+      return STATUSMAP.inProgress;
     } else if (status === 'cancelled') {
       return STATUSMAP.cancelled;
     } else {
@@ -137,15 +141,15 @@ export default function LeadDetailsHeader({ headerDetails }: { headerDetails: Pr
         {/* Header section with title and back button */}
         <div className="flex justify-between items-start mb-4 flex-wrap gap-3">
           <div className="flex items-center gap-3">
-         
+
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <Title level={3} className="!mb-0 text-gray-900 dark:text-white">
                   {lead.leadName}
                 </Title>
-                <Badge 
-                  color={getStatusIcon(lead.status).color} 
-                  text={getStatusIcon(lead.status).text} 
+                <Badge
+                  color={getStatusIcon(lead.leadStatus).color}
+                  text={getStatusIcon(lead.leadStatus).text}
                 />
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
@@ -154,13 +158,13 @@ export default function LeadDetailsHeader({ headerDetails }: { headerDetails: Pr
               </div>
             </div>
           </div>
-          
+
           <div className="flex gap-2">
             <Button
               danger
               icon={<X size={16} />}
               onClick={handleCancelLead}
-              disabled={lead.status === 'cancelled'}
+              disabled={lead.leadStatus === 'cancelled'}
             >
               Cancel Lead
             </Button>
@@ -168,7 +172,7 @@ export default function LeadDetailsHeader({ headerDetails }: { headerDetails: Pr
               type="primary"
               icon={<CheckCircle size={16} />}
               onClick={handleConvertToDeal}
-              disabled={lead.status === 'cancelled'}
+              disabled={lead.leadStatus === 'cancelled'}
             >
               Convert To Deal
             </Button>
@@ -190,7 +194,7 @@ export default function LeadDetailsHeader({ headerDetails }: { headerDetails: Pr
             <div>
               <Text type="secondary" className="text-xs">Created On</Text>
               <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {GlobalDate(lead.createdDate)} by {lead.createdBy || "—"}
+                {GlobalDate(lead.leadDate)} by {lead.createdBy || "—"}
               </div>
             </div>
           </div>

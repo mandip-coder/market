@@ -79,28 +79,24 @@ export interface Meeting {
 
 }
 export interface FollowUP {
-  id: number;
+  followUpUUId: string;
   subject: string;
-  priority: 'Low' | 'Medium' | 'High' | 'Urgent';
   scheduledDateTime: string; // ISO datetime string
   contactPersons: string[]; // Array of contact person UUIDs
   remark?: string;
-  reminder: 'Email' | 'Notification' | 'None';
-  // Internal state management
   isCompleted: boolean;
   isCancelled: boolean;
   completedAt?: string;
   cancelledAt?: string;
   outcome?: string; // For completed follow-ups
   cancelReason?: string; // For cancelled follow-ups
-  // Reschedule tracking
   rescheduledAt?: string;
   rescheduleReason?: string;
   originalScheduledDateTime?: string;
 }
 
 export interface CallLog {
-  id: number;
+  callLogUUID: string;
   subject: string;
   callStartTime: string;
   duration: string;
@@ -113,7 +109,7 @@ export interface CallLog {
 }
 
 export interface Email {
-  id: number;
+  emailUUID: string;
   subject: string;
   body: string;
   recipients: string[];
@@ -122,7 +118,7 @@ export interface Email {
 }
 
 export interface Note {
-  id: number;
+  noteUUID: string;
   title: string;
   description: string;
   createdAt: string;
@@ -130,7 +126,7 @@ export interface Note {
 }
 
 export interface Reminder {
-  id: number;
+  reminderUUID: string;
   notifyDate: string,
   setReminderTo: string,
   description: string

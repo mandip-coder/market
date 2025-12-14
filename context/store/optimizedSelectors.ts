@@ -80,6 +80,32 @@ export const useLeadModal = () =>
     }))
   );
 
+export const useLeadDetailsTabs = () =>
+  useLeadStore(
+    useShallow((state) => ({
+      calls: state.calls,
+      emails: state.emails,
+      attachments: state.attachments,
+      followUps: state.followUps,
+    }))
+  );
+export const useLeadFollowUps = () =>
+  useLeadStore(
+    useShallow((state) => ({
+      followUps: state.followUps,
+      addFollowUp: state.addFollowUp,
+      updateFollowUp: state.updateFollowUp,
+      completeFollowUp: state.completeFollowUp,
+      cancelFollowUp: state.cancelFollowUp,
+      rescheduleFollowUp: state.rescheduleFollowUp,
+      deleteFollowUp: state.deleteFollowUp,
+      contactPersons: state.contactPersons,
+      setContactPersons: state.setContactPersons,
+      hcoUUID: state.hcoUUID,
+      hcoName: state.hcoName,
+      leadUUID: state.leadUUID,
+    }))
+  );
 // Select only product-related state for leads
 export const useLeadProducts = () =>
   useLeadStore(

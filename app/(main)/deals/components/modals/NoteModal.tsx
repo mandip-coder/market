@@ -16,7 +16,7 @@ import AppScrollbar from '@/components/AppScrollBar';
 const NoteItem = memo(({ note, onEdit, onDelete }: {
   note: any;
   onEdit: (note: any) => void;
-  onDelete: (id: number) => void;
+  onDelete: (id: string) => void;
 }) => (
   <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-gray-100 dark:border-gray-700">
     <div className="p-5">
@@ -71,7 +71,7 @@ const EmptyState = memo(({ searchTerm, onAddNote, setSearchTerm }: {
   setSearchTerm: (searchTerm: string) => void;
 }) => {
   const isSearchState = Boolean(searchTerm);
-  
+
   return (
     <div className="text-center py-16 bg-gray-50 dark:bg-gray-900 rounded-xl transition-all duration-300">
       <div className="flex flex-col items-center justify-center">
@@ -88,19 +88,19 @@ const EmptyState = memo(({ searchTerm, onAddNote, setSearchTerm }: {
             </div>
           )}
         </div>
-        
+
         <div className="mt-4 mb-6">
           <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
             {isSearchState ? 'No Results Found' : 'No Notes Yet'}
           </h3>
           <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto">
-            {isSearchState 
+            {isSearchState
               ? `We couldn't find any notes matching "${searchTerm}".`
               : 'Start by creating your first note.'
             }
           </p>
         </div>
-        
+
         <div className="flex flex-col sm:flex-row gap-3 items-center justify-center">
           {isSearchState ? (
             <Button
@@ -186,7 +186,7 @@ const NoteModal = () => {
   });
 
   const [editingNote, setEditingNote] = useState<any>(null);
-  const [deletingNoteId, setDeletingNoteId] = useState<number | null>(null);
+  const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Memoize validation schema to prevent recreation on every render
@@ -232,7 +232,7 @@ const NoteModal = () => {
   }, []);
 
   // Memoize delete note handler
-  const handleDeleteNote = useCallback((noteId: number) => {
+  const handleDeleteNote = useCallback((noteId: string) => {
     setDeletingNoteId(noteId);
     setModals(prev => ({ ...prev, delete: true }));
   }, []);
@@ -283,7 +283,7 @@ const NoteModal = () => {
         {notes.length > 0 && <div className="mb-6">
           <Input
             placeholder="Search notes by title, description, or author..."
-            prefix={<Search size={16} className="text-gray-400"  />}
+            prefix={<Search size={16} className="text-gray-400" />}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full max-w-md"
@@ -292,19 +292,19 @@ const NoteModal = () => {
         </div>}
 
         {filteredNotes.length > 0 ? (
-            <AppScrollbar className='max-h-100 overflow-auto'>
-          <div className="space-y-4">
+          <AppScrollbar className='max-h-100 overflow-auto'>
+            <div className="space-y-4">
 
-            {filteredNotes.map(note => (
-              <NoteItem
-              key={note.id}
-              note={note}
-              onEdit={handleEditNote}
-              onDelete={handleDeleteNote}
-              />
-            ))}
-          </div>
-            </AppScrollbar>
+              {filteredNotes.map(note => (
+                <NoteItem
+                  key={note.noteUUID}
+                  note={note}
+                  onEdit={handleEditNote}
+                  onDelete={handleDeleteNote}
+                />
+              ))}
+            </div>
+          </AppScrollbar>
         ) : (
           <EmptyState
             searchTerm={searchTerm}

@@ -44,7 +44,7 @@ const mockUsers = [
 //     value: user.id.toString(),
 //     label: (
 //       <div className="flex items-center gap-2">
-//         <div 
+//         <div
 //           className="flex items-center justify-center w-6 h-6 rounded-full text-white text-xs font-medium"
 //           style={{ backgroundColor: user.avatar }}
 //         >
@@ -69,7 +69,7 @@ const ReminderCard = memo<{
   onDelete: (id: string) => void;
 }>(({ reminder, onEdit, onDelete }) => {
   const handleEdit = useCallback(() => onEdit(reminder), [onEdit, reminder]);
-  const handleDelete = useCallback(() => onDelete(reminder.id?.toString() ?? ''), [onDelete, reminder]);
+  const handleDelete = useCallback(() => onDelete(reminder.reminderUUID ?? ''), [onDelete, reminder]);
 
   return (
     <div className="flex flex-col rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 overflow-hidden">
@@ -234,7 +234,7 @@ const ReminderForm = memo<{ onClose: () => void; editingReminder: ReminderType |
       };
 
       if (editingReminder) {
-        updateReminder(editingReminder.id, payload);
+        updateReminder(editingReminder.reminderUUID, payload);
       } else {
         addReminder(payload);
       }
@@ -250,7 +250,7 @@ const ReminderForm = memo<{ onClose: () => void; editingReminder: ReminderType |
       validationSchema={validationSchema}
       onSubmit={handleSubmit}
       enableReinitialize
-      key={editingReminder?.id || 'new-reminder'}
+      key={editingReminder?.reminderUUID || 'new-reminder'}
     >
       {({ values, setFieldValue }) => (
         <Form id="reminderForm" className="space-y-4">
@@ -272,7 +272,7 @@ const ReminderForm = memo<{ onClose: () => void; editingReminder: ReminderType |
                       onBlur={() => {
                         form.setFieldTouched(field.name, true);
                       }}
-                      showTime={{ format: 'hh:mm A' }}   
+                      showTime={{ format: 'hh:mm A' }}
                       format="YYYY-MM-DD hh:mm A"
                       placeholder="Select date and time"
                       className='w-full'
@@ -375,7 +375,7 @@ const ReminderModal: React.FC = () => {
   }, []);
 
   const handleDeleteClick = useCallback((id: string) => {
-    const r = reminders.find(item => item.id?.toString() === id);
+    const r = reminders.find(item => item.reminderUUID === id);
     if (r) {
       setReminderToDelete(r);
       setDeleteModalOpen(true);
@@ -384,7 +384,7 @@ const ReminderModal: React.FC = () => {
 
   const confirmDelete = useCallback(() => {
     if (reminderToDelete) {
-      deleteReminder(reminderToDelete.id);
+      deleteReminder(reminderToDelete.reminderUUID);
       setDeleteModalOpen(false);
       setReminderToDelete(null);
     }
@@ -445,7 +445,7 @@ const ReminderModal: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredReminders.map((r: ReminderType) => (
               <ReminderCard
-                key={r.id}
+                key={r.reminderUUID}
                 reminder={r}
                 onEdit={handleEdit}
                 onDelete={handleDeleteClick}

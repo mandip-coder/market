@@ -63,18 +63,18 @@ interface EmailModalProps {
   }>;
 }
 
-export const EmailModal: React.FC<EmailModalProps> = ({ 
-  emails, 
-  sendEmail, 
+export const EmailModal: React.FC<EmailModalProps> = ({
+  emails,
+  sendEmail,
   contacts,
-  AttachmentModalComponent 
+  AttachmentModalComponent
 }) => {
   const [isEmailModalVisible, setIsEmailModalVisible] = useState(false);
   const [isAttachmentModalVisible, setIsAttachmentModalVisible] = useState(false);
   const [isViewEmailModalVisible, setIsViewEmailModalVisible] = useState(false);
   const [viewingEmail, setViewingEmail] = useState<Email | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedEmailId, setSelectedEmailId] = useState<number | null>(null);
+  const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
   const [showCC, setShowCC] = useState(false);
   const [showBCC, setShowBCC] = useState(false);
   const { message } = App.useApp();
@@ -157,12 +157,12 @@ export const EmailModal: React.FC<EmailModalProps> = ({
 
       {filteredEmails.length ? filteredEmails.map(email => (
         <div
-          key={email.id}
-          className={`border rounded-lg p-4 transition-all cursor-pointer ${selectedEmailId === email.id
+          key={email.emailUUID}
+          className={`border rounded-lg p-4 transition-all cursor-pointer ${selectedEmailId === email.emailUUID
             ? 'border-blue-400 bg-blue-50 shadow-md'
             : 'border-gray-200 bg-white hover:shadow-md'
             }`}
-          onClick={() => setSelectedEmailId(email.id === selectedEmailId ? null : email.id)}
+          onClick={() => setSelectedEmailId(email.emailUUID === selectedEmailId ? null : email.emailUUID)}
         >
           <div className="flex justify-between items-start">
             <div className="flex items-start gap-3 flex-1">
@@ -199,9 +199,9 @@ export const EmailModal: React.FC<EmailModalProps> = ({
           </div>
         </div>
       )) : (
-        <EmptyState 
-          searchQuery={searchTerm} 
-          onClearSearch={() => setSearchTerm('')} 
+        <EmptyState
+          searchQuery={searchTerm}
+          onClearSearch={() => setSearchTerm('')}
           onAction={() => setIsEmailModalVisible(true)}
           icon={Mail}
           emptyTitle="No Emails"
@@ -366,8 +366,8 @@ export const EmailModal: React.FC<EmailModalProps> = ({
                           key={index}
                           closable
                           variant='outlined'
-                          style={{ padding:"10px" }}
-                          closeIcon={<CloseOutlined className='!text-sm'/>}
+                          style={{ padding: "10px" }}
+                          closeIcon={<CloseOutlined className='!text-sm' />}
                           onClose={() => {
                             const newAttachments = values.attachments.filter((_, i) => i !== index);
                             setFieldValue('attachments', newAttachments);

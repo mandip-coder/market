@@ -51,7 +51,6 @@ export const formatUserDisplay = (
   targetUserUUID: string | null | undefined,
   currentUserUUID: string | null | undefined
 ): string => {
-  console.log(name, targetUserUUID, currentUserUUID);
   if (targetUserUUID && currentUserUUID && targetUserUUID === currentUserUUID) {
     return "You";
   }

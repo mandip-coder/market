@@ -1,17 +1,17 @@
 import SuspenseWithBoundary from "@/components/SuspenseWithErrorBoundry/SuspenseWithErrorBoundry";
 import LeadDetails from "./LeadDetails";
 import LeadDetailsHeader from "./LeadDetailsHeader";
-import LeadsData from "../../leadsData.json";
+import { SERVERAPI } from "@/Utils/apiFunctions";
+import { APIPATH } from "@/shared/constants/url";
+
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const headerData = new Promise<any>((resolve, reject) => {
-    const leadData = LeadsData.find((lead: any) => lead.leadUUID === id)
-    setTimeout(() => resolve(leadData), 2000)
-  })
+
+  const headerData = SERVERAPI(APIPATH.LEAD.GETLEAD + id)
   return (
     <SuspenseWithBoundary>
       <LeadDetailsHeader headerDetails={headerData} />
-      <LeadDetails data={headerData} />
+      <LeadDetails lead={headerData} />
     </SuspenseWithBoundary>
   )
 }

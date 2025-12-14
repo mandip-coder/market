@@ -63,16 +63,18 @@ const rescheduleReasonOptions = [
 
 interface FollowUpModalProps {
   followUps: FollowUP[];
-  addFollowUp: (data: any) => void;
-  updateFollowUp: (id: number, data: any) => void;
-  completeFollowUp: (id: number, data: CompleteFollowUpValues) => void;
-  cancelFollowUp: (id: number, data: CancelFollowUpValues) => void;
-  rescheduleFollowUp: (id: number, data: RescheduleFollowUpValues) => void;
-  deleteFollowUp: (id: number) => void;
+  addFollowUp: (data: FollowUP) => void;
+  updateFollowUp: (id: string, data: FollowUP) => void;
+  completeFollowUp: (id: string, data: CompleteFollowUpValues) => void;
+  cancelFollowUp: (id: string, data: CancelFollowUpValues) => void;
+  rescheduleFollowUp: (id: string, data: RescheduleFollowUpValues) => void;
+  deleteFollowUp: (id: string) => void;
   contactPersons: HCOContactPerson[];
   onAddContactPerson?: (contact: HCOContactPerson) => void;
   hcoUUID: string | null;
   hcoName: string | null;
+  leadUUID?: string;
+  dealUUID?: string
 }
 
 export const FollowUpModal: React.FC<FollowUpModalProps> = ({
@@ -87,10 +89,12 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
   onAddContactPerson,
   hcoUUID,
   hcoName,
+  leadUUID,
+  dealUUID
 }) => {
   const [open, setOpen] = useState(false);
   const [editingFollowUp, setEditingFollowUp] = useState<FollowUP | null>(null);
-
+  console.log("contactPersons", contactPersons);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const debouncedRef = useRef<any>(null);
@@ -176,7 +180,7 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
     };
 
     if (editingFollowUp) {
-      updateFollowUp(editingFollowUp.id, formattedValues);
+      updateFollowUp(editingFollowUp.followUpUUId, formattedValues);
     } else {
       addFollowUp(formattedValues);
     }
@@ -268,16 +272,7 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
     [contactPersons]
   );
 
-  const getContactPersonNames = (contactPersonUUIDs: string[]) => {
-    return contactPersonUUIDs
-      .map(
-        (uuid) =>
-          contactPersons.find((cp) => cp.hcoContactUUID === uuid)
-            ?.fullName
-      )
-      .filter(Boolean)
-      .join(", ");
-  };
+
 
   // Handle adding new contact person
   const handleAddNewContact = useCallback(() => {
@@ -312,14 +307,14 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
         <Divider style={{ margin: "8px 0" }} />
         <div className="flex items-center justify-end p-2">
 
-        <Button
-          type="primary"
-          icon={<UserPlus size={16} />}
-          onClick={handleAddNewContact}
+          <Button
+            type="primary"
+            icon={<UserPlus size={16} />}
+            onClick={handleAddNewContact}
           >
-          Add New Contact
-        </Button>
-          </div>
+            Add New Contact
+          </Button>
+        </div>
       </>
     ),
     [handleAddNewContact]
@@ -356,11 +351,7 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
       title: "Contact Persons",
       dataIndex: "contactPersons",
       key: "contactPersons",
-      render: (contactPersons: string[]) => (
-        <span className="text-gray-600 dark:text-gray-400">
-          {getContactPersonNames(contactPersons) || "N/A"}
-        </span>
-      ),
+
     },
     {
       title: "Status",
@@ -617,7 +608,7 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
           })}
           onSubmit={(values) => {
             if (selectedFollowUp) {
-              completeFollowUp(selectedFollowUp.id, values);
+              completeFollowUp(selectedFollowUp.followUpUUId, values);
               setCompleteModalOpen(false);
               setSelectedFollowUp(null);
             }
@@ -664,7 +655,7 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
           })}
           onSubmit={(values) => {
             if (selectedFollowUp) {
-              cancelFollowUp(selectedFollowUp.id, values);
+              cancelFollowUp(selectedFollowUp.followUpUUId, values);
               setCancelModalOpen(false);
               setSelectedFollowUp(null);
             }
@@ -743,7 +734,7 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
           })}
           onSubmit={(values) => {
             if (selectedFollowUp) {
-              rescheduleFollowUp(selectedFollowUp.id, values);
+              rescheduleFollowUp(selectedFollowUp.followUpUUId, values);
               setRescheduleModalOpen(false);
               setSelectedFollowUp(null);
             }
@@ -816,7 +807,7 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
         onCancel={() => setDeleteModalOpen(false)}
         onOk={() => {
           if (selectedFollowUp) {
-            deleteFollowUp(selectedFollowUp.id);
+            deleteFollowUp(selectedFollowUp.followUpUUId);
             setDeleteModalOpen(false);
             setSelectedFollowUp(null);
           }

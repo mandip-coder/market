@@ -1,5 +1,5 @@
 import { Button, Card, Tag, Timeline } from 'antd';
-import { GlobalDate } from '@/Utils/helpers';
+import { formatUserDisplay, GlobalDate } from '@/Utils/helpers';
 import dayjs from 'dayjs';
 import {
   Calendar,
@@ -78,7 +78,6 @@ const CustomDot = ({ color, type }: { color: keyof typeof colorMap; type: string
   </div>
 );
 
-import { formatUserDisplay } from '@/Utils/userDisplay';
 
 const TimelineComponent: React.FC<TimelineComponentProps> = ({ timelineEvents, currentUserUUID }) => {
   const [selectedFilters, setSelectedFilters] = useState<string[]>(eventTypes.map(et => et.type));
