@@ -36,6 +36,7 @@ import { rowGutter } from "@/shared/constants/themeConfig";
 import { useApi } from "@/hooks/useAPI";
 import { APIPATH } from "@/shared/constants/url";
 import { Healthcare } from "@/app/(main)/healthcares/lib/types";
+import { useDropdownsStore } from "@/context/store/dropdownsStore";
 
 
 
@@ -64,7 +65,7 @@ export interface HCOContactPerson {
 interface ContactModalProps {
   open: boolean;
   onClose: () => void;
-  onSave?: (contact: HCOContactPerson) => void; // Changed to accept Contact with id for editing
+  onSave?: (contact: HCOContactPerson) => void;
   initialContact?: HCOContactPerson | null;
   hcoUUID?: string;
   hcoName?: string;
@@ -90,10 +91,10 @@ const ContactModal = memo(
     hcoName,
     showExtraFields = false,
     requireHelthcareId = false,
-    healthcareOptions
   }: ContactModalProps) => {
     const handleCloseModal = useCallback((values: any) => onClose(), [onClose]);
     const isEditMode = !!initialContact;
+    const { hcoList, personalityTraits } = useDropdownsStore();
     const validationSchema = useMemo(
       () =>
         Yup.object().shape({
@@ -114,25 +115,9 @@ const ContactModal = memo(
     );
 
     const [loading, setLoading] = useLoading();
-    const [healthcareList, setHealthcareList] = useState(healthcareOptions);
-    const [loadingHealthcare, setLoadingHealthcare] = useState(false);
-    const [personalityTraits, setPersonalityTraits] = useState<
-      PersonalityTraits[]
-    >([]);
 
     const API = useApi();
 
-    const fetchPersonalityTraits = async () => {
-      const response = await API.get(APIPATH.DROPDOWN.PERSONALITYTRAITS);
-      if (response) {
-        setPersonalityTraits(response.data);
-      }
-    };
-    useEffect(() => {
-      if (personalityTraits.length === 0) {
-        fetchPersonalityTraits();
-      }
-    }, []);
 
 
 
@@ -162,7 +147,7 @@ const ContactModal = memo(
         personalityTrait: [],
         personalityTraitUUID: [],
       };
-    }, [initialContact, hcoUUID, personalityTraits]);
+    }, [initialContact, hcoUUID]);
 
     const formikRef = useRef<any>(null);
 
@@ -353,8 +338,11 @@ const ContactModal = memo(
                         <CustomSelect
                           name="hcoUUID"
                           label="Healthcare Name"
-                          options={healthcareList}
-                          loading={loadingHealthcare}
+                          options={hcoList.map((hco) => ({
+                            value: hco.hcoUUID,
+                            label: hco.hcoName,
+                          }))}
+                          loading={hcoList.length === 0}
                           showSearch={{
                             optionFilterProp: "label",
                           }}
@@ -374,7 +362,7 @@ const ContactModal = memo(
                     {personalityTraits.map((option) => (
                       <Col span={12} key={option.personalityTraitsUUID}>
                         <Checkbox
-                          name={`personalityTrait.${option.personalityTraitsUUID}`}
+                          name={`personalityTraits.${option.personalityTraitsUUID}`}
                           checked={
                             values.personalityTraitUUID?.includes(
                               option.personalityTraitsUUID

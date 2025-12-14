@@ -26,12 +26,10 @@ const Login = () => {
 
 
     if (res?.success) {
-      setTimeout(() => {
-        toast.success("Login successful");
-        setLoading(false);
-        update()
-        router.push("/dashboard");
-      }, 500)
+      toast.success("Login successful");
+      setLoading(false);
+      update()
+      router.push("/dashboard");
     } else {
       toast.error(res?.error);
       setLoading(false);
@@ -92,8 +90,8 @@ const Login = () => {
               <span className="font-semibold dark:text-gray-200">Remember for 30 days</span>
             </Checkbox>
           </div> */}
-          {/* <Link 
-            href="/auth/forget-password" 
+          {/* <Link
+            href="/auth/forget-password"
             className="text-primary font-semibold dark:text-blue-400 hover:dark:text-blue-300"
           >
             Forgot Password?
@@ -114,9 +112,9 @@ const Login = () => {
         </div>
         {/* <div className="flex items-center justify-center mt-3">
           <span className="text-gray-500 text-base dark:text-gray-400">
-            Don't have an account? 
-            <Link 
-              href="/auth/signup" 
+            Don't have an account?
+            <Link
+              href="/auth/signup"
               className="text-primary font-semibold dark:text-blue-400 hover:dark:text-blue-300 ml-1"
             >
               Sign Up

@@ -96,17 +96,17 @@ const StageChangeModal = () => {
       then: (schema: Yup.StringSchema) => schema.required('Reason is required'),
       otherwise: (schema: Yup.StringSchema) => schema
     }),
-   proof: Yup.array()
-    .of(
-      Yup.mixed<File>()
-        .required('File is required')
-    )
-    .when('stage', {
-      is: Stage.CLOSED_WON,
-      then: (schema) =>
-        schema.min(1, 'At least one file is required').required('Proof is required').max(3, 'You can upload a maximum of 3 files'),
-      otherwise: (schema) => schema.notRequired(),
-    }),
+    proof: Yup.array()
+      .of(
+        Yup.mixed<File>()
+          .required('File is required')
+      )
+      .when('stage', {
+        is: Stage.CLOSED_WON,
+        then: (schema) =>
+          schema.min(1, 'At least one file is required').required('Proof is required').max(3, 'You can upload a maximum of 3 files'),
+        otherwise: (schema) => schema.notRequired(),
+      }),
     contactPersonReviews: Yup.array().of(
       Yup.object().shape({
         contactPersonId: Yup.string(),
@@ -125,7 +125,7 @@ const StageChangeModal = () => {
 
   const handleAddNewContact = async (contactData: HCOContactPerson) => {
     setContactPersons([...contactPersons, contactData]);
-    
+
     // Update Formik field values immediately
     if (formikRef.current) {
       const currentReviews = formikRef.current.values.contactPersonReviews || [];
@@ -138,21 +138,21 @@ const StageChangeModal = () => {
       };
       formikRef.current.setFieldValue('contactPersonReviews', [...currentReviews, newReview]);
     }
-    
+
     setIsAddContactModalOpen(false);
   };
 
   const computeInitialValues = (): stageValues => {
     const stageToUse = selectedStageFromPill ?? currentStage;
     const { contactPersons } = useDealStore.getState();
-    
+
     return {
       dealStage: stageToUse,
       reason: '',
       lossReason: undefined,
       contactPersonReviews: contactPersons.map(contact => ({
-        contactPersonId: contact.hcoContactUUID,
-        contactPersonName: contact.fullName,
+        hcoContactUUID: contact.hcoContactUUID,
+        fullName: contact.fullName,
         role: contact.role,
         rating: 0,
         comment: ''
@@ -223,15 +223,15 @@ const StageChangeModal = () => {
         .ant-steps-item {
           cursor: pointer;
         }
-        
+
         .ant-steps-item-container {
           transition: all 0.3s ease;
         }
-        
+
         .ant-steps-item:hover .ant-steps-item-container {
           transform: translateY(-2px);
         }
-        
+
         .ant-steps-item-icon {
           width: auto !important;
           height: auto !important;
@@ -240,27 +240,27 @@ const StageChangeModal = () => {
           background: transparent !important;
           margin-inline-end: 0 !important;
         }
-        
+
         .ant-steps-item-content {
           margin-top: 8px !important;
         }
-        
+
         .ant-steps-item-title {
           line-height: 1.4 !important;
           font-size: 14px !important;
         }
-        
+
         /* Panel backgrounds */
         .ant-steps-item-wait .ant-steps-item-container {
           background: #f9fafb !important;
           border: 1px solid #e5e7eb !important;
         }
-        
+
         .ant-steps-item-finish .ant-steps-item-container {
           background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%) !important;
           border: 1px solid #86efac !important;
         }
-        
+
         .ant-steps-item-process .ant-steps-item-container {
           border: 2px solid currentColor !important;
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
@@ -325,14 +325,14 @@ const StageChangeModal = () => {
               {values.dealStage === Stage.CLOSED_WON && (
                 <div className="mb-4 relative">
                   <Label text='Attach A Proof' required />
-                  <FileUploader 
-                    maxCount={3} 
-                    multiple 
+                  <FileUploader
+                    maxCount={3}
+                    multiple
                     onChange={(files) => {
                       // Fix: Ensure we pass an array of files to Formik
                       const fileArray = Array.isArray(files) ? files : [files];
                       setFieldValue('proof', fileArray);
-                    }} 
+                    }}
                   />
                   {errors.proof && <div className="field-error !left-0">{errors.proof as string}</div>}
                 </div>
@@ -343,8 +343,8 @@ const StageChangeModal = () => {
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-2">
                     <Label text='Contact Person Reviews (Optional)' />
-                    <Button 
-                      type="dashed" 
+                    <Button
+                      type="dashed"
                       size="small"
                       icon={<Plus size={16} />}
                       onClick={() => setIsAddContactModalOpen(true)}
@@ -352,7 +352,7 @@ const StageChangeModal = () => {
                       Add Contact
                     </Button>
                   </div>
-                  
+
                   {values.contactPersonReviews && values.contactPersonReviews.length > 0 ? (
                     <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 max-h-96 overflow-y-auto">
                       <FieldArray name="contactPersonReviews">
@@ -370,7 +370,7 @@ const StageChangeModal = () => {
                                     )}
                                   </div>
                                 </div>
-                                
+
                                 <div className="mb-3">
                                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                                     Rating
@@ -421,7 +421,7 @@ const StageChangeModal = () => {
                       <p className="text-gray-500 dark:text-gray-400 mb-4">
                         No contact persons found for this deal.
                       </p>
-                      <Button 
+                      <Button
                         type="primary"
                         icon={<Plus size={16} />}
                         onClick={() => setIsAddContactModalOpen(true)}

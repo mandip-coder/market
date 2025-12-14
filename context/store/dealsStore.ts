@@ -87,8 +87,8 @@ interface AddNoteValues {
 
 
 export interface ContactPersonReview {
-  contactPersonId: string;
-  contactPersonName: string;
+  hcoContactUUID: string;
+  fullName: string;
   role?: string;
   rating: number;
   comment: string;
