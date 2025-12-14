@@ -51,8 +51,6 @@ const outcomeOptions = [
   { value: "Other", label: "Other" },
 ];
 
-
-
 const rescheduleReasonOptions = [
   { value: "Client Unavailable", label: "Client Unavailable" },
   { value: "Internal Conflict", label: "Internal Conflict" },
@@ -76,6 +74,22 @@ interface FollowUpModalProps {
   leadUUID?: string;
   dealUUID?: string
 }
+const FollowUpModesEnum = {
+  CALL: "Call",
+  MEETING: "Meeting",
+  EMAIL: "Email",
+  VIDEO_CALL: "Video Call",
+  WHATSAPP: "WhatsApp",
+  SMS: "SMS",
+  VISIT: "Visit",
+}
+const FollowUpModes = Object.keys(FollowUpModesEnum);
+
+// Create options for the follow-up mode dropdown
+const followUpModeOptions = FollowUpModes.map(mode => ({
+  value: mode,
+  label: FollowUpModesEnum[mode as keyof typeof FollowUpModesEnum]
+}));
 
 export const FollowUpModal: React.FC<FollowUpModalProps> = ({
   followUps,
@@ -120,6 +134,7 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
       : "",
     contactPersons: editingFollowUp?.contactPersons || [],
     remark: editingFollowUp?.remark || "",
+    followUpMode: editingFollowUp?.followUpMode || FollowUpModes[0], // Default to first mode
   };
 
   const validationSchema = Yup.object({
@@ -137,6 +152,7 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
       "At least one contact person is required"
     ),
     remark: Yup.string().required("Remark is required"),
+    followUpMode: Yup.string().required("Follow-up mode is required").oneOf(FollowUpModes, "Invalid follow-up mode"),
   });
 
   useEffect(() => {
@@ -272,8 +288,6 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
     [contactPersons]
   );
 
-
-
   // Handle adding new contact person
   const handleAddNewContact = useCallback(() => {
     setAddContactModalOpen(true);
@@ -281,8 +295,6 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
 
   const handleContactSave = useCallback(
     (contact: HCOContactPerson) => {
-
-
       // Call the callback to add to store if provided
       if (onAddContactPerson) {
         onAddContactPerson(contact);
@@ -306,7 +318,6 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
         {menu}
         <Divider style={{ margin: "8px 0" }} />
         <div className="flex items-center justify-end p-2">
-
           <Button
             type="primary"
             icon={<UserPlus size={16} />}
@@ -351,7 +362,6 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
       title: "Contact Persons",
       dataIndex: "contactPersons",
       key: "contactPersons",
-
     },
     {
       title: "Status",
@@ -547,7 +557,14 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
                     };
                   }}
                 />
+                <CustomSelect
+                  name="followUpMode"
+                  label="Follow-up Mode"
+                  required
+                  options={followUpModeOptions}
+                />
               </div>
+
               <CustomSelect
                 name="contactPersons"
                 label="Contact Persons"
@@ -561,7 +578,6 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
                 hideSelected
                 popupRender={contactPersonsDropdownRender}
               />
-
               <div>
                 <Label text="Remark" required />
                 <Field name="remark">

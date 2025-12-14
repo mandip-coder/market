@@ -78,6 +78,7 @@ export interface Meeting {
   dealUUID: string
 
 }
+type followUpMode = 'CALL' | 'MEETING' | 'EMAIL' | 'VIDEO_CALL' | "WHATSAPP" | "SMS" | "VISIT";
 export interface FollowUP {
   followUpUUId: string;
   subject: string;
@@ -93,6 +94,7 @@ export interface FollowUP {
   rescheduledAt?: string;
   rescheduleReason?: string;
   originalScheduledDateTime?: string;
+  followUpMode: followUpMode;
 }
 
 export interface CallLog {
