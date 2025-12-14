@@ -1,0 +1,70 @@
+{
+  "data": [
+    {
+      "suggestionId": "SUGG_001",
+      "hcoUUID": "HC1001",
+      "hcoName": "NHS North England",
+      "leadSource": "AI_MODEL_V1",
+      "summary": "High potential for antibiotic and chronic care product sales based on recent activity.",
+      "products": [
+        {
+          "productUUID": "PROD_AMOX_500",
+          "productName": "Amoxicillin 500mg Capsules",
+          "dealCount": 12
+        },
+        {
+          "productUUID": "PROD_MET_850",
+          "productName": "Metformin 850mg Tablets",
+          "dealCount": 8
+        }
+      ],
+      "contactPersons": [
+        {
+          "hcoContactPersonUUID": "CP002",
+          "hcoContactName": "Emily Brown",
+          "role": "Category Manager - Medicines",
+          "rating": 4.8
+        },
+        {
+          "hcoContactPersonUUID": "CP001",
+          "hcoContactName": "Dr. John Smith",
+          "role": "Head of Procurement",
+          "rating": 4.2
+        }
+      ]
+    },
+    {
+      "suggestionId": "SUGG_002",
+      "hcoUUID": "HC3001",
+      "hcoName": "Boots UK Procurement",
+      "leadSource": "MARKET_TREND_ENGINE",
+      "summary": "Strong OTC and vitamin demand predicted due to seasonal trends.",
+      "products": [
+        {
+          "productUUID": "PROD_VITD_1000",
+          "productName": "Vitamin D 1000 IU Tablets",
+          "dealCount": 15
+        },
+        {
+          "productUUID": "PROD_COLD_FLU_KIT",
+          "productName": "Cold & Flu Relief Kit",
+          "dealCount": 6
+        }
+      ],
+      "contactPersons": [
+        {
+          "contactPersonUUID": "CP004",
+          "contactPersonName": "Michael Green",
+          "role": "Category Lead - OTC",
+          "rating": 4.5
+        },
+        {
+          "contactPersonUUID": "CP003",
+          "contactPersonName": "Sarah Wilson",
+          "role": "Senior Buyer",
+          "rating": 3.9
+        }
+      ]
+    }
+  ]
+}

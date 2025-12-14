@@ -1,0 +1,281 @@
+[
+  {
+    "leadUUID": "lead-001",
+    "userUUID": "user-101",
+    "hcoUUID": "hco-501",
+    "createdDate": "2024-05-12",
+    "summary": "Initial outreach to discuss potential collaboration.",
+    "createdAt": "2024-05-12T10:23:45Z",
+    "updatedAt": "2024-05-13T08:12:30Z",
+    "createdBy": "John Doe",
+    "hcoName": "MediCore Hospital",
+    "leadName": "Partnership Inquiry",
+    "status": "inprogress",
+    "contactPersons": [
+      {
+        "contactPersonUUID": "cp-001",
+        "contactPersonName": "Dr. Amelia Carter",
+        "rating": 5,
+        "role": "Chief Medical Officer",
+        "email": "amelia.carter@medicore.com",
+        "phone": "+1 (555) 123-4567"
+      },
+      {
+        "contactPersonUUID": "cp-002",
+        "contactPersonName": "Michael Thompson",
+        "rating": 4,
+        "role": "Procurement Manager",
+        "email": "m.thompson@medicore.com",
+        "phone": "+1 (555) 987-6543"
+      }
+    ]
+  },
+  {
+    "leadUUID": "lead-002",
+    "userUUID": "user-102",
+    "hcoUUID": "hco-502",
+    "createdDate": "2024-03-20",
+    "summary": "Requested demo for new health monitoring system.",
+    "createdAt": "2024-03-20T15:11:10Z",
+    "updatedAt": "2024-03-21T09:44:20Z",
+    "createdBy": "Sarah Lee",
+    "hcoName": "Greenfield Medical Center",
+    "leadName": "Product Demo Request",
+    "status": "new",
+    "contactPersons": [
+      {
+        "contactPersonUUID": "cp-003",
+        "contactPersonName": "Laura Bennett",
+        "rating": 3,
+        "role": "IT Director",
+        "email": "l.bennett@greenfield.org",
+        "phone": "+1 (555) 234-5678"
+      }
+    ]
+  },
+  {
+    "leadUUID": "lead-003",
+    "userUUID": "user-103",
+    "hcoUUID": "hco-503",
+    "createdDate": "2024-04-02",
+    "summary": "Follow-up call scheduled regarding supply contract.",
+    "createdAt": "2024-04-02T09:03:12Z",
+    "updatedAt": "2024-04-03T12:40:57Z",
+    "createdBy": "Aaron Smith",
+    "status": "cancelled",
+    "closeReason": "Client no longer interested",
+    "hcoName": "Cityline Health Services",
+    "leadName": "Supply Contract Discussion",
+    "contactPersons": [
+      {
+        "contactPersonUUID": "cp-004",
+        "contactPersonName": "Kevin Parker",
+        "rating": 2,
+        "role": "Supply Chain Coordinator",
+        "email": "k.parker@citylinehealth.com",
+        "phone": "+1 (555) 876-5432"
+      }
+    ]
+  },
+  {
+    "leadUUID": "lead-004",
+    "userUUID": "user-104",
+    "hcoUUID": "hco-504",
+    "createdDate": "2024-02-26",
+    "summary": "Exploring integration of patient management module.",
+    "createdAt": "2024-02-26T13:50:00Z",
+    "updatedAt": "2024-02-27T07:22:18Z",
+    "createdBy": "Maria Johnson",
+    "hcoName": "Evergreen Care Hospital",
+    "leadName": "System Integration Proposal",
+    "status": "inprogress",
+    "contactPersons": [
+      {
+        "contactPersonUUID": "cp-005",
+        "contactPersonName": "Dr. Samuel Ortiz",
+        "rating": 5,
+        "role": "Head of Cardiology",
+        "email": "samuel.ortiz@evergreencare.com",
+        "phone": "+1 (555) 345-6789"
+      }
+    ]
+  },
+  {
+    "leadUUID": "lead-005",
+    "userUUID": "user-105",
+    "hcoUUID": "hco-505",
+    "createdDate": "2024-06-10",
+    "summary": "Client is interested in licensing terms.",
+    "createdAt": "2024-06-10T11:12:34Z",
+    "updatedAt": "2024-06-11T10:20:11Z",
+    "createdBy": "Emily Davis",
+    "hcoName": "Prime Health Institute",
+    "leadName": "License Inquiry",
+    "status": "new",
+    "contactPersons": [
+      {
+        "contactPersonUUID": "cp-006",
+        "contactPersonName": "Jacob Williams",
+        "rating": 4,
+        "role": "Legal Consultant",
+        "email": "jacob.w@primehealth.org",
+        "phone": "+1 (555) 654-3210"
+      }
+    ]
+  },
+  {
+    "leadUUID": "lead-006",
+    "userUUID": "user-106",
+    "hcoUUID": "hco-506",
+    "createdDate": "2024-01-15",
+    "summary": "Requested quotation for medical data analytics suite.",
+    "createdAt": "2024-01-15T08:45:29Z",
+    "updatedAt": "2024-01-16T14:32:44Z",
+    "createdBy": "David Brown",
+    "hcoName": "Silver Oak Clinic",
+    "leadName": "Quotation Request",
+    "status": "new",
+    "contactPersons": [
+      {
+        "contactPersonUUID": "cp-007",
+        "contactPersonName": "Sophia Harris",
+        "rating": 4,
+        "role": "Financial Officer",
+        "email": "sophia.h@silveroak.com",
+        "phone": "+1 (555) 456-7890"
+      }
+    ]
+  },
+  {
+    "leadUUID": "lead-007",
+    "userUUID": "user-107",
+    "hcoUUID": "hco-507",
+    "createdDate": "2024-07-19",
+    "summary": "Exploring onboarding workflow optimization.",
+    "createdAt": "2024-07-19T16:32:10Z",
+    "updatedAt": "2024-07-20T08:19:55Z",
+    "createdBy": "James Martin",
+    "hcoName": "Harmony Wellness Center",
+    "leadName": "Workflow Optimization",
+    "status": "inprogress",
+    "contactPersons": [
+      {
+        "contactPersonUUID": "cp-008",
+        "contactPersonName": "Oliver Scott",
+        "rating": 5,
+        "role": "Operations Manager",
+        "email": "oliver.scott@harmonywellness.com",
+        "phone": "+1 (555) 567-8901"
+      },
+      {
+        "contactPersonUUID": "cp-009",
+        "contactPersonName": "Emily Clark",
+        "rating": 4,
+        "role": "HR Director",
+        "email": "emily.clark@harmonywellness.com",
+        "phone": "+1 (555) 432-1098"
+      }
+    ]
+  },
+  {
+    "leadUUID": "lead-008",
+    "userUUID": "user-108",
+    "hcoUUID": "hco-508",
+    "createdDate": "2024-08-01",
+    "summary": "Client requested onboarding documents.",
+    "createdAt": "2024-08-01T09:13:22Z",
+    "updatedAt": "2024-08-01T11:00:12Z",
+    "createdBy": "Natalie Green",
+    "hcoName": "Northview Hospital",
+    "leadName": "Document Request",
+    "status": "new",
+    "contactPersons": [
+      {
+        "contactPersonUUID": "cp-010",
+        "contactPersonName": "Daniel Murphy",
+        "rating": 3,
+        "role": "Administrative Assistant",
+        "email": "daniel.murphy@northview.org",
+        "phone": "+1 (555) 678-9012"
+      }
+    ]
+  },
+  {
+    "leadUUID": "lead-009",
+    "userUUID": "user-109",
+    "hcoUUID": "hco-509",
+    "createdDate": "2024-03-11",
+    "summary": "Discussed customization needs for reporting dashboard.",
+    "createdAt": "2024-03-11T14:39:50Z",
+    "updatedAt": "2024-03-12T12:25:18Z",
+    "createdBy": "Chris Parker",
+    "hcoName": "Hillcrest Health Center",
+    "leadName": "Dashboard Customization",
+    "status": "inprogress",
+    "contactPersons": [
+      {
+        "contactPersonUUID": "cp-011",
+        "contactPersonName": "Ava Coleman",
+        "rating": 5,
+        "role": "Chief Data Officer",
+        "email": "ava.coleman@hillcrest.com",
+        "phone": "+1 (555) 321-6549"
+      },
+      {
+        "contactPersonUUID": "cp-012",
+        "contactPersonName": "Ethan Davis",
+        "rating": 4,
+        "role": "Senior Analyst",
+        "email": "ethan.davis@hillcrest.com",
+        "phone": "+1 (555) 654-9870"
+      },
+      {
+        "contactPersonUUID": "cp-013",
+        "contactPersonName": "Sophia Wilson",
+        "rating": 3,
+        "role": "Software Engineer",
+        "email": "sophia.wilson@hillcrest.com",
+        "phone": "+1 (555) 987-1234"
+      },
+      {
+        "contactPersonUUID": "cp-014",
+        "contactPersonName": "Liam Anderson",
+        "rating": 4,
+        "role": "Project Manager",
+        "email": "liam.anderson@hillcrest.com",
+        "phone": "+1 (555) 789-4561"
+      },
+      {
+        "contactPersonUUID": "cp-015",
+        "contactPersonName": "Isabella Thompson",
+        "rating": 5,
+        "role": "UX Designer",
+        "email": "isabella.t@hillcrest.com",
+        "phone": "+1 (555) 159-7532"
+      }
+    ]
+  },
+  {
+    "leadUUID": "lead-010",
+    "userUUID": "user-110",
+    "hcoUUID": "hco-510",
+    "createdDate": "2024-09-05",
+    "summary": "Pending review of service-level agreement.",
+    "createdAt": "2024-09-05T10:55:14Z",
+    "updatedAt": "2024-09-06T09:10:42Z",
+    "createdBy": "Linda Roberts",
+    "hcoName": "Blue Horizon Medical Group",
+    "leadName": "SLA Review",
+    "status": "new",
+    "contactPersons": [
+      {
+        "contactPersonUUID": "cp-012",
+        "contactPersonName": "Henry Foster",
+        "rating": 2,
+        "role": "Contract Administrator",
+        "email": "henry.foster@bluehorizon.com",
+        "phone": "+1 (555) 753-1590"
+      }
+    ]
+  }
+]

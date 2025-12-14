@@ -1,0 +1,242 @@
+[
+	{
+		"id": 15,
+		"code": "NEUR-003",
+		"name": "EpiControl",
+		"therapeuticArea": "Neurology",
+		"listPrice": 134.5,
+		"sourceErpId": "ERP-374829",
+		"maMetadata": {
+			"indication": "Anticonvulsant for partial and generalized seizures",
+			"nice_approved": true,
+			"formulary_status": "Green"
+		},
+		"lastSyncAt": "2024-03-16T10:00:00.000Z",
+		"createdAt": "2024-02-25T11:30:00.000Z",
+		"updatedAt": "2024-03-16T10:00:00.000Z"
+	},
+	{
+		"id": 14,
+		"code": "NEUR-002",
+		"name": "MigraineAway",
+		"therapeuticArea": "Neurology",
+		"listPrice": 87.99,
+		"sourceErpId": "ERP-928473",
+		"maMetadata": {
+			"indication": "Acute treatment and prevention of migraine headaches",
+			"nice_approved": true,
+			"formulary_status": "Amber"
+		},
+		"lastSyncAt": "2024-03-14T16:45:00.000Z",
+		"createdAt": "2024-02-22T10:45:00.000Z",
+		"updatedAt": "2024-03-14T16:45:00.000Z"
+	},
+	{
+		"id": 13,
+		"code": "NEUR-001",
+		"name": "NeuroProtect",
+		"therapeuticArea": "Neurology",
+		"listPrice": 245,
+		"sourceErpId": "ERP-647293",
+		"maMetadata": {
+			"indication": "Neuroprotective agent for multiple sclerosis",
+			"nice_approved": false,
+			"formulary_status": "Red"
+		},
+		"lastSyncAt": "2024-03-15T11:30:00.000Z",
+		"createdAt": "2024-02-20T09:00:00.000Z",
+		"updatedAt": "2024-03-15T11:30:00.000Z"
+	},
+	{
+		"id": 12,
+		"code": "RESP-003",
+		"name": "AsthmaFree",
+		"therapeuticArea": "Respiratory",
+		"listPrice": 62.5,
+		"sourceErpId": "ERP-582736",
+		"maMetadata": {
+			"indication": "Long-acting bronchodilator for persistent asthma",
+			"nice_approved": true,
+			"formulary_status": "Green"
+		},
+		"lastSyncAt": "2024-03-16T14:15:00.000Z",
+		"createdAt": "2024-02-18T10:20:00.000Z",
+		"updatedAt": "2024-03-16T14:15:00.000Z"
+	},
+	{
+		"id": 11,
+		"code": "RESP-002",
+		"name": "RespiClear",
+		"therapeuticArea": "Respiratory",
+		"listPrice": 78.25,
+		"sourceErpId": "ERP-293847",
+		"maMetadata": {
+			"indication": "Mucolytic agent for chronic bronchitis and cystic fibrosis",
+			"nice_approved": true,
+			"formulary_status": "Amber"
+		},
+		"lastSyncAt": "2024-03-14T12:30:00.000Z",
+		"createdAt": "2024-02-15T11:00:00.000Z",
+		"updatedAt": "2024-03-14T12:30:00.000Z"
+	},
+	{
+		"id": 10,
+		"code": "RESP-001",
+		"name": "Breathe Easy Inhaler",
+		"therapeuticArea": "Respiratory",
+		"listPrice": 54.99,
+		"sourceErpId": "ERP-847362",
+		"maMetadata": {
+			"indication": "Relief and prevention of asthma and COPD symptoms",
+			"nice_approved": true,
+			"formulary_status": "Green"
+		},
+		"lastSyncAt": "2024-03-15T10:00:00.000Z",
+		"createdAt": "2024-02-12T09:30:00.000Z",
+		"updatedAt": "2024-03-15T10:00:00.000Z"
+	},
+	{
+		"id": 9,
+		"code": "DIAB-003",
+		"name": "DiabeCare XR",
+		"therapeuticArea": "Diabetes",
+		"listPrice": 112.75,
+		"sourceErpId": "ERP-738291",
+		"maMetadata": {
+			"indication": "Extended release metformin for glycemic control",
+			"nice_approved": true,
+			"formulary_status": "Green"
+		},
+		"lastSyncAt": "2024-03-16T09:20:00.000Z",
+		"createdAt": "2024-02-10T08:45:00.000Z",
+		"updatedAt": "2024-03-16T09:20:00.000Z"
+	},
+	{
+		"id": 8,
+		"code": "DIAB-002",
+		"name": "InsulinMax Pen",
+		"therapeuticArea": "Diabetes",
+		"listPrice": 95,
+		"sourceErpId": "ERP-564829",
+		"maMetadata": {
+			"indication": "Rapid-acting insulin for type 1 and type 2 diabetes",
+			"nice_approved": true,
+			"formulary_status": "Green"
+		},
+		"lastSyncAt": "2024-03-14T15:45:00.000Z",
+		"createdAt": "2024-02-08T11:15:00.000Z",
+		"updatedAt": "2024-03-14T15:45:00.000Z"
+	},
+	{
+		"id": 7,
+		"code": "DIAB-001",
+		"name": "GlucoControl",
+		"therapeuticArea": "Diabetes",
+		"listPrice": 68.5,
+		"sourceErpId": "ERP-192837",
+		"maMetadata": {
+			"indication": "Type 2 diabetes mellitus management",
+			"nice_approved": true,
+			"formulary_status": "Green"
+		},
+		"lastSyncAt": "2024-03-15T13:00:00.000Z",
+		"createdAt": "2024-02-05T10:30:00.000Z",
+		"updatedAt": "2024-03-15T13:00:00.000Z"
+	},
+	{
+		"id": 6,
+		"code": "ONCO-003",
+		"name": "CancerShield",
+		"therapeuticArea": "Oncology",
+		"listPrice": 2899.99,
+		"sourceErpId": "ERP-456273",
+		"maMetadata": {
+			"indication": "Immunotherapy for melanoma and renal cell carcinoma",
+			"nice_approved": true,
+			"formulary_status": "Amber"
+		},
+		"lastSyncAt": "2024-03-16T08:15:00.000Z",
+		"createdAt": "2024-02-01T09:00:00.000Z",
+		"updatedAt": "2024-03-16T08:15:00.000Z"
+	},
+	{
+		"id": 5,
+		"code": "ONCO-002",
+		"name": "TumorX Infusion",
+		"therapeuticArea": "Oncology",
+		"listPrice": 3275.5,
+		"sourceErpId": "ERP-928374",
+		"maMetadata": {
+			"indication": "Intravenous therapy for metastatic breast cancer",
+			"nice_approved": false,
+			"formulary_status": "Red"
+		},
+		"lastSyncAt": "2024-03-14T10:30:00.000Z",
+		"createdAt": "2024-01-25T14:20:00.000Z",
+		"updatedAt": "2024-03-14T10:30:00.000Z"
+	},
+	{
+		"id": 4,
+		"code": "ONCO-001",
+		"name": "Oncoblock 250mg",
+		"therapeuticArea": "Oncology",
+		"listPrice": 4850,
+		"sourceErpId": "ERP-647582",
+		"maMetadata": {
+			"indication": "Treatment of advanced non-small cell lung cancer",
+			"nice_approved": true,
+			"formulary_status": "Red"
+		},
+		"lastSyncAt": "2024-03-15T16:00:00.000Z",
+		"createdAt": "2024-01-20T11:00:00.000Z",
+		"updatedAt": "2024-03-15T16:00:00.000Z"
+	},
+	{
+		"id": 3,
+		"code": "CARD-003",
+		"name": "HeartGuard SR",
+		"therapeuticArea": "Cardiology",
+		"listPrice": 156.75,
+		"sourceErpId": "ERP-381926",
+		"maMetadata": {
+			"indication": "Sustained release formulation for chronic heart failure management",
+			"nice_approved": true,
+			"formulary_status": "Amber"
+		},
+		"lastSyncAt": "2024-03-16T11:45:00.000Z",
+		"createdAt": "2024-01-15T09:30:00.000Z",
+		"updatedAt": "2024-03-16T11:45:00.000Z"
+	},
+	{
+		"id": 2,
+		"code": "CARD-002",
+		"name": "Vasodil Plus",
+		"therapeuticArea": "Cardiology",
+		"listPrice": 89.99,
+		"sourceErpId": "ERP-592847",
+		"maMetadata": {
+			"indication": "Vasodilation therapy for angina and heart failure",
+			"nice_approved": true,
+			"formulary_status": "Green"
+		},
+		"lastSyncAt": "2024-03-14T14:20:00.000Z",
+		"createdAt": "2024-01-12T10:15:00.000Z",
+		"updatedAt": "2024-03-14T14:20:00.000Z"
+	},
+	{
+		"id": 1,
+		"code": "CARD-001",
+		"name": "Cardiostat 10mg",
+		"therapeuticArea": "Cardiology",
+		"listPrice": 125.5,
+		"sourceErpId": "ERP-748392",
+		"maMetadata": {
+			"indication": "Treatment of hypertension and prevention of cardiovascular events",
+			"nice_approved": true,
+			"formulary_status": "Green"
+		},
+		"lastSyncAt": "2024-03-15T09:30:00.000Z",
+		"createdAt": "2024-01-10T08:00:00.000Z",
+		"updatedAt": "2024-03-15T09:30:00.000Z"
+	}
+]

@@ -1,0 +1,90 @@
+export const APIPATH = {
+  LOGIN: "auth/login",
+  LOGOUT: "auth/logout",
+  DASHBOARD: {
+    KPIDATA: "dashboard/deals-statistics",
+    TOPPRODUCTS: "dashboard/top-products",
+    STAGECOUNTS: "dashboard/stage-counts",
+  },
+  USERS: {
+    GETUSERS: "users/all",
+    CREATEUSER: "auth/register",
+    UPDATEUSER: "auth/update/",
+    DELETEUSER: "auth/delete/",
+    GETUSER: "users",
+    STATUSUPDATE: (userUUID: string, status?: string) => `users/${userUUID}?status=${status}`,
+  },
+  COMPANY: {
+    GETCOMPANIES: "company",
+    CREATECOMPANY: "company",
+    UPDATECOMPANY: "company/",
+    DELETECOMPANY: "company/",
+    GETCOMPANY: "company",
+  },
+  ROLES: {
+    GETROLES: "roles",
+    CREATEROLE: "roles",
+    UPDATEROLE: "roles/",
+    DELETEROLE: "roles/",
+    UPDATESTATUS: (roleUUID: string) => `roles/${roleUUID}/status`,
+    MUTLIPLEDELETEROLE: "roles/delete-list",
+    GETROLE: "roles",
+  },
+  HCO: {
+    GETHEALTHCARES: "hco",
+    CREATEHEALTHCARE: "hco",
+    UPDATEHEALTHCARE: "hco/",
+    DELETEHEALTHCARE: "hco/",
+    GETHEALTHCARE: "hco/",
+    UPDATESTATUS: (healthcareUUID: string) => `hco/${healthcareUUID}/status`,
+
+  },
+  DEAL: {
+    GETALLDEALS: "deal",
+    GETDEAL: "deal/",
+    ADDDEALPRODCUT: 'deal-products',
+    GETPRODUCTS: (dealUUID: string) => `deal-products/deal/${dealUUID}/all`,
+    DELETEDEALPRODUCT: 'deal-products/delete',
+  },
+  LEAD: {
+    GETALLLEADS: "lead",
+    GETLEAD: "lead/",
+  },
+  PRODUCTS: {
+    GETPRODUCTS: "products",
+    CREATEPRODUCT: "products",
+    UPDATEPRODUCT: "products/",
+    DELETEPRODUCT: "products/",
+    GETPRODUCT: "products/",
+    UPDATESTATUS: (productUUID: string) => `products/${productUUID}/status`,
+  },
+  DROPDOWN_MODULE: {
+    HCO: "dropdown/module/hco",
+  },
+  DROPDOWN: {
+    LEADSOURCE: "dropdown/lead_source",
+    PERSONALITYTRAITS: "dropdown/personality_traits",
+    VENUE: "dropdown/venue",
+  },
+  COUNTRY: {
+    GETCOUNTRYLIST: "country",
+    GETCOUNTRY: "country/",
+    CREATECOUNTRY: "country",
+    UPDATECOUNTRY: "country/",
+    DELETECOUNTRY: "country/",
+  },
+  CITY: {
+    GETCITYLIST: "city",
+    GETCITY: "city/",
+    CREATECITY: "city",
+    UPDATECITY: "city/",
+    DELETECITY: "city/",
+  },
+  CONTACT: {
+    CREATECONTACT: "hco-contact",
+    UPDATECONTACT: "hco-contact/",
+    DELETECONTACT: "hco-contact/",
+    GETCONTACT: "hco-contact/",
+    GETCONTACTLIST: "hco-contact",
+  }
+}
