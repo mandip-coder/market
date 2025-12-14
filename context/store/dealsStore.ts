@@ -432,6 +432,7 @@ export const useDealStore = create<DealStore>((set, get,) => ({
       remark: values.remark,
       isCompleted: false,
       isCancelled: false,
+
     };
     set({ followUps: [...followUps, newFollowUp] });
 

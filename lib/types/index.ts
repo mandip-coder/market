@@ -94,7 +94,7 @@ export interface FollowUP {
   rescheduledAt?: string;
   rescheduleReason?: string;
   originalScheduledDateTime?: string;
-  followUpMode: followUpMode;
+  followUpMode?: followUpMode;
 }
 
 export interface CallLog {
