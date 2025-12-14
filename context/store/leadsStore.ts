@@ -9,17 +9,8 @@ import { GlobalDate } from "@/Utils/helpers";
 import { Product } from "./productStore";
 import { HCOContactPerson } from "@/components/AddNewContactModal/AddNewContactModal";
 import { Healthcare } from "@/app/(main)/healthcares/lib/types";
+import { LeadFormData } from "@/app/(main)/leads/components/LeadDrawer";
 
-// Lead Form Data Interface
-interface LeadFormData {
-  leadName: string;
-  summary: string;
-  dateAndTime: string;
-  leadSource: string;
-  contactPerson: string[];
-  owner: string[];
-  hcoUUID: string;
-}
 
 
 // Type definitions for actions

@@ -1,89 +1,64 @@
 "use client";
 import AddNewContactModal from "@/components/AddNewContactModal/AddNewContactModal";
-import AsyncSearchSelect from "@/components/AsyncSearchSelect/AsyncSearchSelect";
 import CustomDatePicker from "@/components/CustomDatePicker/CustomDatePicker";
 import CustomSelect from "@/components/CustomSelect/CustomSelect";
 import Input from "@/components/Input/Input";
 import Label from "@/components/Label/Label";
+import ContactOptionsRender from "@/components/shared/ContactOptionsRender";
 import { useDealStore } from "@/context/store/dealsStore";
+import { useDropDowns } from "@/context/store/optimizedSelectors";
+import { useApi } from "@/hooks/useAPI";
 import { useLoading } from "@/hooks/useLoading";
+import { useLoginUser } from "@/hooks/useToken";
+import { APIPATH } from "@/shared/constants/url";
 import { Button, Col, Drawer, Row } from "antd";
 import TextArea from "antd/es/input/TextArea";
 import dayjs, { Dayjs } from "dayjs";
 import { Field, Form, Formik, FormikProps } from "formik";
 import { Plus, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import * as Yup from "yup";
-import HealthCareData from "../healthcares.json";
-import { APIPATH } from "@/shared/constants/url";
-import { useApi } from "@/hooks/useAPI";
-
-interface Healthcare {
-  hcoUUID: string;
-  hcoName: string;
-}
 
 interface DealFormData {
   dealUUID: string;
   dealName: string;
   summary: string;
-  createdDate: Dayjs;
+  dealDate: Dayjs;
   leadSource: string;
   contactPersons: string[];
-  owners: string[];
+  assignTo: string[];
   hcoUUID: string;
-  products?: string[];
+  products: string[];
 }
 
 const validationSchema = Yup.object().shape({
   hcoUUID: Yup.string().required("Healthcare is required"),
-  createdDate: Yup.date().required("Date is required"),
+  dealDate: Yup.date().required("Date is required"),
   dealName: Yup.string().required("Deal name is required"),
   leadSource: Yup.string().required("Lead source is required"),
   contactPersons: Yup.array()
     .of(Yup.string())
     .min(1, "At least one contact person is required")
     .required("Contact persons are required"),
-  owners: Yup.array()
+  assignTo: Yup.array()
     .of(Yup.string())
-    .min(1, "At least one owner is required")
-    .required("Owners are required"),
+    .min(1, "At least one assign to is required")
+    .required("Assign to is required"),
   products: Yup.array()
     .of(Yup.string())
     .min(1, "At least one product is required")
     .required("Products are required"),
 });
 
-const OWNER_OPTIONS = [
-  {
-    label: "Owner 1",
-    value: "123",
-  },
-];
 
-const PRODUCT_OPTIONS = [
-  { label: "Apozyl", value: "apozyl" },
-  { label: "Zithromax", value: "zithromax" },
-  { label: "Lipitor", value: "lipitor" },
-  { label: "Metformin", value: "metformin" },
-  { label: "Insulin", value: "insulin" },
-  { label: "Aspirin", value: "aspirin" },
-  { label: "Amoxicillin", value: "amoxicillin" },
-  { label: "Omeprazole", value: "omeprazole" },
-  { label: "Simvastatin", value: "simvastatin" },
-  { label: "Losartan", value: "losartan" },
-];
 
-interface LeadSource {
-  leadSourceUUID: string;
-  leadSourceName: string;
-}
+
 
 export default function DealDrawer() {
-  const [Healthcares, setHealthcares] = useState<Healthcare[]>([]);
-  const [LeadSources, setLeadSources] = useState<LeadSource[]>([]);
+  const { hcoList, leadSources, usersList, products } = useDropDowns()
+  const user = useLoginUser()
   const [loading, setLoading] = useLoading();
   const [AddNewContactModalOpen, setAddNewContactModalOpen] = useState(false);
   const [contactsOptions, setContactsOptions] = useState<
@@ -92,41 +67,17 @@ export default function DealDrawer() {
   const { setDealDrawer, openDealDrawer } = useDealStore();
   const formikRef = useRef<FormikProps<DealFormData>>(null);
   const API = useApi();
-  const fetchHealthcares = async () => {
-    try {
-      const response = await API.get(APIPATH.HCO.GETHEALTHCARES);
-      setHealthcares(response.data.list as Healthcare[]);
-    } catch (error) {
-      console.error("Error fetching healthcares:", error);
-    }
-  };
-  const fetchLeadSources = async () => {
-    try {
-      const response = await API.get(APIPATH.DROPDOWN.LEADSOURCE);
-      setLeadSources(response.data as LeadSource[]);
-    } catch (error) {
-      console.error("Error fetching lead sources:", error);
-    }
-  };
-  useEffect(() => {
-    fetchHealthcares();
-    fetchLeadSources();
-  }, []);
 
   const router = useRouter();
   const handleSubmit = async (values: DealFormData): Promise<void> => {
     setLoading(true);
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      toast.success("Deal created!");
-      console.log(values);
-      // router.push(`/deals/${values.dealUUID}`);
-      setDealDrawer(false);
-    } catch (error) {
-      toast.error("Failed to create deal. Please try again.");
-    } finally {
-      setLoading(false);
+    const finalValues = {
+      ...values,
+      dealDate: dayjs().format("YYYY-MM-DD"),
     }
+    console.log(finalValues);
+    setLoading(false);
+
   };
 
   const handleClearForm = useCallback(() => {
@@ -189,8 +140,8 @@ export default function DealDrawer() {
             hcoUUID: "",
             hcoName: "",
             contactPersons: [],
-            owners: [],
-            createdDate: dayjs(),
+            assignTo: [],
+            dealDate: dayjs(),
             summary: "",
             products: [],
             dealName: "",
@@ -215,7 +166,7 @@ export default function DealDrawer() {
                     label="Healthcare"
                     placeholder="Select healthcare..."
                     required
-                    options={Healthcares.map((h) => ({
+                    options={hcoList.map((h) => ({
                       label: h.hcoName,
                       value: h.hcoUUID,
                     }))}
@@ -223,15 +174,18 @@ export default function DealDrawer() {
                       setFieldValue("hcoUUID", value);
                       setFieldValue("contactPersons", []);
                       const fetchContacts = async () => {
-                        try {
-                          const response = await API.get(APIPATH.DROPDOWN.LEADSOURCE,);
-                          const contacts = response.data as {contactPersonUUID: string; contactPersonName: string}[];
-                          setContactsOptions(contacts.map((contact) => ({
-                            label: contact.contactPersonName,
-                            value: contact.contactPersonUUID,
-                          })));
-                        } catch (error) {
-                          console.error("Error fetching contacts:", error);
+                        if (value) {
+                          const response = await API.get(APIPATH.CONTACT.GETHCOCONTACT(value),);
+                          if (response) {
+                            const contacts = response.data as { hcoContactUUID: string; fullName: string }[];
+                            setContactsOptions(contacts.map((contact) => ({
+                              label: contact.fullName,
+                              value: contact.hcoContactUUID,
+                              ...contact
+                            })));
+                          }
+                        } else {
+                          setContactsOptions([]);
                         }
                       };
                       fetchContacts();
@@ -244,7 +198,7 @@ export default function DealDrawer() {
                     name="leadSource"
                     label="Lead Source"
                     required
-                    options={LeadSources.map((leadSource) => ({
+                    options={leadSources.map((leadSource) => ({
                       label: leadSource.leadSourceName,
                       value: leadSource.leadSourceUUID,
                     }))}
@@ -257,14 +211,17 @@ export default function DealDrawer() {
 
                 <Col xs={24} sm={12}>
                   <CustomSelect
+                    name="assignTo"
+                    label="Assign To"
                     mode="multiple"
-                    name="owners"
-                    label="Owners"
                     required
-                    allowClear
-                    placeholder="Select owners..."
-                    options={OWNER_OPTIONS}
                     maxResponsive
+                    allowClear
+                    placeholder="Select assign to..."
+                    options={usersList.map((user) => ({
+                      label: user.fullName,
+                      value: user.userUUID,
+                    }))}
                   />
                 </Col>
 
@@ -281,15 +238,19 @@ export default function DealDrawer() {
                           {...field}
                           mode="multiple"
                           value={field.value}
-                          placeholder={`${
-                            values.hcoUUID
-                              ? "Select contact persons"
-                              : "Select healthcare first"
-                          }`}
-                          loading={!values.hcoUUID||contactsOptions.length === 0}
-                          disabled={!values.hcoUUID||contactsOptions.length === 0}
+                          placeholder={`${values.hcoUUID
+                            ? "Select contact persons"
+                            : "Select healthcare first"
+                            }`}
+                          loading={!values.hcoUUID || contactsOptions.length === 0}
+                          disabled={!values.hcoUUID || contactsOptions.length === 0}
                           allowClear
-                          options={contactsOptions}
+                          options={contactsOptions.map((contact) => ({
+                            label: contact.label,
+                            value: contact.value,
+                            contact
+                          }))}
+                          optionRender={(option) => <ContactOptionsRender option={option} />}
                           onChange={(value) =>
                             setFieldValue("contactPersons", value)
                           }
@@ -328,7 +289,10 @@ export default function DealDrawer() {
                     label="Products"
                     allowClear
                     placeholder="Select products..."
-                    options={PRODUCT_OPTIONS}
+                    options={products.map((product) => ({
+                      label: product.productName,
+                      value: product.productUUID,
+                    }))}
                     hideSelected
                     maxResponsive
                   />
@@ -357,7 +321,7 @@ export default function DealDrawer() {
       <AddNewContactModal
         hcoUUID={formikRef.current?.values.hcoUUID}
         hcoName={
-          Healthcares.find(
+          hcoList.find(
             (h) => h.hcoUUID === formikRef.current?.values.hcoUUID
           )?.hcoName
         }

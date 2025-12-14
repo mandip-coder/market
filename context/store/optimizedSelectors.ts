@@ -2,6 +2,7 @@
 // Use these instead of direct store access to prevent unnecessary re-renders
 
 import { useDealStore } from './dealsStore';
+import { useDropdownsStore } from './dropdownsStore';
 import { useLeadStore } from './leadsStore';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -31,8 +32,6 @@ export const useLeadViewState = () =>
       pageSize: state.pageSize,
       setPage: state.setPage,
       setPageSize: state.setPageSize,
-      setHcoList: state.setHcoList,
-      hcoList: state.hcoList,
     }))
   );
 
@@ -91,3 +90,19 @@ export const useLeadProducts = () =>
       removeProduct: state.removeProduct,
     }))
   );
+export const useDropDowns = () => useDropdownsStore(
+  useShallow((state) => ({
+    hcoList: state.hcoList,
+    leadSources: state.leadSources,
+    usersList: state.usersList,
+    products: state.products,
+  }))
+)
+export const useDropDownsSetters = () => useDropdownsStore(
+  useShallow((state) => ({
+    setHCOList: state.setHCOList,
+    setLeadSources: state.setLeadSources,
+    setUsersList: state.setUsersList,
+    setProducts: state.setProducts,
+  }))
+)

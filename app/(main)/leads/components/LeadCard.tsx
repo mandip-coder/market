@@ -14,7 +14,8 @@ import { motion } from "motion/react";
 import Link from "next/link";
 import { Lead } from "./LeadsListing";
 import { LoadingOutlined } from "@ant-design/icons";
-import { formatUserDisplay } from "@/Utils/userDisplay";
+import { formatUserDisplay } from "@/Utils/helpers";
+import { useLoginUser } from "@/hooks/useToken";
 
 dayjs.extend(relativeTime);
 
@@ -37,6 +38,7 @@ export default function LeadCard({
   lead: Lead;
   page?: number;
 }) {
+  const user = useLoginUser()
   const leadKey = `${lead.leadUUID}-${page}`;
   const primaryContact = lead.contactPersons?.[0];
   const extraContacts =
@@ -61,7 +63,6 @@ export default function LeadCard({
       color: "#ea757c",
     },
   }
-  console.log(lead)
 
   return (
     <motion.div
@@ -76,8 +77,14 @@ export default function LeadCard({
       <Badge.Ribbon text={STATUSMAP[lead.leadStatus]?.text || "Unknown"} color={STATUSMAP[lead.leadStatus]?.color || "#8bb5f0"} style={{
         fontSize: "11px",
 
-      }}>
-        <Link href={`/leads/${lead.leadUUID}`}>
+      }}
+        styles={{
+          root: {
+            height: "100%",
+          }
+        }}
+      >
+        <Link href={`/leads/${lead.leadUUID}`} className="!h-full !block">
           <Card
             hoverable
             size="small"
@@ -132,7 +139,7 @@ export default function LeadCard({
                   <div className="flex items-center gap-1.5 min-w-0">
                     <User className="h-3 w-3 text-blue-500 dark:text-blue-400 flex-shrink-0" />
                     <span className="text-slate-600 dark:text-slate-400 truncate">
-                      {formatUserDisplay(lead.createdBy, lead.userUUID, "4")}
+                      {formatUserDisplay(lead.createdBy, lead.createdUUID, user?.userUUID)}
                     </span>
                   </div>
                 </Tooltip>
@@ -142,8 +149,8 @@ export default function LeadCard({
                   <div className="flex items-center gap-1.5 min-w-0">
                     <Calendar className="h-3 w-3 text-purple-500 dark:text-purple-400 flex-shrink-0" />
                     <span className="text-slate-600 dark:text-slate-400 truncate">
-                      {lead.createdDate
-                        ? GlobalDate(lead.createdDate)
+                      {lead.leadDate
+                        ? GlobalDate(lead.leadDate)
                         : "—"}
                     </span>
                   </div>

@@ -1,27 +1,24 @@
 "use client"
-import AsyncSearchSelect from '@/components/AsyncSearchSelect/AsyncSearchSelect';
-import { useDealStore } from '@/context/store/dealsStore';
-import { Button, Input, Pagination, PaginationProps } from "antd";
-import { motion } from "framer-motion";
-import { Activity, Plus, Search } from 'lucide-react';
-import { use, useCallback, useEffect, useState, memo, useRef } from 'react';
-import LeadCardReimagined from './LeadCard';
 import { HCOContactPerson } from '@/components/AddNewContactModal/AddNewContactModal';
-import { SelectProps } from 'antd/lib';
-import { useLeadStore } from '@/context/store/leadsStore';
-import { Healthcare } from '../../healthcares/lib/types';
-import { useApi } from '@/hooks/useAPI';
-import { APIPATH } from '@/shared/constants/url';
-import debounce from 'lodash.debounce';
-import { useLoading } from '@/hooks/useLoading';
+import AsyncSearchSelect from '@/components/AsyncSearchSelect/AsyncSearchSelect';
 import { ProductSkeleton } from '@/components/Skeletons/ProductCardSkelton';
-import { useLeadViewState } from '@/context/store/optimizedSelectors';
+import { useLeadStore } from '@/context/store/leadsStore';
+import { useDropDowns, useLeadViewState } from '@/context/store/optimizedSelectors';
+import { useApi } from '@/hooks/useAPI';
+import { useLoading } from '@/hooks/useLoading';
+import { APIPATH } from '@/shared/constants/url';
+import { Button, Input, Pagination, PaginationProps } from "antd";
+import { SelectProps } from 'antd/lib';
+import { motion } from "framer-motion";
+import debounce from 'lodash.debounce';
+import { Activity, Plus, Search } from 'lucide-react';
+import { memo, use, useCallback, useRef, useState } from 'react';
+import LeadCardReimagined from './LeadCard';
 
 export interface Lead {
   leadUUID: string;
-  userUUID: string;
   hcoUUID: string;
-  createdDate: string;
+  leadDate: string;
   summary: string;
   createdAt: string;
   updatedAt: string;
@@ -30,6 +27,7 @@ export interface Lead {
   leadName: string;
   leadStatus: "new" | "inProgress" | "cancelled";
   closeReason?: string;
+  createdUUID?: string;
   contactPersons: HCOContactPerson[];
 }
 
@@ -54,7 +52,7 @@ const FilterControls = memo(({
   onHealthcareChange: SelectProps["onSelect"];
   onHealthcareClear: () => void;
 }) => {
-  const { hcoList } = useLeadStore();
+  const { hcoList } = useDropDowns()
   const handleClear = useCallback(() => {
     onClearFilters();
   }, [onClearFilters]);
@@ -161,57 +159,38 @@ interface LeadsListingProps {
       totalCount: number;
     };
   }>;
-  hcoListPromise: Promise<{
-    data: Healthcare[];
-  }>;
+
 }
 
-export default function LeadsLising({ leadPromise, hcoListPromise }: LeadsListingProps) {
+export default function LeadsLising({ leadPromise }: LeadsListingProps) {
   const leadsData = use(leadPromise);
-  const hcoListData = use(hcoListPromise);
   const API = useApi();
   const [leads, setLeads] = useState<Lead[]>(leadsData.data.list);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [healthcareFilter, setHealthcareFilter] = useState("");
-  const { page, setPage, pageSize, setPageSize, setHcoList } = useLeadViewState();
-  const [loading, setLoading] = useLoading();
+  const { page, setPage, pageSize, setPageSize } = useLeadViewState();
 
-  // Initialize store with initial data
-  useEffect(() => {
-    if (hcoListData?.data) {
-      setHcoList(hcoListData.data);
-    }
-    // Set initial page size if not already set
-    if (pageSize === 10) {
-      setPageSize(10);
-    }
-  }, [hcoListData, setHcoList, pageSize, setPageSize]);
+  const [loading, setLoading] = useLoading();
 
   // Fetch leads function
   const fetchLeads = useCallback(
     async (newPage: number, newPageSize: number, search: string, status: string, hcoUUID: string = "") => {
       setLoading(true);
-      try {
-        const response = await API.get(
-          APIPATH.LEAD.GETLEAD +
-          `?page=${newPage}&limit=${newPageSize}${search ? `&searchLead=${search}` : ""
-          }${status ? `&searchLeadStatus=${status}` : ""}${hcoUUID ? `&searchHcoUUID=${hcoUUID}` : ""
-          }`
-        );
-
-        // Update leads and pagination in a single state update to ensure consistency
+      const response = await API.get(
+        APIPATH.LEAD.GETLEAD +
+        `?page=${newPage}&limit=${newPageSize}${search ? `&searchLead=${search}` : ""
+        }${status ? `&searchLeadStatus=${status}` : ""}${hcoUUID ? `&searchHcoUUID=${hcoUUID}` : ""
+        }`
+      );
+      if (response) {
         setLeads(response.data.list);
         setPage(newPage);
         setPageSize(newPageSize);
-
         window.scrollTo({ top: 0, behavior: "smooth" });
-      } catch (error) {
-        console.error("Error fetching leads:", error);
-      } finally {
-        setLoading(false);
       }
+      setLoading(false);
     },
     [API, setPage, setPageSize, setLoading]
   );
@@ -236,9 +215,7 @@ export default function LeadsLising({ leadPromise, hcoListPromise }: LeadsListin
   const handleStatusFilterChange = useCallback(
     (status: string) => {
       setStatusFilter(status);
-      // Cancel pending debounced search
       debouncedFetch.cancel();
-      // Immediately fetch with new status filter
       fetchLeads(1, pageSize, searchQuery, status, healthcareFilter);
     },
     [fetchLeads, searchQuery, debouncedFetch, healthcareFilter, pageSize]
@@ -306,8 +283,6 @@ export default function LeadsLising({ leadPromise, hcoListPromise }: LeadsListin
               total={leadsData.data.totalCount}
               pageSize={pageSize}
               onChange={handlePageChange}
-              showQuickJumper
-              showSizeChanger
               pageSizeOptions={["10", "20", "50", "100"]}
             />
           </div>

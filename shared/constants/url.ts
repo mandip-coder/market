@@ -49,6 +49,7 @@ export const APIPATH = {
   LEAD: {
     GETALLLEADS: "lead",
     GETLEAD: "lead/",
+    CREATELEAD: "lead",
   },
   PRODUCTS: {
     GETPRODUCTS: "products",
@@ -64,7 +65,8 @@ export const APIPATH = {
   DROPDOWN: {
     LEADSOURCE: "dropdown/lead_source",
     PERSONALITYTRAITS: "dropdown/personality_traits",
-    VENUE: "dropdown/venue",
+    USERS: "dropdown/users",
+    PRODUCTS: "dropdown/products",
   },
   COUNTRY: {
     GETCOUNTRYLIST: "country",
@@ -86,5 +88,6 @@ export const APIPATH = {
     DELETECONTACT: "hco-contact/",
     GETCONTACT: "hco-contact/",
     GETCONTACTLIST: "hco-contact",
+    GETHCOCONTACT: (hcoUUID: string) => `hco-contact/hco/${hcoUUID}/contacts`,
   }
 }

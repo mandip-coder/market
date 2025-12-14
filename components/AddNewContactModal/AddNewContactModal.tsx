@@ -1,42 +1,37 @@
+import { Healthcare } from "@/app/(main)/healthcares/lib/types";
+import { useDropdownsStore } from "@/context/store/dropdownsStore";
+import { useApi } from "@/hooks/useAPI";
 import { useLoading } from "@/hooks/useLoading";
+import { rowGutter } from "@/shared/constants/themeConfig";
+import { APIPATH } from "@/shared/constants/url";
 import {
   Button,
+  Checkbox,
   Col,
   Divider,
+  Drawer,
   Row,
   Space,
-  TimePicker,
-  Spin,
-  message,
-  Typography,
   Tag,
-  Checkbox,
-  Drawer,
+  TimePicker,
+  Typography
 } from "antd";
-import { Form, Formik, FormikHelpers, FormikProps, FormikValues } from "formik";
-import * as Yup from "yup";
-import CustomSelect from "../CustomSelect/CustomSelect";
-import Input from "../Input/Input";
-import Label from "../Label/Label";
-import ModalWrapper from "../Modal/Modal";
-import { useState, useEffect, memo, useRef, useCallback, useMemo } from "react";
-import { toast } from "react-toastify";
+import TextArea from "antd/es/input/TextArea";
+import dayjs from "dayjs";
+import { Form, Formik, FormikHelpers } from "formik";
 import {
   Brain,
   Building,
   Mail,
   Phone,
-  User,
-  Linkedin,
-  CloudCog,
+  User
 } from "lucide-react";
-import TextArea from "antd/es/input/TextArea";
-import dayjs from "dayjs";
-import { rowGutter } from "@/shared/constants/themeConfig";
-import { useApi } from "@/hooks/useAPI";
-import { APIPATH } from "@/shared/constants/url";
-import { Healthcare } from "@/app/(main)/healthcares/lib/types";
-import { useDropdownsStore } from "@/context/store/dropdownsStore";
+import { memo, useCallback, useMemo, useRef } from "react";
+import { toast } from "react-toastify";
+import * as Yup from "yup";
+import CustomSelect from "../CustomSelect/CustomSelect";
+import Input from "../Input/Input";
+import Label from "../Label/Label";
 
 
 

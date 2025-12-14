@@ -14,7 +14,7 @@ interface Company {
 declare module "next-auth" {
   interface Session {
     user: User & {
-      userId: string
+      userUUID: string
       fullName?: string | null
       email?: string | null
       image?: string | null
@@ -62,7 +62,7 @@ async function authorizeUser(credentials: Record<string, unknown> | undefined) {
     }),
   });
   const resData = await res.json();
-  if(!resData.status){
+  if (!resData.status) {
     throw new Error(resData.message);
   }
   const data = resData.data as User | undefined;
@@ -99,7 +99,7 @@ async function authorizeUser(credentials: Record<string, unknown> | undefined) {
 // NextAuth configuration
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
-   basePath: "/api/authentication",
+  basePath: "/api/authentication",
   session: {
     strategy: 'jwt',
     updateAge: 0,
@@ -167,4 +167,4 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       authorize: authorizeUser
     }),
   ],
-}); 
+});

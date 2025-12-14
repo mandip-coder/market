@@ -1,4 +1,4 @@
-import AddNewContactModal from "@/components/AddNewContactModal/AddNewContactModal";
+import AddNewContactModal, { HCOContactPerson } from "@/components/AddNewContactModal/AddNewContactModal";
 import AsyncSearchSelect from "@/components/AsyncSearchSelect/AsyncSearchSelect";
 import CustomDatePicker from "@/components/CustomDatePicker/CustomDatePicker";
 import CustomSelect from "@/components/CustomSelect/CustomSelect";
@@ -16,7 +16,11 @@ import { toast } from "react-toastify";
 import * as Yup from 'yup';
 import HealthCareData from '../../deals/healthcares.json';
 import dayjs from "dayjs";
-import { useLeadModal } from "@/context/store/optimizedSelectors";
+import { useDropDowns, useLeadModal } from "@/context/store/optimizedSelectors";
+import { useApi } from "@/hooks/useAPI";
+import { APIPATH } from "@/shared/constants/url";
+import { fetchContacts } from "@/Utils/helpers";
+import ContactOptionsRender from "@/components/shared/ContactOptionsRender";
 
 // ===========================
 // Types & Interfaces
@@ -27,13 +31,13 @@ interface Healthcare {
   hcoName: string;
 }
 
-interface LeadFormData {
+export interface LeadFormData {
   leadName: string;
   summary: string;
-  dateAndTime: string;
+  leadDate: string;
   leadSource: string;
-  contactPerson: string[];
-  owner: string[];
+  contactPersons: string[];
+  assignTo: string[];
   hcoUUID: string;
 }
 
@@ -42,52 +46,32 @@ const validationSchema = Yup.object().shape({
   leadName: Yup.string().required('Lead name is required'),
   summary: Yup.string().required('Summary is required'),
   leadSource: Yup.string().required('Lead source is required'),
-  contactPerson: Yup.array().required('Contact person is required').min(1, 'At least one contact person is required'),
-  owner: Yup.array().required('Owner is required').min(1, 'At least one owner is required'),
+  contactPersons: Yup.array().required('Contact person is required').min(1, 'At least one contact person is required'),
+  assignTo: Yup.array().required('Assign to is required').min(1, 'At least one assign to is required'),
   hcoUUID: Yup.string().required('Healthcare is required'),
-  dateAndTime: Yup.date().required('Date is required'),
+  leadDate: Yup.date().required('Date is required'),
 });
-
-// ===========================
-// Constants
-// ===========================
-
-const LEAD_SOURCE_OPTIONS = ["Advertisement", "Email", "Social Media", "Partner", "Other"].map((mode) => ({
-  label: mode,
-  value: mode.toLowerCase()
-}));
-
-const OWNER_OPTIONS = [{
-  label: "Owner 1",
-  value: "123"
-}];
 
 
 
 function LeadDrawer() {
-  const [Healthcares] = useState<Healthcare[]>(HealthCareData as any);
   const [loading, setLoading] = useLoading();
   const [AddNewContactModalOpen, setAddNewContactModalOpen] = useState(false);
-  const [contactsOptions, setContactsOptions] = useState<{ label: string; value: string }[]>([
-    { label: "Contact 1", value: "contact-1" },
-    { label: "Contact 2", value: "contact-2" },
-  ]);
   const { leadModal, toggleLeadDrawer, preFilledData } = useLeadModal();
-
+  const { usersList, hcoList, leadSources, products } = useDropDowns();
+  const [contactsOptions, setContactsOptions] = useState<HCOContactPerson[]>([]);
   const formikRef = useRef<FormikProps<LeadFormData>>(null);
   const router = useRouter();
+  const API = useApi();
   const handleSubmit = async (values: LeadFormData): Promise<void> => {
     setLoading(true);
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      toast.success('New Prospect created!');
-      router.push(`/leads/${values.hcoUUID}`);
+    const response = await API.post(APIPATH.LEAD.CREATELEAD, values);
+    if (response) {
+      toast.success('Lead created successfully');
       toggleLeadDrawer();
-    } catch (error) {
-      toast.error('Failed to create prospect. Please try again.');
-    } finally {
-      setLoading(false);
+      router.push(`/leads/${values.hcoUUID}`);
     }
+    setLoading(false);
   }
 
   const handleClearForm = useCallback(() => {
@@ -97,18 +81,13 @@ function LeadDrawer() {
     }
   }, []);
 
-  const handleAddNewContact = (contactData: any) => {
+  const handleAddNewContact = (contactData: HCOContactPerson) => {
     if (contactData) {
-      const newId = String(Date.now());
-      const newOption = { label: contactData.name + " - " + contactData.role, value: newId };
-      setContactsOptions(prev => [...prev, newOption]);
-      // Set the value and force a re-render
-      setTimeout(() => {
-        formikRef.current?.setFieldValue('contactPerson', newId);
-        formikRef.current?.setFieldTouched('contactPerson', true);
-      }, 0);
+      setContactsOptions(prev => [...prev, contactData]);
+      formikRef.current?.setFieldValue('contactPersons', contactData.hcoContactUUID);
+      formikRef.current?.setFieldTouched('contactPersons', true);
+      setAddNewContactModalOpen(false);
     }
-    setAddNewContactModalOpen(false);
   }
 
   const handleClose = useCallback(() => {
@@ -142,11 +121,11 @@ function LeadDrawer() {
         initialValues={{
           leadName: preFilledData?.leadName || "",
           hcoUUID: preFilledData?.hcoUUID || "",
-          dateAndTime: preFilledData?.dateAndTime || dayjs().format('YYYY-MM-DD hh:mm:ss A'),
+          leadDate: preFilledData?.leadDate || dayjs().format('YYYY-MM-DD'),
           summary: preFilledData?.summary || "",
           leadSource: preFilledData?.leadSource || "",
-          contactPerson: preFilledData?.contactPerson || [],
-          owner: preFilledData?.owner || [],
+          contactPersons: preFilledData?.contactPersons || [],
+          assignTo: preFilledData?.assignTo || [],
         }}
         validationSchema={validationSchema}
         onSubmit={handleSubmit}
@@ -164,75 +143,80 @@ function LeadDrawer() {
               </Col>
 
               <Col xs={24} sm={12}>
-                <div className="relative">
-                  <Label text="Healthcare" htmlFor="hcoUUID" required />
-                  <Field name="hcoUUID">
-                    {({ field, meta }: FieldProps) => (
-                      <>
-                        <AsyncSearchSelect
-                          {...field}
-                          allowClear
-                          value={field.value}
-                          placeholder="Select healthcare..."
-                          options={Healthcares.map((h) => ({
-                            label: h.hcoName,
-                            value: h.hcoUUID,
-                          }))}
-                          onChange={(value) => {
-                            setFieldValue("hcoUUID", value);
-                            setFieldValue("contactPerson", "");
-                          }}
-                        />
-                        {meta.touched && meta.error && (
-                          <span className="field-error">{meta.error}</span>
-                        )}
-                      </>
-                    )}
-                  </Field>
-                </div>
+
+                <CustomSelect
+                  name="hcoUUID"
+                  label="Healthcare"
+                  allowClear
+                  required
+                  value={values.hcoUUID}
+                  placeholder="Select healthcare..."
+                  options={hcoList.map((h) => ({
+                    label: h.hcoName,
+                    value: h.hcoUUID,
+                  }))}
+                  onChange={async (value) => {
+                    setFieldValue("hcoUUID", value);
+                    setFieldValue("contactPersons", []);
+                    const contacts = await fetchContacts(API, value);
+                    setContactsOptions(contacts ?? []);
+                  }}
+                />
+
               </Col>
 
               <Col xs={24} sm={12}>
                 <CustomSelect
+                  required
                   name="leadSource"
                   label="Lead Source"
-                  options={LEAD_SOURCE_OPTIONS}
+                  options={leadSources.map((source) => ({
+                    label: source.leadSourceName,
+                    value: source.leadSourceUUID,
+                  }))}
                 />
               </Col>
 
               <Col xs={24} sm={12}>
                 <CustomDatePicker
-                  name="dateAndTime"
-                  label="Date & Time"
-                  format="YYYY-MM-DD hh:mm A"
-                  showTime
+                  name="leadDate"
+                  label="Date"
+                  format="YYYY-MM-DD"
                   required
                 />
               </Col>
 
               <Col xs={24} sm={12}>
                 <CustomSelect
-                  name="owner"
-                  label="Owner"
+                  name="assignTo"
+                  label="Assign To"
                   mode="multiple"
                   required
-                  options={OWNER_OPTIONS}
+                  options={usersList.map((user) => ({
+                    label: user.fullName,
+                    value: user.userUUID,
+                  }))}
                 />
               </Col>
 
               <Col xs={24} sm={24}>
                 <CustomSelect
                   hideSelected
-                  name="contactPerson"
-                  label="Contact Person"
+                  required
+                  name="contactPersons"
+                  label="Contact Persons"
                   placeholder={`${values.hcoUUID ? "Select contact person" : "Select healthcare first"}`}
                   loading={!values.hcoUUID}
                   disabled={!values.hcoUUID}
                   mode="multiple"
                   allowClear
                   maxResponsive
-                  options={contactsOptions}
-                  onChange={(value) => setFieldValue("contactPerson", value)}
+                  options={contactsOptions.map((contact) => ({
+                    label: contact.fullName,
+                    value: contact.hcoContactUUID,
+                    contact
+                  }))}
+                  optionRender={(contact) => <ContactOptionsRender option={contact} />}
                   popupRender={(contact) => (
                     <>
                       {contact}
@@ -273,7 +257,7 @@ function LeadDrawer() {
 
     <AddNewContactModal
       hcoUUID={formikRef.current?.values.hcoUUID}
-      hcoName={Healthcares.find((h) => h.hcoUUID.toString() === formikRef.current?.values.hcoUUID)?.hcoName}
+      hcoName={hcoList.find((h) => h.hcoUUID.toString() === formikRef.current?.values.hcoUUID)?.hcoName}
       open={AddNewContactModalOpen}
       onClose={() => setAddNewContactModalOpen(false)}
       onSave={(values) => handleAddNewContact(values)}

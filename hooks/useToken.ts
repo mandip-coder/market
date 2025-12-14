@@ -4,3 +4,8 @@ export const useToken = () => {
   const { data: session } = useSession();
   return session?.user?.token;
 };
+
+export const useLoginUser = () => {
+  const { data: session } = useSession();
+  return session?.user;
+};

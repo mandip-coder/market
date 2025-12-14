@@ -150,8 +150,6 @@ const GridView = memo(({
           total={totalDeals}
           pageSize={pageSize}
           onChange={handlePageChange}
-          showQuickJumper
-          showSizeChanger
           pageSizeOptions={["10", "20", "50", "100"]}
         />
       </div>

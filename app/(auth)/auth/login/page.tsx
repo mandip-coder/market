@@ -26,7 +26,6 @@ const Login = () => {
 
 
     if (res?.success) {
-      toast.success("Login successful");
       setLoading(false);
       update()
       router.push("/dashboard");

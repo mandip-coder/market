@@ -1,12 +1,11 @@
 import { Badge, Card, Tooltip, Typography } from "antd";
-import { GlobalDate } from "@/Utils/helpers";
+import { formatUserDisplay, GlobalDate } from "@/Utils/helpers";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { Building, Calendar, Clock, User } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { Deal, Stage, STAGE_LABELS } from "../../../../lib/types";
-import { formatUserDisplay } from "@/Utils/userDisplay";
 
 dayjs.extend(relativeTime);
 
@@ -128,7 +127,7 @@ export const DealCard = ({ deal, page }: { deal: Deal; page: number }) => {
                   <div className="flex items-center gap-1.5 min-w-0">
                     <User className="h-3 w-3 text-blue-500 dark:text-blue-400 flex-shrink-0" />
                     <span className="text-slate-600 dark:text-slate-400 truncate">
-                      {formatUserDisplay(deal.createdBy, deal.userUUID, deal.createdByUUID )}
+                      {formatUserDisplay(deal.createdBy, deal.userUUID, deal.createdByUUID)}
                     </span>
                   </div>
                 </Tooltip>
