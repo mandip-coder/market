@@ -5,7 +5,7 @@ import { SessionProvider as MainSession } from "next-auth/react";
 import { ReactNode } from "react";
 import { AuthProvider } from "./AuthContext";
 import { SessionCountdown } from "@/components/SessionMonitor";
-export default function SessionProvider({ children }: { children: ReactNode}) {
+export default function SessionProvider({ children }: { children: ReactNode }) {
   const isMobile = useMobile();
 
   if (isMobile) {
@@ -42,7 +42,7 @@ export default function SessionProvider({ children }: { children: ReactNode}) {
 
   return (
     <MainSession basePath="/market-access/api/authentication" refetchOnWindowFocus={false} refetchInterval={0} >
-      {/* <SessionCountdown /> */}
+      <SessionCountdown />
       <AuthProvider>{children}</AuthProvider>
     </MainSession>
   );

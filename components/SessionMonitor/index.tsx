@@ -51,6 +51,8 @@ export function SessionCountdown() {
         const res = await logoutAction()
         if (res.success) {
           toast.success('Logout successful');
+        } else {
+          toast.error(res.error);
         }
       }
     }, 1000)

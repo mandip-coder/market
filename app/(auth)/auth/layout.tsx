@@ -34,7 +34,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         themeMode === "light" ? theme.defaultAlgorithm : theme.darkAlgorithm,
     }}
   >
-    <div className="fixed bottom-6 left-1/4 z-50 -translate-x-1/2 text-center text-sm">
+    <div className="fixed bottom-6 left-1/2 lg:left-1/4 z-50 -translate-x-1/2 text-center text-sm">
       Powered by <a className="text-primary" target="_blank" href="https://topialifesciences.com">Topia Lifesciences</a>
       <div className="text-gray-500 text-xs">
         All rights reserved &copy;  2026

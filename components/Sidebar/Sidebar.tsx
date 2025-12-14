@@ -4,7 +4,7 @@ import { useThemeContext } from "@/context/ThemeContextProvider";
 import useMenu from "@/hooks/useMenu";
 import { Menu, Layout, Tooltip } from "antd";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState, memo } from "react";
+import { useCallback, useEffect, useMemo, useState, memo, Suspense } from "react";
 import AppScrollbar from "../AppScrollBar";
 import Link from "next/link";
 import { Bell, ChevronLeft, MoonIcon, SunIcon } from "lucide-react";
@@ -13,6 +13,7 @@ import NotificationDrawer from "../NotificationDrawer/NotificationDrawer";
 import AccountSwitcher from "../AccountSwitcher/AccountSwithcer";
 import { MenuProps } from "antd/lib";
 import ShinyText from "../ShinyText/ShinyText";
+import SuspenseWithBoundary from "../SuspenseWithErrorBoundry/SuspenseWithErrorBoundry";
 
 const { Sider } = Layout;
 
@@ -172,7 +173,6 @@ function Sidebar() {
             onOpenChange={setOpenKeys}
             items={SystemMenu}
           />
-
           <AccountSwitcher />
           {!collapsed && <div className="text-center py-2">
             <div className="text-gray-500 text-xs">

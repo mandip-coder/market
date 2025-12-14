@@ -9,3 +9,8 @@ export const useLoginUser = () => {
   const { data: session } = useSession();
   return session?.user;
 };
+
+export const useCompanies = () => {
+  const { data: session } = useSession();
+  return session?.user?.companies;
+};

@@ -1,77 +1,113 @@
+import { Company } from "@/app/(main)/master/company-master/components/CompanyDataTable";
 import { useSidebar } from "@/context/SidebarContextProvider";
+import { useCompanies } from "@/hooks/useToken";
 import { logoutAction } from "@/lib/actions/signOut";
 import { Dropdown, MenuProps } from "antd";
 import { ChevronsUpDown, LogOut, Settings, User } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 
-const orgs = [
-  { id: 1, name: "Rocks Company", email: "ZyA9o@example.com" },
-  { id: 2, name: "Skyline Inc.", email: "p7N0M@example.com" },
-  { id: 3, name: "GreenTech Labs", email: "m4BwW@example.com" },
-  { id: 4, name: "Nova Solutions", email: "M2p4Q@example.com" },
-];
 
 function getInitials(name: string) {
-  return name
-    .split(" ")
-    .map((word) => word[0])
-    .join("")
-    .toUpperCase();
+  try {
+
+    return name
+      .split(" ").slice(0, 2)
+      .map((word) => word[0])
+      .join("")
+      .toUpperCase()
+  } catch (e) {
+    return ""
+  }
 }
 
+
 export default function OrgSwitcher() {
-  const [selectedOrg, setSelectedOrg] = useState(orgs[0]);
+  const { data: Session } = useSession()
+  const orgs = Session?.user?.companies || []
+  const [selectedOrg, setSelectedOrg] = useState<Company | undefined>(orgs[0]);
   const { collapsed } = useSidebar();
   const { update } = useSession()
 
-  const handleLogoutClick = async () => {
+  // Sync selectedOrg when session companies change
+  useEffect(() => {
+    if (orgs.length > 0 && !selectedOrg) {
+      setSelectedOrg(orgs[0]);
+    }
+  }, [orgs, selectedOrg]);
+
+  const handleOrgSwitch = async (org: Company) => {
     try {
-      const res = await logoutAction()
-      if (res.success) {
-        await signOut({ redirectTo: "/auth/login" });
-        toast.success("Logout successful");
-      }
+      setSelectedOrg(org);
+      // Update the session with the new selected company
+      await update({
+        ...Session,
+        user: {
+          ...Session?.user,
+          selectedCompany: org,
+        }
+      });
+      toast.success(`Switched to ${org.displayName}`);
     } catch (error) {
-      toast.error("Logout failed");
+      toast.error("Failed to switch organization");
+      console.error("Organization switch error:", error);
     }
   };
 
+  const handleLogoutClick = async () => {
+    const res = await logoutAction()
+    if (res.success) {
+      toast.success("Logout successful");
+      return
+    }
+    toast.error("Logout failed");
+  };
+
+  // Return null if no organizations available
+  if (!orgs || orgs.length === 0) {
+    return null;
+  }
+
   const items: MenuProps["items"] = [
-    ...orgs.map((org) => ({
-      key: org.id,
-      title: "",
-      label: (
-        <div
-          className="flex items-center gap-3  py-2 rounded-md cursor-pointer"
-          onClick={() => setSelectedOrg(org)}
-        >
-          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold text-sm">
-            {getInitials(org.name)}
+    ...orgs.map((org) => {
+      const isSelected = selectedOrg?.companyUUID === org.companyUUID;
+      return {
+        key: org.companyUUID,
+        title: "",
+        disabled: isSelected,
+        label: (
+          <div
+            className={`flex items-center gap-3 py-2 rounded-md ${isSelected ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+              }`}
+            onClick={() => !isSelected && handleOrgSwitch(org)}
+          >
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold text-sm">
+              {getInitials(org?.displayName || "")}
+            </div>
+            <div className="flex flex-col">
+              <span className="font-medium text-gray-800 dark:text-gray-200">{org?.displayName}</span>
+              <span title={org?.email} className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-40">{org?.email}</span>
+            </div>
           </div>
-          <div className="flex flex-col">
-            <span className="font-medium text-gray-800 dark:text-gray-200">{org.name}</span>
-            <span title={org.email} className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-40">{org.email}</span>
-          </div>
-        </div>
-      ),
-    })),
-    {
-      type: "group",
-      key: "group",
-      label: "Other",
-    },
-    {
-      key: "profile",
-      label: "Profile",
-      icon: <User size={16} />
-    },
-    {
-      key: "settings",
-      label: "Settings",
-      icon: <Settings size={16} />
-    },
+        ),
+      };
+    }),
+    // {
+    //   type: "group",
+    //   key: "group",
+    //   label: "Other",
+    // },
+    // {
+    //   key: "profile",
+    //   label: "Profile",
+    //   icon: <User size={16} />
+    // },
+    // {
+    //   key: "settings",
+    //   label: "Settings",
+    //   icon: <Settings size={16} />
+    // },
     {
       type: "divider",
       key: "divider",
@@ -88,27 +124,27 @@ export default function OrgSwitcher() {
   return (
     <Dropdown
       key={"org-switcher"}
-      menu={{ items, selectedKeys: [selectedOrg.id.toString()] }}
+      menu={{ items, selectedKeys: [selectedOrg?.companyUUID || ""] }}
       trigger={["click"]}
       placement="topLeft"
     >
       <button
         className="flex cursor-pointer items-center justify-between w-full border-y border-border-header dark:border-dark-border px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-        title=""
+
       >
         {collapsed ? (
           <div className="flex items-center justify-center w-9 h-9 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold text-sm mx-auto">
-            {getInitials(selectedOrg.name)}
+            {getInitials(selectedOrg?.displayName || "")}
           </div>
         ) : (
           <>
             <div className="flex items-center gap-3">
               <div className="flex items-center justify-center w-9 h-9 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold text-sm">
-                {getInitials(selectedOrg.name)}
+                {getInitials(selectedOrg?.displayName || "")}
               </div>
               <div className="flex flex-col items-start text-left">
-                <span className="font-semibold text-gray-800 dark:text-gray-200">{selectedOrg.name}</span>
-                <span className="text-xs text-gray-500 dark:text-gray-400">{selectedOrg.email}</span>
+                <span className="font-semibold text-gray-800 dark:text-gray-200">{selectedOrg?.displayName}</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400">{selectedOrg?.email}</span>
               </div>
             </div>
             <ChevronsUpDown className="w-4 h-4 text-gray-600 dark:text-gray-300" />

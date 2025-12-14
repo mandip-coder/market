@@ -2,13 +2,8 @@ import NextAuth, { User } from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import { jwtDecode } from "jwt-decode"
 import { APIPATH } from "@/shared/constants/url"
+import { Company } from "@/app/(main)/master/company-master/components/CompanyDataTable"
 
-// Define interfaces with proper naming
-interface Company {
-  companyUUID: string
-  displayName: string
-  roles: string[]
-}
 
 // Extend the built-in session and user types
 declare module "next-auth" {
