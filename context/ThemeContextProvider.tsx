@@ -1,11 +1,18 @@
 "use client";
 
 import { requestNotificationPermission } from "@/Utils/notifications";
-import React, { createContext, useContext, useLayoutEffect, useMemo, useState } from "react";
-import 'nprogress/nprogress.css';
+import React, {
+  createContext,
+  useContext,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from "react";
+import "nprogress/nprogress.css";
 export type ThemeMode = "light" | "dark";
-import dayjs from 'dayjs';
-import customParseFormat from 'dayjs/plugin/customParseFormat';
+import dayjs from "dayjs";
+import customParseFormat from "dayjs/plugin/customParseFormat";
+import { Loader } from "lucide-react";
 
 dayjs.extend(customParseFormat);
 
@@ -32,9 +39,9 @@ const applyTheme = (mode: ThemeMode) => {
 
 // Get initial theme from localStorage or default to light
 const getInitialTheme = (): ThemeMode => {
-  if (typeof window === 'undefined') return 'light';
+  if (typeof window === "undefined") return "light";
   const storedTheme = localStorage.getItem("theme") as ThemeMode | null;
-  return storedTheme || 'light';
+  return storedTheme || "light";
 };
 
 const ThemeContextProvider = ({ children }: { children: React.ReactNode }) => {
@@ -46,11 +53,14 @@ const ThemeContextProvider = ({ children }: { children: React.ReactNode }) => {
   }, [themeMode]);
 
   // Memoize context value to prevent unnecessary re-renders
-  const contextValue = useMemo(() => ({ themeMode, setThemeMode }), [themeMode]);
+  const contextValue = useMemo(
+    () => ({ themeMode, setThemeMode }),
+    [themeMode]
+  );
 
   return (
     <ThemeContext.Provider value={contextValue}>
-      {children}
+      {themeMode ? children : <Loader className="animate-spin" />}
     </ThemeContext.Provider>
   );
 };

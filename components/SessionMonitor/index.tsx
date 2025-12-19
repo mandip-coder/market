@@ -70,16 +70,16 @@ export function SessionCountdown() {
   }
 
   const isExpired = remaining <= 0
-
-  return (
-    <div style={{ fontSize: 14 }}>
-      {isExpired ? (
-        <span>Session expired (please sign in again)</span>
-      ) : (
-        <span>
-          Session logout in: <strong>{formatTime(remaining)}</strong>
-        </span>
-      )}
-    </div>
-  )
+  return null
+  // return (
+  //   <div style={{ fontSize: 14 }}>
+  //     {isExpired ? (
+  //       <span>Session expired (please sign in again)</span>
+  //     ) : (
+  //       <span>
+  //         Session logout in: <strong>{formatTime(remaining)}</strong>
+  //       </span>
+  //     )}
+  //   </div>
+  // )
 }

@@ -1,17 +1,23 @@
-import React from 'react'
+import React from "react";
 import Products from "./products.json";
-import SuspenseWithBoundary from '@/components/SuspenseWithErrorBoundry/SuspenseWithErrorBoundry'
-import FullPageSkeleton from '@/components/Skeletons/FullpageSkeleton';
-import ProductsListing from './ProductsListing';
+import SuspenseWithBoundary from "@/components/SuspenseWithErrorBoundry/SuspenseWithErrorBoundry";
+import FullPageSkeleton from "@/components/Skeletons/FullpageSkeleton";
+import ProductsListing from "./ProductsListing";
+import { SERVERAPI } from "@/Utils/apiFunctions";
+import { APIPATH } from "@/shared/constants/url";
+import PageHeading from "@/components/PageHeading/PageHeading";
 export default async function page() {
-  const data = new Promise<any>((resolve) => {
-    setTimeout(() => resolve(Products), 2000)
-  })
-
+  const products = SERVERAPI(APIPATH.PRODUCTS.GETPRODUCTS);
 
   return (
-    <SuspenseWithBoundary loading={<FullPageSkeleton/>}>
-      <ProductsListing productsPromise={data} />
-    </SuspenseWithBoundary>
-  )
+    <>
+      <PageHeading
+        title="Product Catalogue"
+        descriptionLine="Browse and manage pharmaceutical products"
+      />
+      <SuspenseWithBoundary loading={<FullPageSkeleton />}>
+        <ProductsListing response={products} />
+      </SuspenseWithBoundary>
+    </>
+  );
 }

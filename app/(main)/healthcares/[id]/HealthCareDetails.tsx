@@ -32,7 +32,7 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import { Healthcare } from '../lib/types';
-import { KpiCard } from '../../dashboard/components/KPICardsUI';
+import { KpiCard } from '../../dashboard/components/KpiCard';
 import { DealCard } from '../../deals/components/DealCard';
 
 // TypeScript Interfaces
@@ -46,7 +46,7 @@ interface DealStatus {
   description: string;
 }
 interface HealthcarePromise {
- data: Healthcare[];
+ data: Healthcare;
 }
 
 const MOCK_DEAL_STATUS: DealStatus[] = [
@@ -173,9 +173,9 @@ const TrackerTab = () => {
   );
 };
 
-export default function HealthCareDetails({healthcareDetailsPromise: _healthcareDetailsPromise}: {healthcareDetailsPromise: Promise<HealthcarePromise>}) {
+export default function HealthCareDetails({healthcareDetailsPromise}: {healthcareDetailsPromise: HealthcarePromise}) {
   const router = useRouter();
-  const [healthcare, sethealthcare] = useState<Healthcare | null>(null);
+  const [healthcare, sethealthcare] = useState<Healthcare | null>(healthcareDetailsPromise.data);
   const [searchQuery, setSearchQuery] = useState('');
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<HCOContactPerson | null>(null);

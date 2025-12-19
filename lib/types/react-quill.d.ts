@@ -22,6 +22,7 @@ declare module 'react-quill' {
     style?: React.CSSProperties;
     preserveWhitespace?: boolean;
     scrollingContainer?: string | HTMLElement;
+    status?: string;
   }
 
   export default class ReactQuill extends Component<ReactQuillProps> { }

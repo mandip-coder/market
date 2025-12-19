@@ -11,15 +11,21 @@ import { useState, useMemo, useCallback, memo } from 'react';
 import * as Yup from 'yup';
 import { useDealStore } from '../../../../../context/store/dealsStore';
 import AppScrollbar from '@/components/AppScrollBar';
+import { Note } from '@/lib/types';
+import { EmptyState } from '@/components/shared/modals/EmptyState';
+import { useApi } from '@/hooks/useAPI';
+import { useLoading } from '@/hooks/useLoading';
+import { APIPATH } from '@/shared/constants/url';
+import Paragraph from 'antd/es/typography/Paragraph';
 
 // Memoized note item component to prevent unnecessary re-renders
 const NoteItem = memo(({ note, onEdit, onDelete }: {
-  note: any;
-  onEdit: (note: any) => void;
-  onDelete: (id: string) => void;
+  note: Note;
+  onEdit: (note: Note) => void;
+  onDelete: (noteUUID: string) => void;
 }) => (
-  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-gray-100 dark:border-gray-700">
-    <div className="p-5">
+  <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden border border-gray-100 dark:border-gray-700 h-full">
+    <div className="p-3">
       <div className="flex justify-between items-start mb-3">
         <div className="flex-1">
           <h4 className="font-semibold text-gray-800 dark:text-white text-lg pr-2">{note.title}</h4>
@@ -30,7 +36,7 @@ const NoteItem = memo(({ note, onEdit, onDelete }: {
             </div>
             <div className="flex items-center">
               <Calendar size={14} className="mr-1.5" />
-              <span>{dayjs(note.createdAt).format('MMM D, YYYY')}</span>
+              <span>{dayjs(note.createdAt).format('D MMM, YYYY')}</span>
             </div>
           </div>
         </div>
@@ -46,7 +52,7 @@ const NoteItem = memo(({ note, onEdit, onDelete }: {
             type="text"
             danger
             icon={<Trash2 size={16} />}
-            onClick={() => onDelete(note.id)}
+            onClick={() => onDelete(note.noteUUID)}
             className="text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-gray-700"
             aria-label="Delete note"
           />
@@ -54,9 +60,9 @@ const NoteItem = memo(({ note, onEdit, onDelete }: {
       </div>
 
       <div className="mt-3">
-        <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">
+        <Paragraph ellipsis={{ rows: 3,tooltip:note.description}}>
           {note.description}
-        </p>
+        </Paragraph>
       </div>
     </div>
   </div>
@@ -64,135 +70,25 @@ const NoteItem = memo(({ note, onEdit, onDelete }: {
 
 NoteItem.displayName = 'NoteItem';
 
-// Memoized empty state component
-const EmptyState = memo(({ searchTerm, onAddNote, setSearchTerm }: {
-  searchTerm: string;
-  onAddNote: () => void;
-  setSearchTerm: (searchTerm: string) => void;
-}) => {
-  const isSearchState = Boolean(searchTerm);
 
-  return (
-    <div className="text-center py-16 bg-gray-50 dark:bg-gray-900 rounded-xl transition-all duration-300">
-      <div className="flex flex-col items-center justify-center">
-        <div className={`transition-all duration-300 ${isSearchState ? 'scale-90 opacity-70' : 'scale-100 opacity-100'}`}>
-          {isSearchState ? (
-            <div className="relative">
-              <Search className="w-12 h-12 mx-auto text-gray-400" />
-              <div className="absolute inset-0 bg-blue-100 dark:bg-blue-900/20 rounded-full blur-xl opacity-30"></div>
-            </div>
-          ) : (
-            <div className="relative">
-              <NotebookIcon className="w-12 h-12 mx-auto text-gray-400" />
-              <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 rounded-full blur-xl opacity-30"></div>
-            </div>
-          )}
-        </div>
-
-        <div className="mt-4 mb-6">
-          <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
-            {isSearchState ? 'No Results Found' : 'No Notes Yet'}
-          </h3>
-          <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto">
-            {isSearchState
-              ? `We couldn't find any notes matching "${searchTerm}".`
-              : 'Start by creating your first note.'
-            }
-          </p>
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-3 items-center justify-center">
-          {isSearchState ? (
-            <Button
-              type="default"
-              onClick={() => setSearchTerm('')}
-              className="h-10 px-5 rounded-md shadow-sm hover:shadow-md transition-all duration-200"
-            >
-              Clear Search
-            </Button>
-          ) : (
-            <Button
-              type="primary"
-              icon={<Plus size={16} />}
-              onClick={onAddNote}
-              className="h-10 px-5 rounded-md shadow-sm hover:shadow-md transition-all duration-200"
-            >
-              Add First Note
-            </Button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-});
-
-EmptyState.displayName = 'EmptyState';
-
-// Memoized delete confirmation modal
-const DeleteModal = memo(({
-  isVisible,
-  onCancel,
-  onConfirm
-}: {
-  isVisible: boolean;
-  onCancel: () => void;
-  onConfirm: () => void;
-}) => (
-  <Modal
-    title={
-      <div className="flex items-center gap-2">
-        <Trash2 size={18} className="text-red-500" />
-        <span>Delete Note</span>
-      </div>
-    }
-    open={isVisible}
-    onCancel={onCancel}
-    footer={
-      <div className="flex justify-end gap-2">
-        <Button onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button
-          type="primary"
-          danger
-          onClick={onConfirm}
-        >
-          Delete
-        </Button>
-      </div>
-    }
-    width={450}
-    destroyOnHidden
-    maskClosable={false}
-  >
-    <div className="py-4">
-      <p className="text-gray-700 dark:text-gray-300">
-        Are you sure you want to delete this note? This action cannot be undone.
-      </p>
-    </div>
-  </Modal>
-));
-
-DeleteModal.displayName = 'DeleteModal';
 
 // Main component
 const NoteModal = () => {
-  const { notes, addNote, updateNote, deleteNote } = useDealStore();
+  const { notes, addNote, updateNote, deleteNote, dealUUID } = useDealStore((state)=>state);
+  const [modal, contextHolder] = Modal.useModal();
+  const API = useApi();
+  const [loading, setLoading] = useLoading();
 
-  // Combine modal states into a single object
-  const [modals, setModals] = useState({
-    note: false,
-    delete: false
-  });
+  // Modal state for add/edit note
+  const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
 
-  const [editingNote, setEditingNote] = useState<any>(null);
-  const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
+  const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Memoize validation schema to prevent recreation on every render
   const validationSchema = useMemo(() => Yup.object({
-    title: Yup.string().required('Title is required'),
-    description: Yup.string().required('Description is required')
+    title: Yup.string().required('Title is required').max(100,'Title must be less than 100 characters').min(3,'Title must be at least 3 characters').max(200,'Title must be less than 200 characters'),
+    description: Yup.string().required('Description is required').max(5000,'Description must be less than 500 characters').min(3,'Description must be at least 3 characters').max(5000,'Description must be less than 500 characters'),
   }), []);
 
   // Memoize filtered notes
@@ -208,64 +104,98 @@ const NoteModal = () => {
   }, [notes, searchTerm]);
 
   // Memoize initial values
-  const initialValues = useMemo(() => ({
+  const initialValues:any = useMemo(() => ({
     title: editingNote ? editingNote.title : '',
     description: editingNote ? editingNote.description : ''
   }), [editingNote]);
 
   // Memoize modal close handler
   const onClose = useCallback(() => {
-    setModals(prev => ({ ...prev, note: false }));
+    setIsNoteModalOpen(false);
     setEditingNote(null);
   }, []);
 
   // Memoize add note handler
   const handleAddNote = useCallback(() => {
     setEditingNote(null);
-    setModals(prev => ({ ...prev, note: true }));
+    setIsNoteModalOpen(true);
   }, []);
 
   // Memoize edit note handler
   const handleEditNote = useCallback((note: any) => {
     setEditingNote(note);
-    setModals(prev => ({ ...prev, note: true }));
+    setIsNoteModalOpen(true);
   }, []);
 
-  // Memoize delete note handler
-  const handleDeleteNote = useCallback((noteId: string) => {
-    setDeletingNoteId(noteId);
-    setModals(prev => ({ ...prev, delete: true }));
-  }, []);
-
-  // Memoize confirm delete handler
-  const confirmDelete = useCallback(() => {
-    if (deletingNoteId) {
-      deleteNote(deletingNoteId);
-      setModals(prev => ({ ...prev, delete: false }));
-      setDeletingNoteId(null);
-      toast.success('Note deleted successfully');
-    }
-  }, [deletingNoteId, deleteNote]);
+  // Memoize delete note handler with Modal.useModal
+  const handleDeleteNote = useCallback((note: Note) => {
+    modal.confirm({
+      title: (
+        <div className="flex items-center gap-2">
+          <span>Delete Note</span>
+        </div>
+      ),
+      content: (
+        <p className="text-gray-700 dark:text-gray-300">
+          Are you sure you want to delete <strong> {note.title}</strong> note? This action cannot be undone.
+        </p>
+      ),
+      okText: 'Delete',
+      okType: 'danger',
+      cancelText: 'Cancel',
+      width: 450,
+      onOk: async () => {
+        const response = await API.delete(
+          `${APIPATH.DEAL.TABS.NOTES.DELETENOTE}${note.noteUUID}`
+        );
+        if (response) {
+          deleteNote(note.noteUUID);
+          toast.success(response.message);
+        }
+      },
+    });
+  }, [deleteNote, modal, API]);
 
   // Memoize form submit handler
-  const handleSubmit = useCallback((values: any) => {
-    if (editingNote) {
-      updateNote(editingNote.id, values);
-      toast.success('Note updated successfully');
-    } else {
-      addNote(values);
-      toast.success('Note added successfully');
-    }
-    onClose();
-  }, [editingNote, updateNote, addNote, onClose]);
+  const handleSubmit = useCallback(async (values: Note) => {
+    setLoading(true);
+    const formattedValues = {
+      ...values,
+      dealUUID,
+    };
 
-  // Memoize cancel delete handler
-  const cancelDelete = useCallback(() => {
-    setModals(prev => ({ ...prev, delete: false }));
-  }, []);
+    try {
+      if (editingNote) {
+        const response = await API.put(
+          `${APIPATH.DEAL.TABS.NOTES.UPDATENOTE}${editingNote.noteUUID}`,
+          formattedValues
+        );
+        if (response) {
+          updateNote(editingNote.noteUUID, response.data);
+          toast.success(response.message);
+          onClose();
+        }
+      } else {
+        const response = await API.post(
+          APIPATH.DEAL.TABS.NOTES.CREATENOTE,
+          formattedValues
+        );
+        if (response) {
+          addNote(response.data);
+          toast.success(response.message);
+          onClose();
+        }
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [editingNote, updateNote, addNote, onClose, dealUUID, API, setLoading]);
+
+
 
   return (
     <>
+      {contextHolder}
       <div className="p-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
           <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-0">Notes</h3>
@@ -293,23 +223,28 @@ const NoteModal = () => {
 
         {filteredNotes.length > 0 ? (
           <AppScrollbar className='max-h-100 overflow-auto'>
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 
               {filteredNotes.map(note => (
                 <NoteItem
                   key={note.noteUUID}
                   note={note}
                   onEdit={handleEditNote}
-                  onDelete={handleDeleteNote}
+                  onDelete={()=>handleDeleteNote(note)}
                 />
               ))}
             </div>
           </AppScrollbar>
         ) : (
           <EmptyState
-            searchTerm={searchTerm}
-            onAddNote={handleAddNote}
-            setSearchTerm={() => setSearchTerm('')}
+          searchTitle="Search notes by title, description, or author..."
+          actionLabel='Add First Note'
+          emptyDescription='Start by creating your first note.'
+          emptyTitle='No Notes Yet'
+          onAction={handleAddNote}
+          icon={NotebookIcon}
+          onClearSearch={() => setSearchTerm('')}
+          searchQuery={searchTerm}
           />
         )}
       </div>
@@ -317,7 +252,7 @@ const NoteModal = () => {
       {/* Add/Edit Note Modal */}
       <ModalWrapper
         title={editingNote ? "Edit Note" : "Add Note"}
-        open={modals.note}
+        open={isNoteModalOpen}
         onCancel={onClose}
         footer={null}
         width={600}
@@ -335,7 +270,10 @@ const NoteModal = () => {
               <InputBox
                 name='title'
                 label='Title'
+                minLength={3}
+                maxLength={200}
                 placeholder="Enter note title..."
+                required
               />
 
               <div className='relative'>
@@ -346,6 +284,10 @@ const NoteModal = () => {
                       <Input.TextArea
                         {...field}
                         rows={6}
+                        maxLength={5000}
+                        showCount
+                        autoSize={{ minRows: 4, maxRows: 6 }}
+                        minLength={3}
                         placeholder="Enter note description..."
                         status={meta.touched && meta.error ? 'error' : ''}
                       />
@@ -361,6 +303,7 @@ const NoteModal = () => {
                 <Button
                   type="primary"
                   htmlType="submit"
+                  loading={loading}
                   disabled={editingNote ? !dirty || !isValid : !isValid}
                   className={editingNote && !dirty ? "opacity-50" : ""}
                 >
@@ -372,12 +315,7 @@ const NoteModal = () => {
         </Formik>
       </ModalWrapper>
 
-      {/* Delete Confirmation Modal */}
-      <DeleteModal
-        isVisible={modals.delete}
-        onCancel={cancelDelete}
-        onConfirm={confirmDelete}
-      />
+
     </>
   );
 };

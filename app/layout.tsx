@@ -12,6 +12,8 @@ import { Inter, Poppins } from "next/font/google";
 import "simplebar-react/dist/simplebar.min.css";
 import { Suspense } from "react";
 import StoreHydrator from "@/components/StoreHydrator";
+import SuspenseWithBoundary from "@/components/SuspenseWithErrorBoundry/SuspenseWithErrorBoundry";
+import DropDownHydrator from "@/components/DropDownHydrator";
 
 // Configure fonts with next/font/google
 const poppins = Poppins({
@@ -54,12 +56,17 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${poppins.variable} ${inter.variable} `}>
       <body className="font-sans">
-        <SessionProvider>
-          <StoreHydrator />
-          <ThemeContextProvider>
-            <SidebarContextProvider>{children}</SidebarContextProvider>
-          </ThemeContextProvider>
-        </SessionProvider>
+        <Suspense>
+          <SessionProvider>
+            <StoreHydrator />
+            <SuspenseWithBoundary loading={null}>
+              <DropDownHydrator />
+            </SuspenseWithBoundary>
+            <ThemeContextProvider>
+              <SidebarContextProvider>{children}</SidebarContextProvider>
+            </ThemeContextProvider>
+          </SessionProvider>
+        </Suspense>
       </body>
     </html>
   );

@@ -59,6 +59,10 @@ export interface Company {
   roles: {
     roleUUID: string;
     roleName: string;
+    description: string;
+    roleCode: string;
+    isSystemRole: boolean;
+    status: "active" | "inactive";
   }[];
   products: {
     productUUID: string;

@@ -31,6 +31,10 @@ interface Company {
   roles: {
     roleUUID: string;
     roleName: string;
+    description: string;
+    roleCode: string;
+    isSystemRole: boolean;
+    status: "active" | "inactive";
   }[];
   // Removed products field
 }
@@ -314,7 +318,7 @@ export const EditableAccessCell = memo(({
     if (companyAccess) {
       const formValues = {
         companyId: companyAccess.company.companyUUID,
-        roles: companyAccess.roles.map(r => r.roleId)
+        roles: companyAccess.roles.map(r => r.roleUUID)
       };
       form.setFieldsValue(formValues);
     }
@@ -367,7 +371,14 @@ export const EditableAccessCell = memo(({
         },
         roles: values.roles.map((roleId: string) => {
           const role = company?.roles.find(r => r.roleUUID === roleId);
-          return { roleId: roleId, roleName: role?.roleName || '' };
+          return {
+            roleUUID: roleId,
+            roleName: role?.roleName || '',
+            description: role?.description || '',
+            roleCode: role?.roleCode || '',
+            isSystemRole: role?.isSystemRole || false,
+            status: role?.status || 'active'
+          };
         })
         // Removed products from updatedCompanyAccess
       };
@@ -455,7 +466,14 @@ export const EditableAccessCell = memo(({
           company: { companyUUID: formData.company.companyUUID, displayName: formData.company.displayName },
           roles: formData.roles.map((roleId: string) => {
             const role = company?.roles.find(r => r.roleUUID === roleId);
-            return { roleId: roleId, roleName: role?.roleName || '' };
+            return {
+              roleUUID: roleId,
+              roleName: role?.roleName || '',
+              description: role?.description || '',
+              roleCode: role?.roleCode || '',
+              isSystemRole: role?.isSystemRole || false,
+              status: role?.status || 'active'
+            };
           })
           // Removed products from validCompanies
         });

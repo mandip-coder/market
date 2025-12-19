@@ -5,22 +5,19 @@ import { GlobalDate } from '@/Utils/helpers'
 import { Button } from 'antd'
 import { ArrowLeft, Building2, Clock } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { memo, use, useCallback, useEffect } from 'react'
+import { memo, useCallback, useEffect } from 'react'
 interface headerDetails {
-  deal: Promise<{
+  deal: {
     data: Deal
-  }>
+  }
 }
 function DealDetailsHeader({ deal }: headerDetails) {
-  const dealData = use(deal).data
+  const dealData = deal.data
   const router = useRouter();
-  const { setHcoDetails, setDealStage, setContactPersons, setDealUUID } = useDealStore()
+  const { setHcoDetails, setDealStage, setDealUUID } = useDealStore()
   const handleBack = useCallback(() => {
     router.push('/deals');
   }, [router]);
-
-
-
   useEffect(() => {
 
     setHcoDetails({
@@ -28,9 +25,7 @@ function DealDetailsHeader({ deal }: headerDetails) {
       hcoUUID: dealData.hcoUUID
     })
     setDealUUID(dealData.dealUUID)
-
     setDealStage(dealData.dealStage)
-    setContactPersons(dealData.contactPersons)
 
   }, []);
   return (
@@ -39,7 +34,6 @@ function DealDetailsHeader({ deal }: headerDetails) {
 
       {/* Main content */}
       <div className="flex flex-col gap-2">
-        {/* Title with decorative element */}
         <div className="flex items-start gap-2">
           <div className="flex-grow">
             <h1 className="text-lg font-bold text-gray-900 dark:text-white">

@@ -7,17 +7,9 @@ interface RecommendationCardProps {
   onClick: (recommendation: Recommendation) => void;
 }
 
-const getLeadSourceLabel = (source: string): { label: string; color: string } => {
-  const sourceMap: Record<string, { label: string; color: string }> = {
-    'AI_MODEL_V1': { label: 'AI Recommendation', color: 'purple' },
-    'MARKET_TREND_ENGINE': { label: 'Market Trend', color: 'blue' },
-    'MANUAL': { label: 'Manual', color: 'green' },
-  };
-  return sourceMap[source] || { label: source, color: 'default' };
-};
+
 
 export default function RecommendationCard({ recommendation, onClick }: RecommendationCardProps) {
-  const sourceInfo = getLeadSourceLabel(recommendation.leadSource);
   const primaryProduct = recommendation.products[0];
   const additionalProducts = recommendation.products.slice(1);
   const primaryContact = recommendation.contactPersons[0];
@@ -63,8 +55,8 @@ export default function RecommendationCard({ recommendation, onClick }: Recommen
                 {recommendation.hcoName}
               </h3>
             </div>
-            <Tag color={sourceInfo.color} className="text-xs">
-              {sourceInfo.label}
+            <Tag color="blue" className="text-xs">
+              Lead Source: {recommendation.leadSourceName}
             </Tag>
           </div>
           <Button 

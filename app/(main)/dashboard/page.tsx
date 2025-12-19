@@ -7,21 +7,14 @@ import DealStagesUI from './components/DealStagesUI'
 import KPICardsUI from './components/KPICardsUI'
 import QuickActions from './components/QuickActions'
 import TopProductsUI from './components/TopProductsUI'
-import { SERVERAPI } from '@/Utils/apiFunctions'
-import { APIPATH } from '@/shared/constants/url'
 
 export default async function Dashboard() {
-
-  const kpiStatsData = SERVERAPI(APIPATH.DASHBOARD.KPIDATA)
-  const topProductsData = SERVERAPI(APIPATH.DASHBOARD.TOPPRODUCTS)
-  const dealStagesData = SERVERAPI(APIPATH.DASHBOARD.STAGECOUNTS)
-
   return (
     <main className="w-full">
       <div className="space-y-6">
         {/* KPI Cards Section */}
         <SuspenseWithBoundary>
-          <KPICardsUI response={kpiStatsData} />
+          <KPICardsUI />
         </SuspenseWithBoundary>
 
         {/* Top Products Section */}
@@ -45,12 +38,12 @@ export default async function Dashboard() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <SuspenseWithBoundary loading={
               <>
-                {Array.from({ length: 8 }).map((_, index) => (
+                {Array.from({ length: 4 }).map((_, index) => (
                   <ProductSkeleton key={index} />
                 ))}
               </>
             }>
-              <TopProductsUI response={topProductsData} />
+              <TopProductsUI />
             </SuspenseWithBoundary>
           </div>
         </div>
@@ -73,7 +66,7 @@ export default async function Dashboard() {
                   ))}
                 </div>
               }>
-                <DealStagesUI response={dealStagesData} />
+                <DealStagesUI />
               </SuspenseWithBoundary>
             </div>
           </div>

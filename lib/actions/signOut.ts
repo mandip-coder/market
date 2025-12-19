@@ -7,7 +7,7 @@ import { APIPATH } from "@/shared/constants/url";
 export async function logoutAction() {
   const res = await SERVERAPI(APIPATH.LOGOUT, { method: "POST" })
   if (res.status) {
-    await signOut({ redirectTo: "/auth/login" });
+    await signOut({ redirectTo: "/market-access/auth/login" });
     return { success: true };
   }
   else {

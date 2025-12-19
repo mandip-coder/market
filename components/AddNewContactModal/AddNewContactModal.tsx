@@ -84,7 +84,6 @@ const ContactModal = memo(
     initialContact,
     hcoUUID,
     hcoName,
-    showExtraFields = false,
     requireHelthcareId = false,
   }: ContactModalProps) => {
     const handleCloseModal = useCallback((values: any) => onClose(), [onClose]);
@@ -150,19 +149,21 @@ const ContactModal = memo(
       async (values: HCOContactPerson, { setSubmitting, resetForm }: FormikHelpers<HCOContactPerson>) => {
         setSubmitting(true);
         setLoading(true);
-        const addResponse = await API.post(APIPATH.CONTACT.CREATECONTACT, values);
-        if (addResponse) {
-          if (onSave) {
-            onSave(addResponse.data);
-          }
-          toast.success("Contact Added Successfully");
+        API.post(APIPATH.CONTACT.CREATECONTACT, values).then((addResponse) => {
+          if (addResponse) {
+            if (onSave) {
+              onSave(addResponse.data);
+            }
+            toast.success("Contact Added Successfully");
           resetForm();
           handleCloseModal(values);
         }
+      }).finally(() => {
         setSubmitting(false);
         setLoading(false);
+      });
       },
-      [onSave, setLoading, handleCloseModal, isEditMode, initialContact]
+      [onSave, setLoading, handleCloseModal, isEditMode, initialContact,loading]
     );
 
     return (
@@ -178,7 +179,27 @@ const ContactModal = memo(
         }
         open={open}
         onClose={() => handleCloseModal(null)}
-        footer={null}
+        footer={ <div style={{ marginTop: 24, textAlign: "right" }}>
+                  <Space>
+                    <Button
+                      className="rounded-xl dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                      onClick={() => handleCloseModal(null)}
+                      disabled={formikRef.current?.isSubmitting}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="primary"
+                      htmlType="submit"
+                      form="contactForm"
+                      className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl"
+                      loading={formikRef.current?.isSubmitting}
+                      disabled={formikRef.current?.isSubmitting}
+                    >
+                      {isEditMode ? "Update" : "Save"}
+                    </Button>
+                  </Space>
+                </div>}
         destroyOnHidden
         maskClosable={false}
       >
@@ -187,20 +208,21 @@ const ContactModal = memo(
           initialValues={initialValues}
           validationSchema={validationSchema}
           innerRef={formikRef}
-          validateOnBlur
           onSubmit={handleSubmit}
           enableReinitialize
+          validateOnChange={false}
+          validateOnBlur={false}
         >
           {({
             setFieldValue,
-            isSubmitting,
+            
             values,
             errors,
             touched,
             handleBlur,
           }) => {
             return (
-              <Form>
+              <Form id="contactForm">
                 <Row gutter={rowGutter}>
                   {/* Basic Information */}
                   <>
@@ -386,26 +408,7 @@ const ContactModal = memo(
                   </Row>
                 </div>
 
-                <div style={{ marginTop: 24, textAlign: "right" }}>
-                  <Space>
-                    <Button
-                      className="rounded-xl dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                      onClick={() => handleCloseModal(null)}
-                      disabled={isSubmitting}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      type="primary"
-                      htmlType="submit"
-                      className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl"
-                      loading={isSubmitting}
-                      disabled={isSubmitting}
-                    >
-                      {isEditMode ? "Update" : "Save"}
-                    </Button>
-                  </Space>
-                </div>
+               
               </Form>
             );
           }}

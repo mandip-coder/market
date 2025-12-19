@@ -1,8 +1,14 @@
 import { CompanyFormData } from "@/app/(main)/master/company-master/components/AddCompanyDrawer";
 import { CompanyDataResponse } from "@/app/(main)/master/company-master/components/CompanyDataTable";
+import { Role } from "@/app/(main)/master/roles-master/components/RoleDataTable";
 import { create } from "zustand";
+import { Product } from "./productStore";
 
 interface CompanyStore {
+  rolesData:Role[]
+  productsData:Product[]
+  setRolesData:(data:Role[])=>void
+  setProductsData:(data:Product[])=>void
   addCompanyDrawer: boolean;
   toggleCompanyDrawer: () => void;
   editCompany: CompanyFormData | null;
@@ -12,6 +18,10 @@ interface CompanyStore {
 }
 
 export const useCompanyStore = create<CompanyStore>((set, get) => ({
+  rolesData:[],
+  productsData:[],
+  setRolesData:(data)=>set({rolesData:data}),
+  setProductsData:(data)=>set({productsData:data}),
   addCompanyDrawer: false,
   toggleCompanyDrawer: () => set({ addCompanyDrawer: !get().addCompanyDrawer }),
   editCompany: null,

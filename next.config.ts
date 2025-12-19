@@ -15,8 +15,6 @@ const config: NextConfig = {
   reactStrictMode: true,
   basePath: base,
   reactCompiler: true,
-
-  
   async headers() {
     return [
       {

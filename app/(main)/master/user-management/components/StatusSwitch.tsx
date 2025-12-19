@@ -34,18 +34,14 @@ export const StatusSwitch = React.memo(({
 
   const handleStatusChange = async (checked: boolean) => {
     setLoading(true);
-    try {
-      // Simulate API call
       const newStatus = checked ? 'active' : 'inactive';
-      await API.patch(APIPATH.USERS.STATUSUPDATE(userUUID, newStatus));
-      setCurrentStatus(newStatus);
-      handleUserStatusUpdate(userUUID, newStatus);
-      toast.success(`User ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully`);
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to update status');
-    } finally {
+      const response=await API.patch(APIPATH.USERS.STATUSUPDATE(userUUID, newStatus));
+      if(response){
+        setCurrentStatus(newStatus);
+        handleUserStatusUpdate(userUUID, newStatus);
+        toast.success(`User ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully`);
+      }
       setLoading(false);
-    }
   };
 
   const isLocked = currentStatus === 'locked';

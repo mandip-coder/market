@@ -1,11 +1,10 @@
 import { GlobalDate } from "@/Utils/helpers";
 import Label from "@/components/Label/Label";
 import ModalWrapper from "@/components/Modal/Modal";
-import { Product } from "@/context/store/productStore";
-import { AppstoreOutlined, BarsOutlined, CheckCircleOutlined, FileExcelOutlined, FileImageOutlined, FileOutlined, FilePdfOutlined, FileUnknownOutlined, FileWordOutlined, FileZipOutlined, FolderOpenOutlined, FolderOutlined, PaperClipOutlined, RightOutlined, SearchOutlined, StarFilled, StarOutlined, UnorderedListOutlined, UploadOutlined } from "@ant-design/icons";
+import { AppstoreOutlined, BarsOutlined, CheckCircleOutlined, FileExcelOutlined, FileImageOutlined, FileOutlined, FilePdfOutlined, FileUnknownOutlined, FileWordOutlined, FileZipOutlined, FolderOpenOutlined, FolderOutlined, PaperClipOutlined, RightOutlined, SearchOutlined, StarFilled, StarOutlined, UploadOutlined } from "@ant-design/icons";
 import { App, Badge, Breadcrumb, Button, Empty, Input, Segmented, Spin, Tabs, Tag, Typography, Upload } from "antd";
 import { UploadProps } from "antd/lib";
-import { Grid3X3, HardDrive } from "lucide-react";
+import { HardDrive } from "lucide-react";
 import { JSX, memo, useCallback, useEffect, useMemo, useState } from "react";
 
 const { Text, Title } = Typography;
@@ -23,13 +22,6 @@ interface Document {
   modified: Date;
   starred?: boolean;
 }
-
-interface DemoCategory {
-  id: string;
-  name: string;
-  documents: Document[];
-}
-
 
 
 interface AttachmentModalProps {
@@ -423,7 +415,7 @@ const ViewModeToggle = memo(({
 // Main Component
 const AttachmentModal = memo(({ visible, onClose, onSelect }: AttachmentModalProps) => {
   const { message } = App.useApp();
-  const [selectedSource, setSelectedSource] = useState<SourceType>('server');
+  const [selectedSource, setSelectedSource] = useState<SourceType>('system');
   const [selectedDocs, setSelectedDocs] = useState<Document[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -536,6 +528,7 @@ const AttachmentModal = memo(({ visible, onClose, onSelect }: AttachmentModalPro
   // Upload props
   const uploadProps: UploadProps = {
     multiple: true,
+    maxCount: 10,
     fileList: uploadedFiles,
     beforeUpload: (file: File) => {
       const isLt10M = file.size / 1024 / 1024 < MAX_FILE_SIZE_MB;
@@ -653,75 +646,75 @@ const AttachmentModal = memo(({ visible, onClose, onSelect }: AttachmentModalPro
 
   // Tab items
   const tabItems = [
-    {
-      key: 'server',
-      label: (
-        <span className="flex items-center gap-2">
-          <FolderOutlined />
-          Server Documents
-          {selectedDocs.length > 0 && (
-            <Badge count={selectedDocs.length} size="small" />
-          )}
-        </span>
-      ),
-      children: (
-        <div className="space-y-4">
-          <div className="flex items-center">
-            <Breadcrumb
-              items={[
-                {
-                  title: (
-                    <span onClick={handleBackToProducts} className="cursor-pointer">
-                      Products
-                    </span>
-                  ),
-                  key: 'products',
-                },
-                ...(selectedProduct ? [{
-                  title: (
-                    <span onClick={handleBackToCategories} className="cursor-pointer">
-                      {selectedProduct.productName}
-                    </span>
-                  ),
-                  key: 'product',
-                }] : []),
-                ...(selectedCategory ? [{
-                  title: selectedCategory.name,
-                  key: 'category',
-                }] : [])
-              ]}
-              separator={<RightOutlined />}
-              className="mb-4"
-            />
-          </div>
+    // {
+    //   key: 'server',
+    //   label: (
+    //     <span className="flex items-center gap-2">
+    //       <FolderOutlined />
+    //       Server Documents
+    //       {selectedDocs.length > 0 && (
+    //         <Badge count={selectedDocs.length} size="small" />
+    //       )}
+    //     </span>
+    //   ),
+    //   children: (
+    //     <div className="space-y-4">
+    //       <div className="flex items-center">
+    //         <Breadcrumb
+    //           items={[
+    //             {
+    //               title: (
+    //                 <span onClick={handleBackToProducts} className="cursor-pointer">
+    //                   Products
+    //                 </span>
+    //               ),
+    //               key: 'products',
+    //             },
+    //             ...(selectedProduct ? [{
+    //               title: (
+    //                 <span onClick={handleBackToCategories} className="cursor-pointer">
+    //                   {selectedProduct.productName}
+    //                 </span>
+    //               ),
+    //               key: 'product',
+    //             }] : []),
+    //             ...(selectedCategory ? [{
+    //               title: selectedCategory.name,
+    //               key: 'category',
+    //             }] : [])
+    //           ]}
+    //           separator={<RightOutlined />}
+    //           className="mb-4"
+    //         />
+    //       </div>
 
-          {loading ? (
-            <div className="text-center p-12">
-              <Spin size="large" />
-            </div>
-          ) : (
-            <div>
-              {!selectedProduct && renderProductsView()}
-              {selectedProduct && !selectedCategory && renderCategoriesView()}
-              {selectedCategory && renderDocumentsView()}
-            </div>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: 'starred',
-      label: (
-        <span className="flex items-center gap-2">
-          <StarFilled className='!text-yellow-500' />
-          Starred Documents
-          {starredDocuments.length > 0 && (
-            <Badge count={starredDocuments.length} size="small" />
-          )}
-        </span>
-      ),
-      children: renderStarredView(),
-    },
+    //       {loading ? (
+    //         <div className="text-center p-12">
+    //           <Spin size="large" />
+    //         </div>
+    //       ) : (
+    //         <div>
+    //           {!selectedProduct && renderProductsView()}
+    //           {selectedProduct && !selectedCategory && renderCategoriesView()}
+    //           {selectedCategory && renderDocumentsView()}
+    //         </div>
+    //       )}
+    //     </div>
+    //   ),
+    // },
+    // {
+    //   key: 'starred',
+    //   label: (
+    //     <span className="flex items-center gap-2">
+    //       <StarFilled className='!text-yellow-500' />
+    //       Starred Documents
+    //       {starredDocuments.length > 0 && (
+    //         <Badge count={starredDocuments.length} size="small" />
+    //       )}
+    //     </span>
+    //   ),
+    //   children: renderStarredView(),
+    // },
     {
       key: 'system',
       label: (

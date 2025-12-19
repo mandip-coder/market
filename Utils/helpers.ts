@@ -31,7 +31,7 @@ export const GlobalDate = (date: string) => {
   return dayjs(date).format('DD MMM, YYYY');
 }
 
-export const fetchContacts = async (API: ReturnType<typeof useApi>, value: string) => {
+export const fetchContacts = async (API: ReturnType<typeof useApi>, value: string|undefined) => {
   if (value) {
     const response = await API.get(APIPATH.CONTACT.GETHCOCONTACT(value),);
     if (response) {

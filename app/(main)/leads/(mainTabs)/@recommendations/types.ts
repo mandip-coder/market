@@ -12,6 +12,7 @@ export interface Recommendation {
   hcoUUID: string;
   hcoName: string;
   leadSource: string;
+  leadSourceName: string;
   summary: string;
   products: RecommendationProduct[];
   contactPersons: HCOContactPerson[];

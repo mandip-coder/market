@@ -399,19 +399,17 @@ export default function DealsListing({ dealPromise, hcoListPromise }: DealsListi
   const fetchDeals = useCallback(
     async (newPage: number, newPageSize: number, search: string, stage: string, hcoUUID: string = "") => {
       setLoading(true);
-      try {
         const response = await API.get(
           APIPATH.DEAL.GETDEAL +
           `?page=${newPage}&limit=${newPageSize}${search ? `&searchDeal=${search}` : ""
           }${stage ? `&searchDealStage=${stage}` : ""}${hcoUUID ? `&searchHcoUUID=${hcoUUID}` : ""
           }`
         );
-
-        // Update deals and pagination in a single state update to ensure consistency
-        setDeals(response.data.list);
-        setPage(newPage);
-        setPageSize(newPageSize);
-        setTableParams((prev) => ({
+        if(response){
+          setDeals(response.data.list);
+          setPage(newPage);
+          setPageSize(newPageSize);
+          setTableParams((prev) => ({
           ...prev,
           pagination: {
             ...prev.pagination,
@@ -420,13 +418,10 @@ export default function DealsListing({ dealPromise, hcoListPromise }: DealsListi
             total: response.data.totalCount,
           },
         }));
-
+        
         window.scrollTo({ top: 0, behavior: "smooth" });
-      } catch (error) {
-        console.error("Error fetching deals:", error);
-      } finally {
-        setLoading(false);
       }
+      setLoading(false);
     },
     [API, setPage, setPageSize, setLoading]
   );

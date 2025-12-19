@@ -8,7 +8,8 @@ import { APIPATH } from "@/shared/constants/url";
 
 export default async function page() {
   const dataPromise =SERVERAPI(APIPATH.COMPANY.GETCOMPANIES);
-  
+  const rolesPromise =SERVERAPI(APIPATH.ROLES.GETROLES);
+  const productsPromise =SERVERAPI(APIPATH.PRODUCTS.GETPRODUCTS);
   
   return (<>
     <CompanyHeader />

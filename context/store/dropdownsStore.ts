@@ -18,6 +18,10 @@ export interface Venue {
   venueName: string;
   venueUUID: string;
 }
+export interface Outcomes {
+  outcomeName: string;
+  outcomeUUID: string;
+}
 
 
 // Store interface
@@ -43,6 +47,9 @@ interface DropdownsStore {
 
   products: Product[];
   setProducts: (products: Product[]) => void;
+
+  outcomes: Outcomes[];
+  setOutcomes: (outcomes: Outcomes[]) => void;
 }
 
 // Create the store
@@ -69,5 +76,8 @@ export const useDropdownsStore = create<DropdownsStore>((set, get) => ({
 
   products: [],
   setProducts: (products: Product[]) => set({ products: products }),
+
+  outcomes: [],
+  setOutcomes: (outcomes: Outcomes[]) => set({ outcomes: outcomes }),
 }));
 

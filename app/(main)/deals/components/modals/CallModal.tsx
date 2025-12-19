@@ -1,15 +1,16 @@
 import { CallModal as SharedCallModal } from '@/components/shared/modals/CallModal';
-import { useDealStore } from '@/context/store/dealsStore';
+import { useDealCallModalStore } from '@/context/store/optimizedSelectors';
 
 export default function CallModal() {
-  const { calls, logCall, updateCall, deleteCall } = useDealStore();
-  
+  const { calls, logCall, updateCall, deleteCall,setCalls,dealUUID } = useDealCallModalStore();
   return (
     <SharedCallModal 
       calls={calls} 
       logCall={logCall} 
       updateCall={updateCall} 
-      deleteCall={deleteCall} 
+      deleteCall={deleteCall}
+      setCalls={setCalls}
+      dealUUID={dealUUID} 
     />
   );
 }

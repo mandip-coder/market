@@ -4,7 +4,7 @@ import { useLeadFollowUps } from '@/context/store/optimizedSelectors';
 import { useCallback } from 'react';
 
 export default function FollowUpModal() {
-  const { followUps, addFollowUp, updateFollowUp, completeFollowUp, cancelFollowUp, rescheduleFollowUp, deleteFollowUp, contactPersons, setContactPersons, hcoUUID, hcoName, leadUUID } = useLeadFollowUps();
+  const { followUps, addFollowUp, updateFollowUp, completeFollowUp, cancelFollowUp, rescheduleFollowUp, deleteFollowUp, contactPersons, setContactPersons, hcoUUID, hcoName, leadUUID, setFollowUps } = useLeadFollowUps();
 
 
   const handleAddContactPerson = useCallback((contact: HCOContactPerson) => {
@@ -25,6 +25,7 @@ export default function FollowUpModal() {
       hcoUUID={hcoUUID}
       hcoName={hcoName}
       leadUUID={leadUUID}
+      setFollowUps={setFollowUps}
     />
   );
 }

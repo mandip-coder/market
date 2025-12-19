@@ -5,7 +5,8 @@ import { Button } from 'antd'
 import { Plus } from 'lucide-react'
 import AddCompanyDrawer from './AddCompanyDrawer'
 import { useCompanyStore } from '@/context/store/companyStore'
-
+import { Role } from '../../roles-master/components/RoleDataTable'
+import { Product } from '@/context/store/productStore'
 function CompanyHeader() {
   const { toggleCompanyDrawer } = useCompanyStore()
   const extraContent = useMemo(() => (
@@ -23,7 +24,7 @@ function CompanyHeader() {
         descriptionLine="Manage companies and user access"
         extra={extraContent}
       />
-      <AddCompanyDrawer />
+      <AddCompanyDrawer  />
     </>
   )
 }

@@ -26,11 +26,14 @@ export const QuillEditor = (props:ReactQuillProps) => {
   ];
 
   return (
-    //@ts-ignore
     <ReactQuill
       theme="snow"
       modules={quillModules}
       formats={quillFormats}
+      className={props.status === "error" ? "border border-red-400" : ""}
+      style={{
+        borderRadius:"15px"
+      }}
       {...props}
     />
   );

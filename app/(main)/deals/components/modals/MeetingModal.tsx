@@ -3,12 +3,12 @@ import CustomDatePicker from '@/components/CustomDatePicker/CustomDatePicker';
 import CustomSelect from '@/components/CustomSelect/CustomSelect';
 import InputBox from '@/components/Input/Input';
 import Label from '@/components/Label/Label';
-import { Button, Card, Col, Input, Modal, Popover, Row, Space, Tooltip } from 'antd';
+import { Button, Card, Col, Dropdown, Input, MenuProps, Modal, Popover, Row, Select, Space, Tag, Tooltip } from 'antd';
 import clsx from 'clsx';
 import dayjs, { Dayjs } from 'dayjs';
-import { Form, Formik } from 'formik';
+import { Field, Form, Formik } from 'formik';
 import debounce from 'lodash/debounce';
-import { Calendar, Clock, Edit, FileText, MapPin, Plus, Search, Trash2, Users } from 'lucide-react';
+import { ArrowUpDown, Calendar, Clock, Edit, FileText, MapPin, MoreVertical, Plus, RefreshCw, Search, Trash2, Users, XCircle } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as Yup from 'yup';
 import { useDealStore } from '@/context/store/dealsStore';
@@ -16,6 +16,11 @@ import { Meeting } from '@/lib/types';
 import ModalWrapper from '@/components/Modal/Modal';
 import ContactOptionsRender from '@/components/shared/ContactOptionsRender';
 import SuspenseWithBoundary from '@/components/SuspenseWithErrorBoundry/SuspenseWithErrorBoundry';
+import { useApi } from '@/hooks/useAPI';
+import { APIPATH } from '@/shared/constants/url';
+import { toast } from 'react-toastify';
+import { useLoading } from '@/hooks/useLoading';
+import { useDropDowns } from '@/context/store/optimizedSelectors';
 
 // Constants
 const VENUE_OPTIONS = [
@@ -52,9 +57,9 @@ interface MeetingFormValues {
   endDatetime: Dayjs;
   location: string;
   venue: string;
-  attendeesUUID: string[];
+  attendees: string[];
   notes?: string;
-  agenda?: string;
+  dealUUID: string;
 }
 
 // Utility functions
@@ -86,6 +91,50 @@ const getMeetingStatus = (startDatetime: string, endDatetime?: string) => {
   if (now > end) return STATUS_STYLES.ended;
   if (now >= start && now <= end) return STATUS_STYLES.inProgress;
   return STATUS_STYLES.upcoming;
+};
+
+// Helper function to determine if actions can be performed on a meeting
+const canPerformActions = (meeting: Meeting) => {
+  // Cannot perform edit/reschedule if meeting is Cancelled or Completed
+  if (meeting.meetingStatus === 'Cancelled' || meeting.meetingStatus === 'Completed') {
+    return false;
+  }
+  const now = dayjs();
+  const endTime = dayjs(meeting.endDatetime);
+  return now.isBefore(endTime);
+};
+
+// Helper function to format meeting date with custom labels
+const formatMeetingDate = (datetime: string) => {
+  const meetingDate = dayjs(datetime);
+  const today = dayjs();
+  const tomorrow = dayjs().add(1, 'day');
+
+  if (meetingDate.isSame(today, 'day')) {
+    return 'Today';
+  } else if (meetingDate.isSame(tomorrow, 'day')) {
+    return 'Tomorrow';
+  } else {
+    return meetingDate.fromNow();
+  }
+};
+
+// Helper function to calculate meeting duration
+const getMeetingDuration = (startDatetime: string, endDatetime: string) => {
+  const start = dayjs(startDatetime);
+  const end = dayjs(endDatetime);
+  const durationInMinutes = end.diff(start, 'minute');
+  
+  const hours = Math.floor(durationInMinutes / 60);
+  const minutes = durationInMinutes % 60;
+  
+  if (hours > 0 && minutes > 0) {
+    return `${hours} hour${hours > 1 ? 's' : ''} ${minutes} min${minutes > 1 ? 's' : ''}`;
+  } else if (hours > 0) {
+    return `${hours} hour${hours > 1 ? 's' : ''}`;
+  } else {
+    return `${minutes} min${minutes > 1 ? 's' : ''}`;
+  }
 };
 
 const getLocationFieldProps = (venueId: string) => {
@@ -163,7 +212,7 @@ const createValidationSchema = () => Yup.object().shape({
     }),
   location: Yup.string().trim().required('Location is required'),
   venue: Yup.string().required('Venue is required'),
-  attendeesUUID: Yup.array().min(1, 'At least one attendee is required'),
+  attendees: Yup.array().min(1, 'At least one attendee is required'),
   notes: Yup.string().trim()
 });
 
@@ -257,8 +306,11 @@ const MeetingCard = memo<{
   meeting: Meeting;
   onEdit: (meetingUUID: string) => void;
   onDelete: (id: string) => void;
+  onCancel: (meeting: Meeting) => void;
+  onReschedule: (meeting: Meeting) => void;
+  onComplete: (meeting: Meeting) => void;
   onUpdateMom: (id: string, mom: string) => void;
-}>(({ meeting, onEdit, onDelete, onUpdateMom }) => {
+}>(({ meeting, onEdit, onDelete, onCancel, onReschedule, onComplete, onUpdateMom }) => {
   const [momPopoverVisible, setMomPopoverVisible] = useState(false);
 
   const statusColor = useMemo(
@@ -266,14 +318,128 @@ const MeetingCard = memo<{
     [meeting.startDatetime, meeting.endDatetime]
   );
 
-  const isMeetingEnded = statusColor.label === 'Ended';
   const venueName = VENUE_DISPLAY_MAP[meeting.venue] || meeting.venue;
-  const attendeeCount = meeting.attendeesUUID?.length || 0;
+  const attendeeCount = meeting.attendees?.length || 0;
+  const canEdit = canPerformActions(meeting);
 
-  const handleMomSave = useCallback((value: string) => {
-    onUpdateMom(meeting.meetingUUID, value);
-    setMomPopoverVisible(false);
-  }, [meeting.meetingUUID, onUpdateMom]);
+  // Build menu items for dropdown
+  const menuItems: MenuProps['items'] = [];
+  const canComplete = meeting.meetingStatus !== 'Completed' && meeting.meetingStatus !== 'Cancelled';
+  const isOverdue = meeting.meetingStatus === 'Overdue';
+
+  // For overdue meetings, only allow cancel (complete is shown as button)
+  if (isOverdue) {
+    menuItems.push({
+      key: 'cancel',
+      label: 'Cancel',
+      icon: <XCircle size={14} />,
+      onClick: () => onCancel(meeting),
+    });
+  } else if (canEdit) {
+    // Normal edit/reschedule/delete for upcoming meetings
+    menuItems.push({
+      key: 'edit',
+      label: 'Edit',
+      icon: <Edit size={14} />,
+      onClick: () => onEdit(meeting.meetingUUID),
+    });
+
+    menuItems.push({
+      key: 'reschedule',
+      label: 'Reschedule',
+      icon: <Calendar size={14} />,
+      onClick: () => onReschedule(meeting),
+    });
+
+    menuItems.push({
+      key: 'delete',
+      label: 'Delete',
+      icon: <Trash2 size={14} />,
+      danger: true,
+      onClick: () => onDelete(meeting.meetingUUID),
+    });
+
+    // Add cancel option for upcoming meetings
+    if (meeting.meetingStatus !== 'Cancelled') {
+      menuItems.push({ type: 'divider', key: 'divider' });
+      menuItems.push({
+        key: 'cancel',
+        label: 'Cancel',
+        icon: <XCircle size={14} />,
+        onClick: () => onCancel(meeting),
+      });
+    }
+  }
+
+  // Get status display with tooltips for cancelled/rescheduled/completed
+  const getStatusDisplay = () => {
+    // Use backend status if available
+    if (meeting.meetingStatus === 'Completed') {
+      return (
+        <Tooltip title={meeting.outcome ? `Outcome: ${meeting.outcome}` : 'Completed'}>
+          <div className={clsx(
+            "inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold",
+            "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400"
+          )}>
+            <span className="w-2 h-2 rounded-full bg-current" aria-hidden />
+            <span className="leading-none">Completed</span>
+          </div>
+        </Tooltip>
+      );
+    }
+
+    if (meeting.meetingStatus === 'Cancelled') {
+      return (
+        <Tooltip title={meeting.cancellationReason ? `Reason: ${meeting.cancellationReason}` : 'Cancelled'}>
+          <div className={clsx(
+            "inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold",
+            "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"
+          )}>
+            <span className="w-2 h-2 rounded-full bg-current" aria-hidden />
+            <span className="leading-none">Cancelled</span>
+          </div>
+        </Tooltip>
+      );
+    }
+    
+    if (meeting.meetingStatus === 'Rescheduled') {
+      return (
+        <Tooltip title={meeting.rescheduleReason ? `Reason: ${meeting.rescheduleReason}` : 'Rescheduled'}>
+          <div className={clsx(
+            "inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold",
+            "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400"
+          )}>
+            <span className="w-2 h-2 rounded-full bg-current" aria-hidden />
+            <span className="leading-none">Rescheduled</span>
+          </div>
+        </Tooltip>
+      );
+    }
+
+    if (meeting.meetingStatus === 'Overdue') {
+      return (
+        <div className={clsx(
+          "inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold",
+          "bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400"
+        )}>
+          <span className="w-2 h-2 rounded-full bg-current" aria-hidden />
+          <span className="leading-none">Overdue</span>
+        </div>
+      );
+    }
+
+    // Default status based on time (Scheduled, In Progress, Ended)
+    return (
+      <div className={clsx(
+        "inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold",
+        statusColor.bg,
+        statusColor.text
+      )}>
+        <span className="w-2 h-2 rounded-full bg-current" aria-hidden />
+        <span className="leading-none">{meeting.meetingStatus || statusColor.label}</span>
+      </div>
+    );
+  };
 
   return (
     <Card
@@ -289,61 +455,52 @@ const MeetingCard = memo<{
       <div className="flex flex-col h-full space-y-3">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div className={clsx(
-            "inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold",
-            statusColor.bg,
-            statusColor.text
-          )}>
-            <span className="w-2 h-2 rounded-full bg-current" aria-hidden />
-            <span className="leading-none">{statusColor.label}</span>
-          </div>
+          {getStatusDisplay()}
 
           <div className="flex gap-1">
-            <Tooltip title="Edit">
-              <Button
-                size='small'
-                type="text"
-                onClick={() => onEdit(meeting.meetingUUID)}
-                className="p-1 rounded-md"
-                icon={<Edit size={14} className="text-slate-500" />}
-              />
-            </Tooltip>
-
-            {isMeetingEnded && (
-              <Popover
-                content={
-                  <MomPopoverContent
-                    initialValue={meeting.minutes || ''}
-                    onSave={handleMomSave}
-                    onCancel={() => setMomPopoverVisible(false)}
-                  />
-                }
-                trigger="click"
-                open={momPopoverVisible}
-                onOpenChange={setMomPopoverVisible}
+            {canComplete ? (
+              <Space.Compact>
+                <Button
+                  type="primary"
+                  color="green"
+                  variant="outlined"
+                  size="small"
+                  onClick={() => onComplete(meeting)}
+                >
+                  Complete
+                </Button>
+                {menuItems.length > 0 && (
+                  <Dropdown
+                    menu={{ items: menuItems }}
+                    trigger={['click']}
+                    placement="bottomRight"
+                  >
+                    <Button
+                      type="primary"
+                      color="green"
+                      variant="outlined"
+                      size="small"
+                      icon={<MoreVertical size={14} />}
+                    />
+                  </Dropdown>
+                )}
+              </Space.Compact>
+            ) : menuItems.length > 0 ? (
+              <Dropdown
+                menu={{ items: menuItems }}
+                trigger={['click']}
                 placement="bottomRight"
               >
-                <Tooltip title="Add/Update MOM">
-                  <Button
-                    size='small'
-                    type="text"
-                    className="p-1 rounded-md"
-                    icon={<FileText size={14} className="text-slate-500" />}
-                  />
-                </Tooltip>
-              </Popover>
+                <Button
+                  size='small'
+                  type="text"
+                  icon={<MoreVertical size={14} className="text-slate-500" />}
+                  className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+                />
+              </Dropdown>
+            ) : (
+             null
             )}
-
-            <Tooltip title="Delete">
-              <Button
-                size='small'
-                danger
-                type='text'
-                onClick={() => onDelete(meeting.meetingUUID)}
-                className="p-1 rounded-md"
-                icon={<Trash2 size={14} className="text-red-500" />}
-              />
-            </Tooltip>
           </div>
         </div>
 
@@ -362,12 +519,14 @@ const MeetingCard = memo<{
 
         {/* Metadata */}
         <div className="flex items-center gap-4 text-xs text-slate-600 dark:text-slate-400 flex-wrap">
-          <div className="flex items-center gap-1">
-            <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
-            <span className="truncate">
-              {dayjs(meeting.startDatetime).format("MMM D, YYYY")}
-            </span>
-          </div>
+          <Tooltip title={`${dayjs(meeting.startDatetime).format('D MMM, YYYY')} • Duration: ${getMeetingDuration(meeting.startDatetime, meeting.endDatetime)}`}>
+            <div className="flex items-center gap-1 cursor-help">
+              <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
+              <span className="truncate">
+                {formatMeetingDate(meeting.startDatetime)}
+              </span>
+            </div>
+          </Tooltip>
 
           <div className="flex items-center gap-1">
             <Clock className="h-3.5 w-3.5 flex-shrink-0" />
@@ -378,9 +537,11 @@ const MeetingCard = memo<{
 
           <div className="flex items-center gap-1">
             <Users className="h-3.5 w-3.5 flex-shrink-0" />
+            <Tooltip title={meeting.attendees.map((attendee) => attendee.fullName).join(", ")}>
             <span className="truncate">
               {attendeeCount} {attendeeCount === 1 ? 'attendee' : 'attendees'}
             </span>
+            </Tooltip>
           </div>
         </div>
 
@@ -405,12 +566,25 @@ const MeetingManager = () => {
   const [meetingToDelete, setMeetingToDelete] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [statusFilters, setStatusFilters] = useState<string[]>(['Scheduled', 'Overdue', 'Rescheduled', 'Cancelled', 'Completed']);
+  const [dateSortOrder, setDateSortOrder] = useState<'asc' | 'desc' | null>('desc'); // Default: newest first
+  
+  // Action modals state
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
+  const [completeModalOpen, setCompleteModalOpen] = useState(false);
+  const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
+  const [loading, setLoading] = useLoading();
+  const { outcomes } = useDropDowns();
 
   const debouncedSetQuery = useRef(
     debounce((value: string) => setDebouncedQuery(value), 300)
   ).current;
 
-  const { meetings, addMeeting, updateMeeting, deleteMeeting, contactPersons } = useDealStore();
+  const { meetings, addMeeting, updateMeeting, deleteMeeting, contactPersons, dealUUID } = useDealStore();
+  
+  // API instance
+  const API = useApi();
 
   useEffect(() => {
     return () => debouncedSetQuery.cancel();
@@ -428,21 +602,48 @@ const MeetingManager = () => {
 
   const filteredMeetings = useMemo(() => {
     const q = debouncedQuery.trim().toLowerCase();
-    if (!q) return meetings;
+    
+    let filtered = meetings;
+    
+    // Apply search filter
+    if (q) {
+      filtered = filtered.filter((meeting: Meeting) => {
+        const searchStr = [
+          meeting.meetingTitle,
+          meeting.createdBy,
+          meeting.location,
+          VENUE_DISPLAY_MAP[meeting.venue],
+          dayjs(meeting.startDatetime).format('D MMM, YYYY hh:mm A')
+        ].filter(Boolean).join(' ').toLowerCase();
 
-    return meetings.filter((meeting: Meeting) => {
-      const searchStr = [
-        meeting.meetingTitle,
-        meeting.minutes,
-        meeting.createdBy,
-        meeting.location,
-        VENUE_DISPLAY_MAP[meeting.venue],
-        dayjs(meeting.startDatetime).format('MMM D, YYYY hh:mm A')
-      ].filter(Boolean).join(' ').toLowerCase();
-
-      return searchStr.includes(q);
-    });
-  }, [meetings, debouncedQuery]);
+        return searchStr.includes(q);
+      });
+    }
+    
+    // Apply status filter
+    if (statusFilters.length > 0) {
+      filtered = filtered.filter((meeting: Meeting) => {
+        const status = meeting.meetingStatus || getMeetingStatus(meeting.startDatetime, meeting.endDatetime).label;
+        return statusFilters.includes(status);
+      });
+    }
+    
+    // Apply date sorting
+    if (dateSortOrder) {
+      filtered = [...filtered].sort((a, b) => {
+        const dateA = dayjs(a.startDatetime);
+        const dateB = dayjs(b.startDatetime);
+        
+        if (dateSortOrder === 'asc') {
+          return dateA.isBefore(dateB) ? -1 : dateA.isAfter(dateB) ? 1 : 0;
+        } else {
+          return dateB.isBefore(dateA) ? -1 : dateB.isAfter(dateA) ? 1 : 0;
+        }
+      });
+    }
+    
+    return filtered;
+  }, [meetings, debouncedQuery, statusFilters, dateSortOrder]);
 
   const initialFormValues: MeetingFormValues = useMemo(() =>
     editingMeeting ? {
@@ -451,27 +652,72 @@ const MeetingManager = () => {
       endDatetime: dayjs(editingMeeting.endDatetime),
       location: editingMeeting.location,
       venue: editingMeeting.venue,
-      attendeesUUID: editingMeeting.attendeesUUID.map(contact => contact.hcoContactUUID),
+      attendees: editingMeeting.attendees.map(contact => contact.hcoContactUUID),
       notes: editingMeeting.notes,
-      agenda: editingMeeting.agenda
+      dealUUID: editingMeeting.dealUUID
     } : {
       meetingTitle: '',
       startDatetime: dayjs(),
       endDatetime: dayjs(),
       location: '',
       venue: '',
-      attendeesUUID: [],
+      attendees: [],
       notes: '',
-      agenda: ''
+      dealUUID: dealUUID
     },
-    [editingMeeting]
+    [editingMeeting, dealUUID]
   );
 
-  const handleSubmit = useCallback((values: MeetingFormValues, { setSubmitting }: any) => {
-    setSubmitting(false);
-    setOpen(false);
-    setEditingMeeting(null);
-  }, [editingMeeting, updateMeeting, addMeeting, contactPersons]);
+  const handleSubmit = useCallback(async (values: MeetingFormValues, { setSubmitting }: any) => {
+    try {
+      setLoading(true);
+      
+      // Format the values for API
+      const formattedValues = {
+        meetingTitle: values.meetingTitle,
+        startDatetime: dayjs(values.startDatetime).format("YYYY-MM-DD HH:mm:ss"),
+        endDatetime: dayjs(values.endDatetime).format("YYYY-MM-DD HH:mm:ss"),
+        location: values.location,
+        venue: values.venue,
+        attendees: values.attendees,
+        notes: values.notes || "",
+        dealUUID: dealUUID,
+      };
+
+      if (editingMeeting) {
+        // Update existing meeting
+        const response = await API.put(
+          `${APIPATH.DEAL.TABS.MEETING.UPDATEMEETING}${editingMeeting.meetingUUID}`,
+          formattedValues
+        );
+        
+        if (response) {
+          updateMeeting(editingMeeting.meetingUUID, response.data);
+          toast.success("Meeting updated successfully");
+          setOpen(false);
+          setEditingMeeting(null);
+        }
+      } else {
+        // Create new meeting
+        const response = await API.post(
+          APIPATH.DEAL.TABS.MEETING.CREATEMEETING,
+          formattedValues
+        );
+        
+        if (response) {
+          addMeeting(response.data);
+          toast.success("Meeting scheduled successfully");
+          setOpen(false);
+        }
+      }
+    } catch (error) {
+      console.error("Error saving meeting:", error);
+      toast.error(editingMeeting ? "Failed to update meeting" : "Failed to schedule meeting");
+    } finally {
+      setLoading(false);
+      setSubmitting(false);
+    }
+  }, [editingMeeting, updateMeeting, addMeeting, dealUUID, API, setLoading]);
 
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -510,6 +756,21 @@ const MeetingManager = () => {
     updateMeeting(id, { minutes: mom } as any);
   }, [updateMeeting]);
 
+  const handleCancelClick = useCallback((meeting: Meeting) => {
+    setSelectedMeeting(meeting);
+    setCancelModalOpen(true);
+  }, []);
+
+  const handleRescheduleClick = useCallback((meeting: Meeting) => {
+    setSelectedMeeting(meeting);
+    setRescheduleModalOpen(true);
+  }, []);
+
+  const handleCompleteClick = useCallback((meeting: Meeting) => {
+    setSelectedMeeting(meeting);
+    setCompleteModalOpen(true);
+  }, []);
+
   const closeModal = useCallback(() => {
     setOpen(false);
     setEditingMeeting(null);
@@ -521,6 +782,22 @@ const MeetingManager = () => {
   }, []);
 
   const validationSchema = useMemo(() => createValidationSchema(), []);
+
+  // Toggle date sort order
+  const toggleDateSort = useCallback(() => {
+    setDateSortOrder(prev => {
+      if (prev === 'desc') return 'asc';
+      if (prev === 'asc') return null;
+      return 'desc';
+    });
+  }, []);
+
+  // Get sort icon rotation
+  const getSortIconClass = () => {
+    if (dateSortOrder === 'asc') return 'rotate-180';
+    if (dateSortOrder === 'desc') return '';
+    return 'opacity-50';
+  };
 
   return (
     <>
@@ -538,16 +815,49 @@ const MeetingManager = () => {
         </div>
 
         {meetings.length > 0 && (
-          <div className="mb-6">
-            <Input
-              placeholder="Search meetings..."
-              prefix={<Search size={16} className="text-gray-400" />}
-              onChange={handleSearchChange}
-              value={query}
-              className="w-full max-w-md"
-              allowClear
-              onClear={handleClearSearch}
-            />
+          <div className="mb-6 space-y-4">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <Input
+                placeholder="Search meetings..."
+                prefix={<Search size={16} className="text-gray-400" />}
+                onChange={handleSearchChange}
+                value={query}
+                className="w-full max-w-md"
+                allowClear
+                onClear={handleClearSearch}
+              />
+
+              <div className='flex items-center gap-3'>
+              {/* Date Sort Button */}
+              <Tooltip title={dateSortOrder === 'desc' ? 'Sorted: Newest First' : dateSortOrder === 'asc' ? 'Sorted: Oldest First' : 'Click to Sort by Date'}>
+                <Button
+                  icon={<ArrowUpDown size={16} className={`transition-transform ${getSortIconClass()}`} />}
+                  onClick={toggleDateSort}
+                  type={dateSortOrder ? 'primary' : 'default'}
+                >
+                  {dateSortOrder === 'desc' ? 'Newest First' : dateSortOrder === 'asc' ? 'Oldest First' : 'Sort by Date'}
+                </Button>
+              </Tooltip>
+
+              {/* Status Filter Select */}
+              <Select
+                mode="multiple"
+                placeholder="Filter by Status"
+                value={statusFilters}
+                onChange={setStatusFilters}
+                maxTagCount="responsive"
+                className='w-100'
+                options={[
+                  { value: 'Scheduled', label: 'Scheduled' },
+                  { value: 'Overdue', label: 'Overdue' },
+                  { value: 'Completed', label: 'Completed' },
+                  { value: 'Cancelled', label: 'Cancelled' },
+                  { value: 'Rescheduled', label: 'Rescheduled' },
+                ]}
+                allowClear
+              />
+            </div>
+            </div>
           </div>
         )}
 
@@ -559,6 +869,9 @@ const MeetingManager = () => {
                 meeting={meeting}
                 onEdit={handleEdit}
                 onDelete={handleDeleteClick}
+                onCancel={handleCancelClick}
+                onReschedule={handleRescheduleClick}
+                onComplete={handleCompleteClick}
                 onUpdateMom={handleUpdateMom}
               />
             ))}
@@ -674,7 +987,7 @@ const MeetingManager = () => {
                   <Col span={24}>
                     <CustomSelect
                       required
-                      name='attendeesUUID'
+                      name='attendees'
                       label='Attendees'
                       mode="multiple"
                       placeholder="Select attendees"
@@ -702,7 +1015,7 @@ const MeetingManager = () => {
 
                 <div className="mt-6 flex justify-end gap-2">
                   <Button onClick={closeModal}>Cancel</Button>
-                  <Button type="primary" htmlType="submit" loading={isSubmitting}>
+                  <Button type="primary" htmlType="submit" loading={isSubmitting || loading}>
                     {editingMeeting ? "Update Meeting" : "Schedule Meeting"}
                   </Button>
                 </div>
@@ -714,16 +1027,309 @@ const MeetingManager = () => {
 
       {/* Delete Confirmation Modal */}
       <Modal
-        title="Confirm Delete"
+        title="Delete Meeting"
         open={deleteModalOpen}
         onOk={confirmDelete}
         onCancel={() => setDeleteModalOpen(false)}
         okText="Delete"
         cancelText="Cancel"
         okButtonProps={{ danger: true }}
+        width={400}
+        destroyOnHidden
         centered
       >
-        <p>Are you sure you want to delete this meeting? This action cannot be undone.</p>
+        <p>Are you sure you want to delete this meeting?</p>
+        {meetingToDelete && meetings.find(m => m.meetingUUID === meetingToDelete) && (
+          <p className="font-medium mt-2">
+            "{meetings.find(m => m.meetingUUID === meetingToDelete)?.meetingTitle}"
+          </p>
+        )}
+      </Modal>
+
+      {/* Cancel Meeting Modal */}
+      <Modal
+        title="Cancel Meeting"
+        open={cancelModalOpen}
+        onCancel={() => setCancelModalOpen(false)}
+        footer={null}
+        width={400}
+        destroyOnHidden
+      >
+        <Formik
+          initialValues={{ cancellationReason: "" }}
+          validationSchema={Yup.object({
+            cancellationReason: Yup.string().required("Cancel reason is required"),
+          })}
+          onSubmit={async (values) => {
+            if (selectedMeeting) {
+              try {
+                setLoading(true);
+                const response = await API.patch(
+                  `${APIPATH.DEAL.TABS.MEETING.CANCELMEETING}${selectedMeeting.meetingUUID}?reason=${values.cancellationReason}`
+                );
+                if (response) {
+                  updateMeeting(selectedMeeting.meetingUUID, response.data);
+                  toast.success("Meeting cancelled successfully");
+                  setCancelModalOpen(false);
+                  setSelectedMeeting(null);
+                }
+              } catch (error) {
+                console.error("Error cancelling meeting:", error);
+                toast.error("Failed to cancel meeting");
+              } finally {
+                setLoading(false);
+              }
+            }
+          }}
+        >
+          {({ isValid, dirty }) => (
+            <Form className="space-y-4">
+              <Label text="Cancel Reason" required />
+              <Field name="cancellationReason">
+                {({ field, meta }: any) => (
+                  <div className="relative">
+                    <Input.TextArea
+                      {...field}
+                      required
+                      autoSize={{ minRows: 4, maxRows: 6 }}
+                      showCount
+                      maxLength={2000}
+                      placeholder="Enter reason for cancellation"
+                    />
+                    <span className="field-error">{meta.error}</span>
+                  </div>
+                )}
+              </Field>
+              <div className="flex justify-end gap-2 pt-4">
+                <Button onClick={() => setCancelModalOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  type="primary"
+                  danger
+                  htmlType="submit"
+                  loading={loading}
+                  disabled={!isValid || !dirty}
+                >
+                  Cancel Meeting
+                </Button>
+              </div>
+            </Form>
+          )}
+        </Formik>
+      </Modal>
+
+      {/* Reschedule Meeting Modal */}
+      <Modal
+        title="Reschedule Meeting"
+        open={rescheduleModalOpen}
+        onCancel={() => setRescheduleModalOpen(false)}
+        footer={null}
+        width={600}
+        destroyOnHidden
+      >
+        <Formik
+          initialValues={{
+            startDatetime: selectedMeeting ? dayjs(selectedMeeting.startDatetime) : dayjs(),
+            endDatetime: selectedMeeting ? dayjs(selectedMeeting.endDatetime) : dayjs(),
+            rescheduleReason: "",
+          }}
+          validationSchema={Yup.object({
+            startDatetime: Yup.mixed()
+              .required("New start date & time is required")
+              .test("is-future", "Date & time must be in the future", function (value) {
+                if (!value) return false;
+                const selectedDateTime = dayjs(value as string | Date | dayjs.Dayjs);
+                const now = dayjs();
+                return selectedDateTime.isAfter(now);
+              }),
+            endDatetime: Yup.mixed()
+              .required("New end date & time is required")
+              .test("is-after-start", "End time must be after start time", function (value) {
+                const { startDatetime } = this.parent;
+                if (!value || !startDatetime) return true;
+                return dayjs(value as any).isAfter(dayjs(startDatetime as any));
+              }),
+            rescheduleReason: Yup.string().required("Reschedule reason is required"),
+          })}
+          onSubmit={async (values) => {
+            if (selectedMeeting) {
+              try {
+                setLoading(true);
+                const response = await API.post(
+                  `${APIPATH.DEAL.TABS.MEETING.RESCHEDULEMEETING}${selectedMeeting.meetingUUID}`,
+                  {
+                    startDatetime: dayjs(values.startDatetime).format("YYYY-MM-DD HH:mm:ss"),
+                    endDatetime: dayjs(values.endDatetime).format("YYYY-MM-DD HH:mm:ss"),
+                    rescheduleReason: values.rescheduleReason,
+                  }
+                );
+                if (response) {
+                  updateMeeting(selectedMeeting.meetingUUID, response.data);
+                  toast.success("Meeting rescheduled successfully");
+                  setRescheduleModalOpen(false);
+                  setSelectedMeeting(null);
+                }
+              } finally {
+                setLoading(false);
+              }
+            }
+          }}
+          enableReinitialize
+        >
+          {({ isValid, values }) => {
+            const now = dayjs();
+            const startDate = values.startDatetime ? dayjs(values.startDatetime) : null;
+
+            return (
+              <Form className="space-y-4">
+                <Row gutter={[16, 16]}>
+                  <Col span={12}>
+                    <CustomDatePicker
+                      required
+                      label="New Start Date & Time"
+                      name="startDatetime"
+                      showTime
+                      disabledDate={(current) =>
+                        current && current < dayjs().startOf('day')
+                      }
+                      disabledTime={(current) =>
+                        current?.isSame(now, 'day')
+                          ? getDisabledTime(current, now, null, true)
+                          : {}
+                      }
+                      format="YYYY-MM-DD hh:mm A"
+                      placeholder="YYYY-MM-DD hh:mm A"
+                      needConfirm={false}
+                    />
+                  </Col>
+
+                  <Col span={12}>
+                    <CustomDatePicker
+                      required
+                      label="New End Date & Time"
+                      name="endDatetime"
+                      showTime
+                      disabledDate={(current) => {
+                        if (current && current < dayjs().startOf('day')) return true;
+                        if (startDate && current) {
+                          return current.isBefore(startDate, 'day');
+                        }
+                        return false;
+                      }}
+                      disabledTime={(current) =>
+                        getDisabledTime(current, now, startDate, true)
+                      }
+                      format="YYYY-MM-DD hh:mm A"
+                      placeholder="YYYY-MM-DD hh:mm A"
+                      needConfirm={false}
+                    />
+                  </Col>
+                </Row>
+
+                <div className="relative">
+                  <Label text="Reason" required />
+                  <Field name="rescheduleReason">
+                    {({ field, meta }: any) => (
+                      <>
+                        <Input.TextArea
+                          {...field}
+                          rows={2}
+                          placeholder="Enter reason for rescheduling..."
+                          status={meta.touched && meta.error ? "error" : ""}
+                        />
+                        {meta.touched && meta.error && (
+                          <div className="field-error">
+                            {meta.error}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </Field>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button onClick={() => setRescheduleModalOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    type="primary"
+                    htmlType="submit"
+                    loading={loading}
+                    disabled={!isValid}
+                  >
+                    Reschedule
+                  </Button>
+                </div>
+              </Form>
+            );
+          }}
+        </Formik>
+      </Modal>
+
+      {/* Complete Meeting Modal */}
+      <Modal
+        title="Complete Meeting"
+        open={completeModalOpen}
+        onCancel={() => setCompleteModalOpen(false)}
+        footer={null}
+        width={400}
+        destroyOnHidden
+      >
+        <Formik
+          initialValues={{ outcome: "" }}
+          validationSchema={Yup.object({
+            outcome: Yup.string().required("Outcome is required"),
+          })}
+          onSubmit={async (values) => {
+            if (selectedMeeting) {
+              try {
+                setLoading(true);
+                const response = await API.patch(
+                  `${APIPATH.DEAL.TABS.MEETING.COMPLETEMEETING}${selectedMeeting.meetingUUID}/${values.outcome}`
+                );
+                if (response) {
+                  updateMeeting(selectedMeeting.meetingUUID, response.data);
+                  toast.success("Meeting completed successfully");
+                  setCompleteModalOpen(false);
+                  setSelectedMeeting(null);
+                }
+              } catch (error) {
+                console.error("Error completing meeting:", error);
+                toast.error("Failed to complete meeting");
+              } finally {
+                setLoading(false);
+              }
+            }
+          }}
+        >
+          {({ isValid, dirty }) => (
+            <Form className="space-y-4">
+              <CustomSelect
+                name="outcome"
+                label="Outcome"
+                required
+                options={outcomes.map((outcome) => ({
+                  value: outcome.outcomeUUID,
+                  label: outcome.outcomeName,
+                }))}
+              />
+              <div className="flex justify-end gap-2 pt-4">
+                <Button onClick={() => setCompleteModalOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  loading={loading}
+                  disabled={!isValid || !dirty}
+                >
+                  Complete
+                </Button>
+              </div>
+            </Form>
+          )}
+        </Formik>
       </Modal>
     </>
   );

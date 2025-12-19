@@ -1,6 +1,8 @@
 export const APIPATH = {
   LOGIN: "auth/login",
   LOGOUT: "auth/logout",
+  REFRESH_TOKEN: "auth/refresh-token",
+  FILEUPLOAD: "files/upload",
   DASHBOARD: {
     KPIDATA: "dashboard/deals-statistics",
     TOPPRODUCTS: "dashboard/top-products",
@@ -12,7 +14,8 @@ export const APIPATH = {
     UPDATEUSER: "auth/update/",
     DELETEUSER: "auth/delete/",
     GETUSER: "users",
-    STATUSUPDATE: (userUUID: string, status?: string) => `users/${userUUID}?status=${status}`,
+    STATUSUPDATE: (userUUID: string, status?: string) =>
+      `users/${userUUID}?status=${status}`,
   },
   COMPANY: {
     GETCOMPANIES: "company",
@@ -37,19 +40,80 @@ export const APIPATH = {
     DELETEHEALTHCARE: "hco/",
     GETHEALTHCARE: "hco/",
     UPDATESTATUS: (healthcareUUID: string) => `hco/${healthcareUUID}/status`,
-
+    CONTACTPERSONS: (hcoUUID: string) => `hco-contact/hco/${hcoUUID}/contacts`,
   },
   DEAL: {
     GETALLDEALS: "deal",
+    CREATEDEAL: "deal",
     GETDEAL: "deal/",
-    ADDDEALPRODCUT: 'deal-products',
+    ADDDEALPRODCUT: "deal-products",
     GETPRODUCTS: (dealUUID: string) => `deal-products/deal/${dealUUID}/all`,
-    DELETEDEALPRODUCT: 'deal-products/delete',
+    DELETEDEALPRODUCT: "deal-products/delete",
+    TABS: {
+      FOLLOWUP: {
+        GETALLFOLLOWUP: "deal-follow-ups/deal/",
+        CREATEFOLLOWUP: "deal-follow-ups",
+        GETFOLLOWUP: "deal-follow-ups/",
+        UPDATEFOLLOWUP: "deal-follow-ups/",
+        DELETEFOLLOWUP: "deal-follow-ups/",
+        RESCHEDULEFOLLOWUP: "deal-follow-ups/reschedule/",
+        COMPLETEFOLLOWUP: "deal-follow-ups/complete/",
+        CANCELFOLLOWUP: "deal-follow-ups/cancel/",
+      },
+      CALL: {
+        GETALLCALL: "deal-call/deal/",
+        CREATECALL: "deal-call",
+        UPDATECALL: "deal-call/",
+        DELETECALL: "deal-call/",
+      },
+      NOTES: {
+        GETALLNOTES: "deal-note/deal/",
+        CREATENOTE: "deal-note",
+        UPDATENOTE: "deal-note/",
+        DELETENOTE: "deal-note/",
+      },
+      MEETING: {
+        GETALLMEETING: "meeting/deal/",
+        CREATEMEETING: "meeting",
+        UPDATEMEETING: "meeting/",
+        DELETEMEETING: "meeting/",
+        COMPLETEMEETING: "meeting/complete/",
+        CANCELMEETING: "meeting/cancel/",
+        RESCHEDULEMEETING: "meeting/reschedule/",
+      },
+      EMAIL: {
+        GETALLEMAIL: (id: string) => `deal/${id}/mail`,
+        CREATEEMAIL: "mails/deal",
+      },
+    },
   },
   LEAD: {
     GETALLLEADS: "lead",
     GETLEAD: "lead/",
     CREATELEAD: "lead",
+    CANCEL: "lead/cancel/",
+    CONVERT: "lead/convert-to-deal/",
+    TABS: {
+      FOLLOWUP: {
+        GETALLFOLLOWUP: "lead-follow-ups/lead/",
+        CREATEFOLLOWUP: "lead-follow-ups",
+        UPDATEFOLLOWUP: "lead-follow-ups/",
+        DELETEFOLLOWUP: "lead-follow-ups/",
+        COMPLETEFOLLOWUP: "lead-follow-ups/complete/",
+        CANCELFOLLOWUP: "lead-follow-ups/cancel/",
+        RESCHEDULEFOLLOWUP: "lead-follow-ups/reschedule/",
+      },
+      CALL: {
+        GETALLCALL: "lead-call/lead/",
+        CREATECALL: "lead-call",
+        UPDATECALL: "lead-call/",
+        DELETECALL: "lead-call/",
+      },
+      EMAIL: {
+        GETALLEMAIL: (id: string) => `lead/${id}/mail`,
+        CREATEEMAIL: "mails/lead",
+      },
+    },
   },
   PRODUCTS: {
     GETPRODUCTS: "products",
@@ -67,6 +131,7 @@ export const APIPATH = {
     PERSONALITYTRAITS: "dropdown/personality_traits",
     USERS: "dropdown/users",
     PRODUCTS: "dropdown/products",
+    OUTCOMES: "dropdown/outcome",
   },
   COUNTRY: {
     GETCOUNTRYLIST: "country",
@@ -89,5 +154,5 @@ export const APIPATH = {
     GETCONTACT: "hco-contact/",
     GETCONTACTLIST: "hco-contact",
     GETHCOCONTACT: (hcoUUID: string) => `hco-contact/hco/${hcoUUID}/contacts`,
-  }
-}
+  },
+};

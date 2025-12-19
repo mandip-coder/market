@@ -279,26 +279,9 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
   const columns: TableProps<Product>['columns'] = [
     {
-      title: 'Product Name',
-      dataIndex: 'productName',
-      key: 'productName',
-      render: (text) => (
-        <div className="font-medium text-gray-900 dark:text-white">{text}</div>
-      ),
-      sorter: (a, b) => a.productName.localeCompare(b.productName),
-    },
-    {
-      title: 'Product Code',
-      dataIndex: 'productCode',
-      key: 'productCode',
-      render: (text) => (
-        <div className="font-medium text-gray-900 dark:text-white">{text}</div>
-      ),
-      sorter: (a, b) => a.productCode.localeCompare(b.productCode),
-    },
-    {
       title: 'Action',
       key: 'action',
+      fixed: 'left',
       render: (_, record) => {
         const isSelected = selectedProducts.some(p => p.productUUID === record.productUUID);
         const isAdding = addingProductId === record.productUUID;
@@ -317,9 +300,27 @@ export const ProductModal: React.FC<ProductModalProps> = ({
           </Button>
         );
       },
-      align: 'center',
       width: 100,
     },
+    {
+      title: 'Product Name',
+      dataIndex: 'productName',
+      key: 'productName',
+      render: (text) => (
+        <div className="font-medium text-gray-900 dark:text-white">{text}</div>
+      ),
+      sorter: (a, b) => a.productName.localeCompare(b.productName),
+    },
+    {
+      title: 'Product Code',
+      dataIndex: 'productCode',
+      key: 'productCode',
+      render: (text) => (
+        <div className="font-medium text-gray-900 dark:text-white">{text}</div>
+      ),
+      sorter: (a, b) => a.productCode.localeCompare(b.productCode),
+    },
+    
   ];
 
   return (

@@ -5,7 +5,7 @@ import { toast } from "react-toastify";
 type FetchOptions = Omit<RequestInit, "body"> & {
   body?: Record<string, any> | null;
 };
-const baseURL = process.env.NEXT_PUBLIC_BASE_PATH
+export const baseURL = process.env.NEXT_PUBLIC_BASE_PATH
 
 export const useApi = () => {
   const token = useToken();

@@ -502,7 +502,7 @@ const RepositoryTab = ({ setUploadModalOpen, setAddFieldModalOpen }: RepositoryT
                     </div>
                     <div className="flex items-center gap-1">
                       <Calendar className="h-3 w-3" />
-                      <span>{dayjs(doc.date).format('MMM D, YYYY')}</span>
+                      <span>{dayjs(doc.date).format('D MMM, YYYY')}</span>
                     </div>
                   </div>
                 </div>

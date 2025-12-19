@@ -127,7 +127,7 @@ export default function AppErrorUI({
   const description = code ? statusDescriptions[code] : undefined;
   
   return (
-    <div className="flex min-h-full max-h-screen items-center justify-center px-4 bg-gray-50 dark:bg-black rounded-2xl" >
+    <div className="flex min-h-full h-[calc(100vh-5rem)] items-center justify-center px-4 bg-gray-50 dark:bg-black rounded-2xl" >
       <div className="max-w-md w-full text-center shadow-lg p-8 rounded-2xl bg-white dark:bg-black border border-gray-100 dark:border-gray-700">
         <div className="flex justify-center mb-4">
           <ErrorIcon className={`h-16 w-16 ${color}`} />

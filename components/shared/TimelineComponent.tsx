@@ -258,7 +258,7 @@ const TimelineComponent: React.FC<TimelineComponentProps> = ({
                 </span>
                 <span className="mx-2">•</span>
                 <span>
-                  {dayjs(event.timestamp).format("MMM D, YYYY h:mm A")}
+                  {dayjs(event.timestamp).format("D MMM, YYYY h:mm A")}
                 </span>
               </div>
 

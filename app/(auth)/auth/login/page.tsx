@@ -1,9 +1,11 @@
-'use client'
+"use client";
 import { toast } from "@/components/AppToaster/AppToaster";
+import GradientText from "@/components/GradientText/GradientText";
 import Label from "@/components/Label/Label";
+import ShinyText from "@/components/ShinyText/ShinyText";
 import { useLoading } from "@/hooks/useLoading";
 import { signInAction } from "@/lib/actions/signIn";
-import { EyeInvisibleOutlined, EyeTwoTone } from '@ant-design/icons';
+import { EyeInvisibleOutlined, EyeTwoTone } from "@ant-design/icons";
 import { Button, Input } from "antd";
 import { Lock, User2 } from "lucide-react";
 import { useSession } from "next-auth/react";
@@ -17,17 +19,19 @@ const Login = () => {
     password: "",
   });
   const [loading, setLoading] = useLoading();
-  const router = useRouter()
-  const { update } = useSession()
+  const router = useRouter();
+  const { update } = useSession();
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const res = await signInAction({ email: credentials.username, password: credentials.password });
-
+    const res = await signInAction({
+      email: credentials.username,
+      password: credentials.password,
+    });
 
     if (res?.success) {
       setLoading(false);
-      update()
+      update();
       router.push("/dashboard");
     } else {
       toast.error(res?.error);
@@ -36,15 +40,17 @@ const Login = () => {
   };
 
   return (
-    <div className="h-full flex flex-col items-center justify-center dark:bg-black w-full max-w-1/2">
+    <div className="h-full flex flex-col items-center justify-center border border-border-header dark:border-dark-border p-20 rounded-2xl w-full max-w-200">
       <div className="mb-5">
-        <Image
-          className="w-auto"
-          src={'/market-access/images/logo.png'}
-          height={100}
-          width={300}
-          alt="logo"
-        />
+        <GradientText
+          colors={["#1a7a6a", "#1a4d7a", "#1a7a6a", "#1a4d7a", "#1a7a6a"]}
+          animationSpeed={3}
+          showBorder={false}
+          className="text-5xl"
+          
+        >
+          Market Access
+        </GradientText>
       </div>
       <div className="mb-5">
         <h1 className="text-2xl font-semibold mb-1 text-center dark:text-white">
@@ -54,10 +60,7 @@ const Login = () => {
           Sign in to your account
         </span>
       </div>
-      <form
-        className="w-full"
-        onSubmit={handleSubmit}
-      >
+      <form className="w-full" onSubmit={handleSubmit}>
         <div className="flex flex-col mb-2">
           <div className="mb-2">
             <Label text="Email/Username" className="dark:text-gray-200" />
@@ -65,7 +68,9 @@ const Login = () => {
               prefix={<User2 size={18} className="dark:text-gray-400" />}
               size="large"
               placeholder="Enter Your Email/Username"
-              onChange={(e: any) => setCredentials({ ...credentials, username: e.target.value })}
+              onChange={(e: any) =>
+                setCredentials({ ...credentials, username: e.target.value })
+              }
               name="username"
               type="text"
               value={credentials.username}
@@ -75,11 +80,15 @@ const Login = () => {
           <Input.Password
             prefix={<Lock size={18} className="dark:text-gray-400" />}
             required
-            iconRender={(visible) => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
+            iconRender={(visible) =>
+              visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />
+            }
             size="large"
             value={credentials.password}
             placeholder="Enter Your Password"
-            onChange={(e: any) => setCredentials({ ...credentials, password: e.target.value })}
+            onChange={(e: any) =>
+              setCredentials({ ...credentials, password: e.target.value })
+            }
             name="password"
           />
         </div>

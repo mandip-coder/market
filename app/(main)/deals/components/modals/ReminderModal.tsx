@@ -83,7 +83,7 @@ const ReminderCard = memo<{
             </Tooltip>
             <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-500 mt-1">
               <CalendarIcon size={12} className="flex-shrink-0" />
-              <span>{dayjs(reminder.notifyDate).format('MMM D, YYYY')}</span>
+              <span>{dayjs(reminder.notifyDate).format('D MMM, YYYY')}</span>
               <span>•</span>
               <span>{reminder.sendEmail ? 'Email on' : 'No email'}</span>
             </div>

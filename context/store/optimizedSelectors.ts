@@ -1,6 +1,7 @@
 // Optimized selector hooks for Zustand stores
 // Use these instead of direct store access to prevent unnecessary re-renders
 
+import { useCompanyStore } from './companyStore';
 import { useDealStore } from './dealsStore';
 import { useDropdownsStore } from './dropdownsStore';
 import { useLeadStore } from './leadsStore';
@@ -24,6 +25,21 @@ export const useDealViewState = () =>
       hcoList: state.hcoList,
     }))
   );
+export const useCompanyModalStore = () =>
+  useCompanyStore(
+    useShallow((state) => ({
+      addCompanyDrawer: state.addCompanyDrawer,
+      toggleCompanyDrawer: state.toggleCompanyDrawer,
+      editCompany: state.editCompany,
+      setTableDataState: state.setTableDataState,
+      setEditCompany: state.setEditCompany,
+      rolesData: state.rolesData,
+      productsData: state.productsData,
+      setRolesData: state.setRolesData,
+      setProductsData: state.setProductsData,
+    }))
+  )
+
 
 export const useLeadViewState = () =>
   useLeadStore(
@@ -87,6 +103,9 @@ export const useLeadDetailsTabs = () =>
       emails: state.emails,
       attachments: state.attachments,
       followUps: state.followUps,
+      setHcoUUID: state.setHcoUUID,
+      setHcoName: state.setHcoName,
+      setLeadUUID: state.setLeadUUID,
     }))
   );
 export const useLeadFollowUps = () =>
@@ -101,12 +120,31 @@ export const useLeadFollowUps = () =>
       deleteFollowUp: state.deleteFollowUp,
       contactPersons: state.contactPersons,
       setContactPersons: state.setContactPersons,
+      leadUUID: state.leadUUID,
       hcoUUID: state.hcoUUID,
       hcoName: state.hcoName,
-      leadUUID: state.leadUUID,
+      setFollowUps: state.setFollowUps,
+    
     }))
   );
-// Select only product-related state for leads
+export const useDealFollowUps=()=>useDealStore(
+  useShallow((state)=>({
+    followUps: state.followUps,
+    addFollowUp: state.addFollowUp,
+    updateFollowUp: state.updateFollowUp,
+    completeFollowUp: state.completeFollowUp,
+    cancelFollowUp: state.cancelFollowUp,
+    rescheduleFollowUp: state.rescheduleFollowUp,
+    deleteFollowUp: state.deleteFollowUp,
+    contactPersons: state.contactPersons,
+    setContactPersons: state.setContactPersons,
+    dealUUID: state.dealUUID,
+    hcoDetails: state.hcoDetails,
+    setHcoDetails: state.setHcoDetails,
+    setFollowUps: state.setFollowUps,
+  }))
+)
+
 export const useLeadProducts = () =>
   useLeadStore(
     useShallow((state) => ({
@@ -122,6 +160,8 @@ export const useDropDowns = () => useDropdownsStore(
     leadSources: state.leadSources,
     usersList: state.usersList,
     products: state.products,
+    outcomes: state.outcomes,
+    personalityTraits: state.personalityTraits,
   }))
 )
 export const useDropDownsSetters = () => useDropdownsStore(
@@ -130,5 +170,17 @@ export const useDropDownsSetters = () => useDropdownsStore(
     setLeadSources: state.setLeadSources,
     setUsersList: state.setUsersList,
     setProducts: state.setProducts,
+    setOutcomes: state.setOutcomes,
+    setPersonalityTraits: state.setPersonalityTraits,
+  }))
+)
+export const useDealCallModalStore=()=>useDealStore(
+  useShallow((state)=>({
+    calls: state.calls,
+    logCall: state.logCall,
+    updateCall: state.updateCall,
+    deleteCall: state.deleteCall,
+    setCalls: state.setCalls,
+    dealUUID: state.dealUUID,
   }))
 )

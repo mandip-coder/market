@@ -61,6 +61,7 @@ import Paragraph from "antd/es/typography/Paragraph";
 import { useApi } from "@/hooks/useAPI";
 import { APIPATH } from "@/shared/constants/url";
 import { GlobalDate } from "@/Utils/helpers";
+import { Role } from "../../roles-master/components/RoleDataTable";
 
 dayjs.extend(relativeTime);
 
@@ -100,10 +101,6 @@ export interface User {
   loginUserName: string;
 }
 
-export interface Role {
-  roleId: string;
-  roleName: string;
-}
 
 export interface UsersDataResponse {
   data: {
@@ -203,7 +200,7 @@ function UserDataTable({
     selectedUsersData.forEach((user) => {
       user.companies.forEach((company) => {
         company.roles.forEach((role) => {
-          rolesCount[role.roleId] = (rolesCount[role.roleId] || 0) + 1;
+          rolesCount[role.roleUUID] = (rolesCount[role.roleUUID] || 0) + 1;
         });
       });
     });
@@ -342,11 +339,10 @@ function UserDataTable({
               cancelText: "Cancel",
               maskClosable: true,
               onOk: async () => {
-                try {
                   const response = await API.delete(
                     `${APIPATH.USERS.DELETEUSER}/${record.userUUID}`
                   );
-                  if (response.status) {
+                  if (response) {
                     toast.success(
                       `User ${record.loginUsername} deleted successfully`
                     );
@@ -355,12 +351,9 @@ function UserDataTable({
                         (user) => user.userUUID !== record.userUUID
                       )
                     );
-                  } else {
-                    toast.error(`User ${record.loginUsername} deleted failed`);
-                  }
-                } catch (error: any) {
-                  toast.error(error.message);
-                }
+                  }else{
+                    throw new Error("Failed to delete user");
+                  } 
               },
             });
           },
@@ -690,21 +683,17 @@ function UserDataTable({
   const fetchData = useCallback(
     async (params: FetchParams & { status?: string[] }) => {
       setLoading(true);
-      try {
         const response = (await API.get(
           `${APIPATH.USERS.GETUSERS}`
         )) as UsersDataResponse;
-        setTableDataState(response.data.users);
-        setPagination({
-          ...params.pagination,
-          total: tableDataState.length,
-        });
-      } catch (error: any) {
-        console.error("Error fetching data", error);
-        toast.error(error.message || "Failed to fetch users");
-      } finally {
+        if(response){
+          setTableDataState(response.data.users);
+          setPagination({
+            ...params.pagination,
+            total: tableDataState.length,
+          });
+        }
         setLoading(false);
-      }
     },
     [setLoading, setTableDataState, setPagination, tableDataState]
   );
@@ -740,7 +729,7 @@ function UserDataTable({
         render: (record: User) => getPhoneNumberRender(record),
       },
       {
-        title: "Contry Access",
+        title: "Country Access",
         key: "countryAccess",
         dataIndex: "countryAccess",
         width: 150,
@@ -749,7 +738,7 @@ function UserDataTable({
           if (!countryAccess || !Array.isArray(countryAccess)) return null;
 
           return (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center flex-wrap gap-2">
               {countryAccess.map((c) => {
                 return (
                   <Tag variant="outlined" key={`${c.countryUUID}`}>

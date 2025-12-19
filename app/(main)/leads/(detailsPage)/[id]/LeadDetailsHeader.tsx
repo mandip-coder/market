@@ -1,9 +1,21 @@
-'use client'
+"use client";
 import { GlobalDate } from "@/Utils/helpers";
+import Label from "@/components/Label/Label";
+import { useApi } from "@/hooks/useAPI";
+import { APIPATH } from "@/shared/constants/url";
 import { LoadingOutlined } from "@ant-design/icons";
-import { Badge, Button, Card, Form, Input, message, Modal, Select, Tooltip, Typography } from "antd";
+import {
+  Badge,
+  Button,
+  Card,
+  Input,
+  Modal,
+  Tooltip,
+  Typography
+} from "antd";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import { Field, Form, Formik } from "formik";
 import {
   ArrowLeft,
   Building,
@@ -11,43 +23,46 @@ import {
   CheckCircle,
   Clock,
   User,
-  X
+  X,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
-import { use, useCallback, useState } from "react";
+import { useCallback, useState } from "react";
+import * as Yup from "yup";
 import { Lead } from "../../components/LeadsListing";
+import { toast } from "react-toastify";
 
 dayjs.extend(relativeTime);
 
-const headerVariants = {
+export const headerVariants = {
   hidden: { opacity: 0, y: -10 },
   show: {
     opacity: 1,
     y: 0,
-    transition: { type: "spring", stiffness: 220, damping: 20 }
-  }
+    transition: { type: "spring", stiffness: 220, damping: 20 },
+  },
 };
 
 const { TextArea } = Input;
-const { Option } = Select;
 const { Title, Text } = Typography;
 interface LeadDetails {
-  data: Lead
+  data: Lead;
 }
-export default function LeadDetailsHeader({ headerDetails }: { headerDetails: Promise<LeadDetails> }) {
-  const response = use(headerDetails);
+export default function LeadDetailsHeader({
+  headerDetails,
+}: {
+  headerDetails: LeadDetails;
+}) {
+  const response = headerDetails;
   const lead = response?.data;
-  console.log(lead);
   const router = useRouter();
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
   const [convertModalVisible, setConvertModalVisible] = useState(false);
-  const [form] = Form.useForm();
-  const [convertForm] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const API = useApi();
 
   const handleBack = useCallback(() => {
-    router.push('/leads');
+    router.push("/leads");
   }, [router]);
 
   const STATUSMAP = {
@@ -56,30 +71,37 @@ export default function LeadDetailsHeader({ headerDetails }: { headerDetails: Pr
       color: "#8bb5f0",
     },
     inProgress: {
-      text: <div className="flex items-center gap-1">
-        <LoadingOutlined className="h-3.5 w-3.5 " spin />
-        <span className="text-green-900 dark:text-green-400">In Progress</span>
-      </div>,
+      text: (
+        <div className="flex items-center gap-1">
+          <LoadingOutlined className="h-3.5 w-3.5 " spin />
+          <span className="text-green-900 dark:text-green-400">
+            In Progress
+          </span>
+        </div>
+      ),
       color: "#8bd268",
     },
     cancelled: {
-      text: <Tooltip title={lead.closeReason}>
-        <span className="text-red-900 dark:text-red-400">Cancelled</span></Tooltip>,
+      text: (
+        <Tooltip title={lead?.closeReason}>
+          <span className="text-red-900 dark:text-red-400">Cancelled</span>
+        </Tooltip>
+      ),
       color: "#ea757c",
     },
-  }
+  };
 
   const getStatusIcon = (status: string) => {
-    if (status === 'new') {
+    if (status === "new") {
       return STATUSMAP.new;
-    } else if (status === 'inProgress') {
+    } else if (status === "inProgress") {
       return STATUSMAP.inProgress;
-    } else if (status === 'cancelled') {
+    } else if (status === "cancelled") {
       return STATUSMAP.cancelled;
     } else {
       return STATUSMAP.new;
     }
-  }
+  };
 
   const handleCancelLead = () => {
     setCancelModalVisible(true);
@@ -89,46 +111,41 @@ export default function LeadDetailsHeader({ headerDetails }: { headerDetails: Pr
     setConvertModalVisible(true);
   };
 
-  const handleCancelConfirm = async () => {
-    try {
-      const values = await form.validateFields();
-      setLoading(true);
-      // API call to cancel lead with reason and comments
-      message.success('Lead cancelled successfully');
-      setCancelModalVisible(false);
-      form.resetFields();
-      // Update lead status or refresh data
-    } catch (error) {
-      console.error('Validation failed:', error);
-    } finally {
-      setLoading(false);
+  const handleCancelConfirm = async (values: { closeReason: string }) => {
+    setLoading(true);
+    const cancelResponse = await API.post(
+      APIPATH.LEAD.CANCEL + lead.leadUUID,
+      values
+    );
+    if (cancelResponse) {
+      toast.success("Lead cancelled successfully");
+      router.push("/leads");
     }
+    setCancelModalVisible(false);
+    setLoading(false);
   };
 
-  const handleConvertConfirm = async () => {
-    try {
-      const values = await convertForm.validateFields();
-      setLoading(true);
-      // API call to convert lead to deal with optional summary
-      message.success('Lead converted to deal successfully');
+  const handleConvertConfirm = async (values: { summary: string }) => {
+    setLoading(true);
+    const convertResponse = await API.post(
+      APIPATH.LEAD.CONVERT + lead.leadUUID,
+      values
+    );
+    if (convertResponse) {
+      toast.success("Lead converted to deal successfully");
+      router.push(`/deals/${convertResponse.data.dealUUID}`);
       setConvertModalVisible(false);
-      convertForm.resetFields();
-      // Redirect to deal page or update UI
-    } catch (error) {
-      console.error('Validation failed:', error);
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   };
 
-  const cancelReasons = [
-    'Not interested',
-    'Budget constraints',
-    'Timeline issues',
-    'Competitor selected',
-    'No response',
-    'Other'
-  ];
+  const cancelValidationSchema = Yup.object({
+    closeReason: Yup.string().required("Please provide reason for cancellation"),
+  });
+
+  const convertValidationSchema = Yup.object({
+    summary: Yup.string().required("Please provide summary"),
+  });
 
   return (
     <motion.div
@@ -141,10 +158,12 @@ export default function LeadDetailsHeader({ headerDetails }: { headerDetails: Pr
         {/* Header section with title and back button */}
         <div className="flex justify-between items-start mb-4 flex-wrap gap-3">
           <div className="flex items-center gap-3">
-
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <Title level={3} className="!mb-0 text-gray-900 dark:text-white">
+                <Title
+                  level={3}
+                  className="!mb-0 text-gray-900 dark:text-white"
+                >
                   {lead.leadName}
                 </Title>
                 <Badge
@@ -164,7 +183,7 @@ export default function LeadDetailsHeader({ headerDetails }: { headerDetails: Pr
               danger
               icon={<X size={16} />}
               onClick={handleCancelLead}
-              disabled={lead.leadStatus === 'cancelled'}
+              disabled={lead.leadStatus === "cancelled"}
             >
               Cancel Lead
             </Button>
@@ -172,7 +191,7 @@ export default function LeadDetailsHeader({ headerDetails }: { headerDetails: Pr
               type="primary"
               icon={<CheckCircle size={16} />}
               onClick={handleConvertToDeal}
-              disabled={lead.leadStatus === 'cancelled'}
+              disabled={lead.leadStatus === "cancelled"}
             >
               Convert To Deal
             </Button>
@@ -192,7 +211,9 @@ export default function LeadDetailsHeader({ headerDetails }: { headerDetails: Pr
           <div className="flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-md">
             <Calendar className="w-4 h-4 text-purple-500 dark:text-purple-400" />
             <div>
-              <Text type="secondary" className="text-xs">Created On</Text>
+              <Text type="secondary" className="text-xs">
+                Created On
+              </Text>
               <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 {GlobalDate(lead.leadDate)} by {lead.createdBy || "—"}
               </div>
@@ -203,7 +224,9 @@ export default function LeadDetailsHeader({ headerDetails }: { headerDetails: Pr
           <div className="flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-md">
             <Clock className="w-4 h-4 text-amber-500 dark:text-amber-400" />
             <div>
-              <Text type="secondary" className="text-xs">Last Updated</Text>
+              <Text type="secondary" className="text-xs">
+                Last Updated
+              </Text>
               <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 {GlobalDate(lead.updatedAt)} by {lead.createdBy || "—"}
               </div>
@@ -214,7 +237,9 @@ export default function LeadDetailsHeader({ headerDetails }: { headerDetails: Pr
           <div className="flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-md">
             <User className="w-4 h-4 text-blue-500 dark:text-blue-400" />
             <div>
-              <Text type="secondary" className="text-xs">Assigned To</Text>
+              <Text type="secondary" className="text-xs">
+                Assigned To
+              </Text>
               <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 {lead.createdBy || "Unassigned"}
               </div>
@@ -224,10 +249,22 @@ export default function LeadDetailsHeader({ headerDetails }: { headerDetails: Pr
 
         {/* Summary section */}
         {lead.summary && (
-          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md border-l-3 border-blue-500">
-            <Text type="secondary" className="text-xs block mb-1">Summary</Text>
+          <div className="p-3 mb-4 bg-blue-50 dark:bg-blue-900/20 rounded-md border-l-3 border-blue-500">
+            <Text type="secondary" className="text-xs block mb-1">
+              Summary
+            </Text>
             <p className="text-sm text-gray-700 dark:text-gray-300 italic">
               "{lead.summary}"
+            </p>
+          </div>
+        )}
+        {lead.closeReason && (
+          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md border-l-3 border-red-500">
+            <Text type="secondary" className="text-xs block mb-1">
+              Close Reason
+            </Text>
+            <p className="text-sm text-gray-700 dark:text-gray-300">
+              {lead.closeReason}
             </p>
           </div>
         )}
@@ -237,58 +274,105 @@ export default function LeadDetailsHeader({ headerDetails }: { headerDetails: Pr
       <Modal
         title="Cancel Lead"
         open={cancelModalVisible}
-        onOk={handleCancelConfirm}
         onCancel={() => setCancelModalVisible(false)}
-        confirmLoading={loading}
-        okText="Confirm Cancellation"
-        cancelText="Back"
+        footer={null}
         width={500}
       >
-        <Form form={form} layout="vertical">
-          <Form.Item
-            name="reason"
-            label="Reason for Cancellation"
-            rules={[{ required: true, message: 'Please select a reason for cancellation' }]}
-          >
-            <Select placeholder="Select a reason">
-              {cancelReasons.map(reason => (
-                <Option key={reason} value={reason}>{reason}</Option>
-              ))}
-            </Select>
-          </Form.Item>
-          <Form.Item
-            name="comments"
-            label="Additional Comments"
-            rules={[{ required: true, message: 'Please provide additional comments' }]}
-          >
-            <TextArea rows={4} placeholder="Please provide details about the cancellation..." />
-          </Form.Item>
-        </Form>
+        <Formik
+          initialValues={{ closeReason: "" }}
+          validationSchema={cancelValidationSchema}
+          onSubmit={handleCancelConfirm}
+        >
+          {({ isValid, dirty }) => (
+            <Form className="space-y-4">
+              <div>
+                <Label text="Reason for Cancellation" required />
+                <Field name="closeReason">
+                  {({ field, meta }: any) => (
+                    <div className="relative">
+                      <TextArea
+                        {...field}
+                        rows={4}
+                        placeholder="Please provide details about the cancellation..."
+                        status={meta.touched && meta.error ? "error" : ""}
+                      />
+                      {meta.touched && meta.error && (
+                        <span className="field-error">{meta.error}</span>
+                      )}
+                    </div>
+                  )}
+                </Field>
+              </div>
+              <div className="flex justify-end gap-2 pt-4">
+                <Button onClick={() => setCancelModalVisible(false)}>
+                  Back
+                </Button>
+                <Button
+                  type="primary"
+                  danger
+                  htmlType="submit"
+                  loading={loading}
+                  disabled={!isValid || !dirty}
+                >
+                  Confirm Cancellation
+                </Button>
+              </div>
+            </Form>
+          )}
+        </Formik>
       </Modal>
 
       {/* Convert To Deal Modal */}
       <Modal
         title="Convert Lead To Deal"
         open={convertModalVisible}
-        onOk={handleConvertConfirm}
         onCancel={() => setConvertModalVisible(false)}
-        confirmLoading={loading}
-        okText="Convert"
-        cancelText="Back"
+        footer={null}
         width={500}
       >
-        <Form form={convertForm} layout="vertical">
-          <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md">
-            <Text>You are about to convert this lead into a deal. This action will create a new deal record.</Text>
-          </div>
-          <Form.Item
-            name="summary"
-            label="Deal Summary (Optional)"
-          >
-            <TextArea rows={4} placeholder="Add a summary for the new deal..." />
-          </Form.Item>
-        </Form>
+        <Formik
+          initialValues={{ summary: "" }}
+          validationSchema={convertValidationSchema}
+          onSubmit={handleConvertConfirm}
+        >
+          {({isValid,dirty}) => (
+            <Form className="space-y-4">
+              <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md">
+                <Text>
+                  You are about to convert this lead into a deal. This action
+                  will create a new deal record.
+                </Text>
+              </div>
+              <div className="relative">
+                <Label text="Deal Summary" required />
+                <Field name="summary">
+                  {({ field,meta }: any) => (<>
+                    <TextArea
+                      {...field}
+                      rows={4}
+                      placeholder="Add a summary for the new deal..."
+                      />
+                      {
+                        meta.touched && meta.error ? (
+                          <span className="field-error">{meta.error}</span>
+                        ) : null
+                      }
+                      </>
+                  )}
+                </Field>
+              </div>
+              <div className="flex justify-end gap-2 pt-4">
+                <Button onClick={() => setConvertModalVisible(false)}>
+                  Back
+                </Button>
+                <Button type="primary" htmlType="submit" loading={loading} disabled={!isValid || !dirty}>
+                  Convert
+                </Button>
+              </div>
+            </Form>
+          )}
+        </Formik>
       </Modal>
     </motion.div>
-  )
+  );
 }

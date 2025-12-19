@@ -101,7 +101,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   secret: process.env.NEXTAUTH_SECRET,
   callbacks: {
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, trigger, session }) {
       // Initial sign-in: put full user into the token
       if (user && account) {
         token.id = user.userUUID
@@ -118,6 +118,25 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           companies: user.companies ?? [],
           token: user.token,
           accessTokenExpires: user.accessTokenExpires,
+        }
+
+        return token
+      }
+
+      // Handle session update (e.g., when switching companies)
+      if (trigger === "update" && session) {
+        // Update token with new access token if provided
+        if (session.accessToken) {
+          token.accessToken = session.accessToken
+          token.accessTokenExpires = session.accessTokenExpires
+        }
+
+        // Update user data in token if provided
+        if (session.user) {
+          token.user = {
+            ...(token.user as any),
+            ...session.user,
+          }
         }
 
         return token

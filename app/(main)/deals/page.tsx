@@ -4,6 +4,7 @@ import SuspenseWithBoundary from '@/components/SuspenseWithErrorBoundry/Suspense
 import { APIPATH } from '@/shared/constants/url';
 import DealsHeader from './components/DealsHeader';
 import DealsListing from './components/DealsListing';
+import { notFound } from 'next/navigation';
 
 export default async function DealsPage() {
   const data = SERVERAPI(APIPATH.DEAL.GETALLDEALS)

@@ -1,11 +1,11 @@
 import { Company } from "@/app/(main)/master/company-master/components/CompanyDataTable";
 import { useSidebar } from "@/context/SidebarContextProvider";
-import { useCompanies } from "@/hooks/useToken";
 import { logoutAction } from "@/lib/actions/signOut";
+import { refreshTokenAction } from "@/lib/actions/refreshToken";
 import { Dropdown, MenuProps } from "antd";
-import { ChevronsUpDown, LogOut, Settings, User } from "lucide-react";
-import { signOut, useSession } from "next-auth/react";
-import { useState, useEffect } from "react";
+import { ChevronsUpDown, LogOut } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 
 
@@ -27,10 +27,10 @@ export default function OrgSwitcher() {
   const { data: Session } = useSession()
   const orgs = Session?.user?.companies || []
   const [selectedOrg, setSelectedOrg] = useState<Company | undefined>(orgs[0]);
+  const [switching, setSwitching] = useState(false);
   const { collapsed } = useSidebar();
   const { update } = useSession()
 
-  // Sync selectedOrg when session companies change
   useEffect(() => {
     if (orgs.length > 0 && !selectedOrg) {
       setSelectedOrg(orgs[0]);
@@ -38,20 +38,37 @@ export default function OrgSwitcher() {
   }, [orgs, selectedOrg]);
 
   const handleOrgSwitch = async (org: Company) => {
+    setSwitching(true);
     try {
-      setSelectedOrg(org);
-      // Update the session with the new selected company
+      // Refresh token with new company context
+      const refreshResult = await refreshTokenAction(org.companyUUID);
+      
+      if (!refreshResult.success) {
+        setSwitching(false);
+        toast.error(refreshResult.error || "Failed to refresh token");
+        return;
+      }
+
+      // Update session with new token and company
       await update({
         ...Session,
         user: {
           ...Session?.user,
           selectedCompany: org,
-        }
+          token: refreshResult.refreshToken,
+          accessTokenExpires: refreshResult.accessTokenExpires,
+        },
+        accessToken: refreshResult.refreshToken,
+        accessTokenExpires: refreshResult.accessTokenExpires,
       });
+      
+      setSelectedOrg(org);
       toast.success(`Switched to ${org.displayName}`);
     } catch (error) {
       toast.error("Failed to switch organization");
       console.error("Organization switch error:", error);
+    } finally {
+      setSwitching(false);
     }
   };
 
@@ -75,12 +92,12 @@ export default function OrgSwitcher() {
       return {
         key: org.companyUUID,
         title: "",
-        disabled: isSelected,
+        disabled: isSelected || switching,
         label: (
           <div
-            className={`flex items-center gap-3 py-2 rounded-md ${isSelected ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+            className={`flex items-center gap-3 py-2 rounded-md ${isSelected || switching ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
               }`}
-            onClick={() => !isSelected && handleOrgSwitch(org)}
+            onClick={() => !isSelected && !switching && handleOrgSwitch(org)}
           >
             <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold text-sm">
               {getInitials(org?.displayName || "")}

@@ -75,7 +75,13 @@ export default function DealDrawer() {
       ...values,
       dealDate: dayjs().format("YYYY-MM-DD"),
     }
-    console.log(finalValues);
+    const response = await API.post(APIPATH.DEAL.CREATEDEAL, finalValues);
+    if (response) {
+      toast.success("Deal created successfully");
+      setDealDrawer(false);
+      formikRef.current?.resetForm();
+      router.push(`/deals/${response.data.dealUUID}`);
+    }
     setLoading(false);
 
   };
@@ -152,7 +158,8 @@ export default function DealDrawer() {
           onSubmit={handleSubmit}
           validateOnBlur
         >
-          {({ values, handleChange, handleBlur, setFieldValue }) => (
+          {({ values, handleChange, handleBlur, setFieldValue,errors }) =>{
+            return (
             <Form id="dealForm">
               <Row gutter={[16, 16]}>
                 <Col xs={24}>
@@ -206,7 +213,7 @@ export default function DealDrawer() {
                 </Col>
 
                 <Col xs={24} sm={12}>
-                  <CustomDatePicker name="createdDate" label="Date" required />
+                  <CustomDatePicker name="dealDate" label="Date" required />
                 </Col>
 
                 <Col xs={24} sm={12}>
@@ -314,7 +321,8 @@ export default function DealDrawer() {
                 </Col>
               </Row>
             </Form>
-          )}
+          )
+          } }
         </Formik>
       </Drawer>
 

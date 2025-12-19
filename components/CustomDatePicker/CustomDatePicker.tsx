@@ -82,6 +82,53 @@ function CustomDatePicker({ label, onBlur, format, ...props }: CustomDatePickerP
     }
   };
 
+  // Add disabledTime function to restrict time selection when maxDate is set
+  const getDisabledTime = () => {
+    if (!props.maxDate || !pickerValue) return {};
+    
+    const maxDate = dayjs(props.maxDate);
+    const selectedDate = dayjs(pickerValue);
+    
+    // Only apply time restrictions if the selected date is the same as maxDate
+    if (selectedDate.isSame(maxDate, 'day')) {
+      const maxHour = maxDate.hour();
+      const maxMinute = maxDate.minute();
+      const maxSecond = maxDate.second();
+      
+      return {
+        disabledHours: () => {
+          const hours = [];
+          for (let i = maxHour + 1; i < 24; i++) {
+            hours.push(i);
+          }
+          return hours;
+        },
+        disabledMinutes: (selectedHour: number) => {
+          if (selectedHour === maxHour) {
+            const minutes = [];
+            for (let i = maxMinute + 1; i < 60; i++) {
+              minutes.push(i);
+            }
+            return minutes;
+          }
+          return [];
+        },
+        disabledSeconds: (selectedHour: number, selectedMinute: number) => {
+          if (selectedHour === maxHour && selectedMinute === maxMinute) {
+            const seconds = [];
+            for (let i = maxSecond + 1; i < 60; i++) {
+              seconds.push(i);
+            }
+            return seconds;
+          }
+          return [];
+        },
+      };
+    }
+    
+    return {};
+  };
+
   return (
     <div className="relative">
       {label && <Label text={label} htmlFor={props.name} required={props.required} />}
@@ -94,6 +141,7 @@ function CustomDatePicker({ label, onBlur, format, ...props }: CustomDatePickerP
         placeholder={format}
         format={dateFormat}
         status={meta.touched && meta.error ? "error" : undefined}
+        disabledTime={props.showTime ? getDisabledTime : undefined}
         {...props}
       />
       {meta.touched && meta.error && <span className="field-error">{meta.error}</span>}

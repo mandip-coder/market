@@ -60,41 +60,40 @@ export interface Attachment {
 }
 
 export interface Meeting {
-  meetingUUID: string;
-  meetingTitle: string;
   startDatetime: string;
   endDatetime: string;
+  meetingTitle: string;
+  venue: string;
+  venueUUID: string
   location: string;
-  venue: 'in-office' | 'client location' | 'online';
-  attendeesUUID: HCOContactPerson[];
-  notes?: string;
-  createdBy: string;
-  agenda: string;
-  minutes: string;
-  meetingStatus: string;
+  notes: string;
+  cancellationReason: string;
+  rescheduleReason: string;
+  meetingStatus: followUpStatus;
+  outcome: string;
   createdAt: string;
   updatedAt: string;
-  updatedBy: string;
-  dealUUID: string
+  meetingUUID: string;
+  dealUUID: string;
+  attendees: HCOContactPerson[];
+  createdBy: string;
+  updatedBy: string
 
 }
-type followUpMode = 'CALL' | 'MEETING' | 'EMAIL' | 'VIDEO_CALL' | "WHATSAPP" | "SMS" | "VISIT";
+export type followUpMode = 'CALL' | 'MEETING' | 'EMAIL' | 'VIDEO_CALL' | "WHATSAPP" | "SMS" | "VISIT";
+export type followUpStatus = 'Scheduled' | 'Rescheduled' | 'Overdue' | 'Completed' | 'Cancelled';
 export interface FollowUP {
-  followUpUUId: string;
+  followUpUUID: string;
   subject: string;
-  scheduledDateTime: string; // ISO datetime string
-  contactPersons: string[]; // Array of contact person UUIDs
-  remark?: string;
-  isCompleted: boolean;
-  isCancelled: boolean;
-  completedAt?: string;
-  cancelledAt?: string;
-  outcome?: string; // For completed follow-ups
-  cancelReason?: string; // For cancelled follow-ups
-  rescheduledAt?: string;
-  rescheduleReason?: string;
-  originalScheduledDateTime?: string;
+  contactPersons: HCOContactPerson[]; // Array of contact person UUIDs
+  description: string;
+  status: followUpStatus;
+  cancellationReason?: string; // For cancelled follow-ups
+  scheduledDate: string;
+  nextFollowUpNotes?: string;
   followUpMode?: followUpMode;
+  completedDate?: string;
+  outcome?: string;
 }
 
 export interface CallLog {
@@ -104,19 +103,35 @@ export interface CallLog {
   duration: string;
   purpose: string;
   agenda: string;
-  outcome: 'No Interest' | 'No Response (1 Month Chase)' | 'Require Further Information' |
-  'Another Supplier Contract' | 'Non Formulary' | 'Switch Consideration' | 'Approved Switch';
-  loggedBy: string;
-  reason?: string
+  outcomeUUID: string;
+  outcome: string
+  comment?: string
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface EmailAttachment {
+  filename: string;
+  url: string;
+  filePath: string;
+  size: number;
+  mimeType: string;
 }
 
 export interface Email {
   emailUUID: string;
+  leadUUID?: string;
+  dealUUID?: string;
   subject: string;
   body: string;
   recipients: string[];
+  ccRecipients: string[];
+  bccRecipients: string[];
+  attachments: EmailAttachment[];
   sentAt: string;
   sentBy: string;
+  sentByUUID: string;
+  deliveryStatus: 'sent' | 'failed' | 'delivered';
 }
 
 export interface Note {

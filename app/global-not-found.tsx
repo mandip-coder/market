@@ -9,7 +9,6 @@ import { Inter, Poppins } from 'next/font/google';
 import 'nprogress/nprogress.css';
 import "simplebar-react/dist/simplebar.min.css";
 dayjs.extend(customParseFormat);
-// Configure fonts with next/font/google
 const poppins = Poppins({
   subsets: ['latin'],
   weight: ['400'],

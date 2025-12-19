@@ -19,8 +19,8 @@ interface Healthcare {
   updatedBy: string;
 }
 
-export default function HealthCareDetailsHeader({ headerDetails }: { headerDetails: Promise<Healthcare> }) {
-  const healthcare = use(headerDetails)
+export default function HealthCareDetailsHeader({ headerDetails }: { headerDetails:Healthcare }) {
+  const healthcare =headerDetails
   const router = useRouter();
   const handleBack = useCallback(() => {
     router.push('/healthcares');

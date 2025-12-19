@@ -18,11 +18,10 @@ import TimelineComponent, { TimelineEvent } from '@/components/shared/TimelineCo
 import { mockContacts } from '../mockdata';
 
 interface DealDetailesProps {
-  dealDetailsPromise: Promise<Deal>;
+  dealDetails: Deal;
 }
 
-const DealDetails: React.FC<DealDetailesProps> = ({ dealDetailsPromise }) => {
-  const dealDetails = React.use(dealDetailsPromise);
+const DealDetails: React.FC<DealDetailesProps> = ({ dealDetails }) => {
   const {
     selectedProducts,
     attachments,
@@ -98,14 +97,14 @@ const DealDetails: React.FC<DealDetailesProps> = ({ dealDetailsPromise }) => {
                       )}
                     </span>
                   ),
-                  children: <UploadModal />
+                  children: <SuspenseWithBoundary><UploadModal /></SuspenseWithBoundary>
                 },
                 {
                   key: 'meetings',
                   label: (
                     <span className="flex items-center gap-1.5">
                       <Calendar className="w-4 h-4" />
-                      <span>Meetings</span>
+                      <span>Schedule Meeting</span>
                       {meetings.length > 0 && (
                         <span className="ml-1 px-1.5 py-0.5 text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 rounded-full">
                           {meetings.length}
@@ -130,14 +129,16 @@ const DealDetails: React.FC<DealDetailesProps> = ({ dealDetailsPromise }) => {
                       )}
                     </span>
                   ),
-                  children: <TaskModal />
+                  children: <SuspenseWithBoundary errorFallback={(error) =>
+                    <span>{error}</span>
+                  }><TaskModal /></SuspenseWithBoundary>
                 },
                 {
                   key: 'logCall',
                   label: (
                     <span className="flex items-center gap-1.5">
                       <Phone className="w-4 h-4" />
-                      <span>Call Log</span>
+                      <span>Communications Log</span>
                       {calls.length > 0 && (
                         <span className="ml-1 px-1.5 py-0.5 text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 rounded-full">
                           {calls.length}
@@ -145,7 +146,9 @@ const DealDetails: React.FC<DealDetailesProps> = ({ dealDetailsPromise }) => {
                       )}
                     </span>
                   ),
-                  children: <CallModal />
+                  children: <SuspenseWithBoundary errorFallback={(error) =>
+                    <span>{error}</span>
+                  }><CallModal /></SuspenseWithBoundary>
                 },
                 {
                   key: 'email',
@@ -160,7 +163,9 @@ const DealDetails: React.FC<DealDetailesProps> = ({ dealDetailsPromise }) => {
                       )}
                     </span>
                   ),
-                  children: <EmailModal contacts={mockContacts} />
+                  children: <SuspenseWithBoundary errorFallback={(error) =>
+                    <span>{error}</span>
+                  }><EmailModal /></SuspenseWithBoundary>
                 },
                 {
                   key: 'notes',

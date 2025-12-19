@@ -1,11 +1,11 @@
 "use client";
-import { useCompanyStore } from "@/context/store/companyStore";
+import { useCompanyModalStore } from "@/context/store/optimizedSelectors";
 import { useApi } from "@/hooks/useAPI";
 import { useLoading } from "@/hooks/useLoading";
 import { APIPATH } from "@/shared/constants/url";
 import { Button, Divider, Drawer } from "antd";
 import { Form, Formik, FormikProps } from "formik";
-import { CloudCog, Save } from "lucide-react";
+import { Save } from "lucide-react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import * as Yup from "yup";
@@ -15,7 +15,7 @@ import { Company } from "./CompanyDataTable";
 
 export interface CompanyFormData extends Omit<Company, "roles" | "products"> {
   rolesUUID: string[];
-  productsUUID: string[];
+  productsUUID: string[]
 }
 
 function AddCompanyDrawer() {
@@ -29,9 +29,36 @@ function AddCompanyDrawer() {
     editCompany,
     setTableDataState,
     setEditCompany,
-  } = useCompanyStore();
+    rolesData,
+    productsData,
+    setRolesData,
+    setProductsData
+  } = useCompanyModalStore();
   const isEditMode = !!editCompany;
   const companyData = editCompany || null;
+
+  const fetchRoles = async () => {
+    try {
+      const response = await API.get(APIPATH.ROLES.GETROLES);
+      const roleMAPPER = response.data.map((role: any) => ({ label: role.roleName, value: role.roleUUID }));
+      setRolesData(roleMAPPER);
+    } catch (error: any) {
+      setRolesData([])
+    }
+  }
+  const fetchProducts = async () => {
+    try {
+      const response = await API.get(APIPATH.PRODUCTS.GETPRODUCTS);
+      const productMAPPER = response.data.map((product: any) => ({ label: product.productName, value: product.productUUID }));
+      setProductsData(productMAPPER);
+    } catch (error: any) {
+      setProductsData([])
+    }
+  }
+  useEffect(()=>{
+    fetchRoles();
+    fetchProducts();
+  },[])
 
   useEffect(() => {
     if (isEditMode && companyData?.logoUrl) {
@@ -218,6 +245,8 @@ function AddCompanyDrawer() {
               setFieldValue={setFieldValue}
               errors={errors}
               touched={touched}
+              rolesData={rolesData}
+              productsData={productsData}
             />
           </Form>
         )}

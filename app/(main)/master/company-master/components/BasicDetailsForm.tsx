@@ -2,15 +2,14 @@
 import CustomSelect from "@/components/CustomSelect/CustomSelect";
 import Input from "@/components/Input/Input";
 import Label from "@/components/Label/Label";
+import { Product } from "@/context/store/productStore";
 import { rowGutter } from "@/shared/constants/themeConfig";
 import { Col, Divider, Row } from "antd";
 import TextArea from "antd/es/input/TextArea";
 import { FormikErrors, FormikHandlers, FormikHelpers, FormikTouched } from "formik";
-import { memo, useEffect, useState } from "react";
+import { memo, useState } from "react";
+import { Role } from "../../roles-master/components/RoleDataTable";
 import { CompanyFormData } from "./AddCompanyDrawer";
-import { useApi } from "@/hooks/useAPI";
-import { APIPATH } from "@/shared/constants/url";
-import { toast } from "react-toastify";
 
 interface BasicDetailsFormProps {
   values: CompanyFormData;
@@ -19,6 +18,8 @@ interface BasicDetailsFormProps {
   setFieldValue: FormikHelpers<CompanyFormData>["setFieldValue"];
   errors: FormikErrors<CompanyFormData>;
   touched: FormikTouched<CompanyFormData>;
+  rolesData:Role[],
+  productsData:Product[]
 }
 
 function BasicDetailsForm({
@@ -27,35 +28,13 @@ function BasicDetailsForm({
   setFieldValue,
   handleChange,
   errors,
-  touched
+  touched,
+  rolesData=[],
+  productsData=[]
 }: BasicDetailsFormProps) {
   
-  const [roles,setRoles]=useState([])
-  const [products,setProducts]=useState([])
-  const API=useApi()
-  const fetchRoles = async () => {
-    try {
-      const response = await API.get(APIPATH.ROLES.GETROLES);
-      const roleMAPPER = response.data.map((role: any) => ({ label: role.roleName, value: role.roleUUID }));
-      setRoles(roleMAPPER);
-    } catch (error: any) {
-      console.error('Error fetching roles:', error);
-    }
-  }
-  const fetchProducts = async () => {
-    try {
-      const response = await API.get(APIPATH.PRODUCTS.GETPRODUCTS);
-      const productMAPPER = response.data.map((product: any) => ({ label: product.productName, value: product.productUUID }));
-      setProducts(productMAPPER);
-    } catch (error: any) {
-      console.error('Error fetching products:', error);
-    }
-  }
-  useEffect(()=>{
-
-    fetchRoles();
-    fetchProducts();
-  },[])
+  const [roles,setRoles]=useState(rolesData)
+  const [products,setProducts]=useState(productsData)
 
   const PhoneNumberInput = ({
     name,

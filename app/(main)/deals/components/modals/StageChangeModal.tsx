@@ -6,7 +6,7 @@ import FileUploader from '@/components/Fileuploader/Fileuploader';
 import Label from '@/components/Label/Label';
 import { Button, Input, Modal, Rate, Steps, Typography } from 'antd';
 import { StepsProps } from 'antd/lib';
-import { ErrorMessage, Field, FieldArray, Form, Formik } from 'formik';
+import { ErrorMessage, Field, FieldArray, Form, Formik, FormikHelpers } from 'formik';
 import {
   Check,
   DollarSign,
@@ -18,8 +18,9 @@ import {
 } from 'lucide-react';
 import { cloneElement, useMemo, useRef, useState } from 'react';
 import * as Yup from 'yup';
-import { stageValues, useDealStore } from '@/context/store/dealsStore';
+import { ContactPersonReview, stageValues, useDealStore } from '@/context/store/dealsStore';
 import { Stage, STAGE_LABELS, stages } from '@/lib/types';
+import AppScrollbar from '@/components/AppScrollBar';
 
 const { TextArea } = Input;
 const { Title } = Typography;
@@ -87,7 +88,7 @@ const StageChangeModal = () => {
   };
 
   const validationSchema = Yup.object().shape({
-    stage: Yup.string()
+    dealStage: Yup.string()
       .required('Please select a stage')
       .test('different', 'Please select a different stage', (val) => val !== currentStage),
     reason: Yup.string().required('Reason is required'),
@@ -130,11 +131,9 @@ const StageChangeModal = () => {
     if (formikRef.current) {
       const currentReviews = formikRef.current.values.contactPersonReviews || [];
       const newReview = {
-        contactPersonId: contactData.hcoContactUUID,
-        contactPersonName: contactData.fullName,
-        role: contactData.role,
+        ...contactData,
+        comment: '',
         rating: 0,
-        comment: ''
       };
       formikRef.current.setFieldValue('contactPersonReviews', [...currentReviews, newReview]);
     }
@@ -310,7 +309,8 @@ const StageChangeModal = () => {
           validationSchema={validationSchema}
           onSubmit={handleSubmit}
         >
-          {({ values, setFieldValue, errors, handleSubmit }) => (
+          {({ values, setFieldValue, errors, handleSubmit }) => {
+            return(
             <Form onSubmit={handleSubmit}>
 
               {values.dealStage === Stage.CLOSED_LOST && (
@@ -342,7 +342,7 @@ const StageChangeModal = () => {
               {(values.dealStage === Stage.CLOSED_WON || values.dealStage === Stage.CLOSED_LOST) && (
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-2">
-                    <Label text='Contact Person Reviews (Optional)' />
+                    <Label text={`Contact Person Reviews (${values.contactPersonReviews?.length} Contacts)`} />
                     <Button
                       type="dashed"
                       size="small"
@@ -354,16 +354,16 @@ const StageChangeModal = () => {
                   </div>
 
                   {values.contactPersonReviews && values.contactPersonReviews.length > 0 ? (
-                    <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 max-h-96 overflow-y-auto">
+                    <AppScrollbar className="bg-gray-50 dark:bg-gray-900 rounded-lg h-[300px] overflow-y-auto">
                       <FieldArray name="contactPersonReviews">
                         {() => (
                           <div className="space-y-4">
-                            {values.contactPersonReviews?.map((review: any, index: number) => (
-                              <div key={`contact-review-${review.contactPersonId}-${index}`} className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                            {values.contactPersonReviews?.map((review: ContactPersonReview, index: number) => (
+                              <div key={`contact-review-${review.hcoContactUUID}-${index}`} className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
                                 <div className="flex items-center justify-between mb-3">
                                   <div>
                                     <h4 className="font-semibold text-gray-900 dark:text-gray-100">
-                                      {review.contactPersonName}
+                                      {review.fullName}
                                     </h4>
                                     {review.role && (
                                       <p className="text-xs text-gray-500 dark:text-gray-400">{review.role}</p>
@@ -397,25 +397,27 @@ const StageChangeModal = () => {
                                     Comment
                                   </label>
                                   <Field name={`contactPersonReviews.${index}.comment`}>
-                                    {({ field }: any) => (
+                                    {({ field,meta }: any) => (<>
                                       <TextArea
                                         {...field}
                                         rows={3}
-                                        placeholder={`Share your feedback about ${review.contactPersonName}...`}
+                                        maxLength={500}
+                                        showCount
+                                        placeholder={`Share your feedback about ${review.fullName}...`}
                                         className="w-full"
-                                      />
+                                        />
+                                        {meta.error && meta.touched && <span className="field-error">{meta.error}</span>}
+                                        </>
                                     )}
                                   </Field>
-                                  <ErrorMessage name={`contactPersonReviews.${index}.comment`}>
-                                    {(msg) => <div className="text-red-500 text-xs mt-1">{msg}</div>}
-                                  </ErrorMessage>
+                               
                                 </div>
                               </div>
                             ))}
                           </div>
                         )}
                       </FieldArray>
-                    </div>
+                    </AppScrollbar>
                   ) : (
                     <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-8 text-center">
                       <p className="text-gray-500 dark:text-gray-400 mb-4">
@@ -436,9 +438,12 @@ const StageChangeModal = () => {
               <div className="relative">
                 <Label text='Reason For change' required />
                 <Field name="reason">
-                  {({ field }: any) => <TextArea {...field} rows={4} placeholder="Explain why you're changing the stage..." />}
+                  {({ field,meta }: any) =><>
+                  <TextArea {...field} rows={4} placeholder="Explain why you're changing the stage..." />
+                  {meta.error && meta.touched && <span className="field-error">{meta.error}</span>}
+                  </>}
                 </Field>
-                <span className="field-error"><ErrorMessage name="reason" /></span>
+                
               </div>
 
               <div className="flex justify-end gap-2 mt-8">
@@ -453,7 +458,8 @@ const StageChangeModal = () => {
                 </Button>
               </div>
             </Form>
-          )}
+          )
+          }}
         </Formik>
       </Modal>
 
