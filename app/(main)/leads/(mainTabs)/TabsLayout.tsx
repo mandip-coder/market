@@ -2,7 +2,7 @@
 import { Card, Tabs } from "antd";
 import { TabsProps } from "antd/lib";
 import { Search, Wand2 } from "lucide-react";
-import React from "react";
+import React, { useState } from "react";
 
 export default function TabsLayout({
   leadListing,
@@ -11,6 +11,16 @@ export default function TabsLayout({
   leadListing: React.ReactNode;
   recommendations: React.ReactNode;
 }) {
+  const [activeTab, setActiveTab] = useState<string>("leads");
+  const [hasVisitedRecommendations, setHasVisitedRecommendations] = useState(false);
+
+  const handleTabChange = (key: string) => {
+    setActiveTab(key);
+    if (key === "recommendations" && !hasVisitedRecommendations) {
+      setHasVisitedRecommendations(true);
+    }
+  };
+
   const TabItems: TabsProps["items"] = [
     {
       key: "leads",
@@ -30,13 +40,14 @@ export default function TabsLayout({
           <span>Recommendations</span>
         </span>
       ),
-      children: recommendations,
+      // Only render recommendations when the tab has been visited
+      children: hasVisitedRecommendations ? recommendations : null,
     },
   ];
 
   return (
     <Card className="w-full min-h-[calc(100vh-130px)] " variant="borderless" size="small">
-      <Tabs defaultActiveKey="leads" items={TabItems} />
+      <Tabs activeKey={activeTab} onChange={handleTabChange} items={TabItems} />
     </Card>
   );
 }

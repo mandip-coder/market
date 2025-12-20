@@ -4,14 +4,13 @@ import { useLeadStore } from '@/context/store/leadsStore';
 import { useApi } from '@/hooks/useAPI';
 import { Col, Empty, Row } from 'antd';
 import { Lightbulb } from 'lucide-react';
-import { use, useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { LeadFormData } from '../../../components/LeadDrawer';
 import { Recommendation, RecommendationsResponse } from '../types';
 import RecommendationCard from './RecommendationCard';
 import RecommendationFilters, { FilterValues } from './RecommendationFilters';
 
-export default function RecommendationList({ dataPromise }: { dataPromise: Promise<RecommendationsResponse> }) {
-  const data = use(dataPromise);
+export default function RecommendationList({ data }: { data: RecommendationsResponse }) {
   const { toggleLeadDrawer } = useLeadStore();
   const API = useApi();
 
@@ -148,8 +147,8 @@ export default function RecommendationList({ dataPromise }: { dataPromise: Promi
           {filteredData.map((recommendation) => {
             return (
               <Col key={recommendation.suggestionId} xs={24} sm={24} md={12} lg={8} xl={8}>
-                <RecommendationCard 
-                  recommendation={recommendation} 
+                <RecommendationCard
+                  recommendation={recommendation}
                   onClick={handleCardClick}
                 />
               </Col>
