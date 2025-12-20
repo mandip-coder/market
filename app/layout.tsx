@@ -9,11 +9,11 @@ import "@fontsource/be-vietnam/500.css";
 import { Metadata } from "next";
 import { Inter, Poppins } from "next/font/google";
 
-import "simplebar-react/dist/simplebar.min.css";
-import { Suspense } from "react";
+import DropDownHydrator from "@/components/DropDownHydrator";
 import StoreHydrator from "@/components/StoreHydrator";
 import SuspenseWithBoundary from "@/components/SuspenseWithErrorBoundry/SuspenseWithErrorBoundry";
-import DropDownHydrator from "@/components/DropDownHydrator";
+import { QueryProvider } from "@/context/QueryProvider";
+import "simplebar-react/dist/simplebar.min.css";
 
 // Configure fonts with next/font/google
 const poppins = Poppins({
@@ -37,15 +37,25 @@ export const metadata: Metadata = {
     template: "%s | Market Access",
   },
   description:
-    "AI-based Pharma covigilance database designed to transform drug safety monitoring and ensure patient well-being.",
+    "Comprehensive pharmaceutical market access CRM platform for managing healthcare relationships, deals, and product distribution. Streamline your pharma sales operations with intelligent lead tracking, HCO management, and activity monitoring.",
   openGraph: {
-    title: "Market Access",
+    title: "Market Access - Pharmaceutical CRM Platform",
     description:
-      "AI-based Pharma covigilance database designed to transform drug safety monitoring and ensure patient well-being.",
+      "Streamline pharmaceutical market access with our comprehensive CRM solution. Manage healthcare organizations, track deals, monitor sales activities, and optimize product distribution across the healthcare ecosystem.",
     type: "website",
     locale: "en_US",
     siteName: "Market Access",
   },
+  keywords: [
+    "pharmaceutical CRM",
+    "market access",
+    "healthcare sales",
+    "pharma distribution",
+    "HCO management",
+    "pharmaceutical deals",
+    "healthcare relationship management",
+    "pharma sales tracking",
+  ],
 };
 
 export default function RootLayout({
@@ -56,17 +66,18 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${poppins.variable} ${inter.variable} `}>
       <body className="font-sans">
-        <Suspense>
-          <SessionProvider>
-            <StoreHydrator />
-            <SuspenseWithBoundary loading={null}>
-              <DropDownHydrator />
-            </SuspenseWithBoundary>
-            <ThemeContextProvider>
-              <SidebarContextProvider>{children}</SidebarContextProvider>
-            </ThemeContextProvider>
-          </SessionProvider>
-        </Suspense>
+        <SessionProvider>
+          <StoreHydrator />
+          <SuspenseWithBoundary loading={null}>
+            <DropDownHydrator />
+          </SuspenseWithBoundary>
+          <ThemeContextProvider>
+            <SidebarContextProvider>
+              <QueryProvider>{children}
+              </QueryProvider>
+            </SidebarContextProvider>
+          </ThemeContextProvider>
+        </SessionProvider>
       </body>
     </html>
   );

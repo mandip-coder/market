@@ -4,6 +4,7 @@
 import { createContext, useContext, ReactNode, useEffect } from "react";
 import { Session } from "next-auth";
 import { useSession } from "next-auth/react";
+import { apiClient } from "@/lib/apiClient/apiClient";
 
 // Define your custom user interface
 interface User {
@@ -15,11 +16,17 @@ interface User {
   accessToken?: string | null;
 }
 
-// 1. Set the default value to `undefined` to signify "no provider"
 const AuthContext = createContext<Session | null | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode, }) => {
   const { data: session } = useSession()
+  useEffect(() => {
+    if (session?.accessToken) {
+      apiClient.setToken(session.accessToken)
+    } else {
+      apiClient.clearToken()
+    }
+  }, [session])
   return (
     <AuthContext.Provider value={session}>
       {children}
@@ -27,9 +34,8 @@ export const AuthProvider = ({ children }: { children: ReactNode, }) => {
   );
 };
 
-// 4. The hook now checks for `undefined` to find the real error state
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if(!context) throw new Error("useAuth must be used within a AuthProvider");
+  if (!context) throw new Error("useAuth must be used within a AuthProvider");
   return context; // Type is Session | null
 };
