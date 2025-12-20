@@ -1,46 +1,9 @@
 import NextAuth, { User } from "next-auth"
 import Credentials from "next-auth/providers/credentials"
+import { JWT } from "next-auth/jwt"
 import { jwtDecode } from "jwt-decode"
 import { APIPATH } from "@/shared/constants/url"
 import { Company } from "@/app/(main)/master/company-master/components/CompanyDataTable"
-
-
-// Extend the built-in session and user types
-declare module "next-auth" {
-  interface Session {
-    user: User & {
-      userUUID: string
-      fullName?: string | null
-      email?: string | null
-      image?: string | null
-      companies?: Company[]
-    }
-    accessToken?: string
-    accessTokenExpires?: number
-    error?: string
-  }
-
-  interface User {
-    userUUID: string
-    fullName?: string | null
-    email?: string | null
-    image?: string | null
-    token: string
-    accessTokenExpires?: number
-    companies?: Company[]
-  }
-}
-
-// Extend the built-in JWT type
-declare module "@auth/core/jwt" {
-  interface JWT {
-    id: string
-    accessToken?: string
-    accessTokenExpires?: number
-    error?: string
-    refreshCount?: number
-  }
-}
 
 // Authentication function
 async function authorizeUser(credentials: Record<string, unknown> | undefined) {
@@ -143,14 +106,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
 
       // Return previous token if still valid
-      if (token.accessTokenExpires && Date.now() < token.accessTokenExpires) {
+      if (typeof token.accessTokenExpires === 'number' && Date.now() < token.accessTokenExpires) {
         return token
       }
 
       return token
     },
 
-    async session({ session, token }) {
+    async session({ session, token }: { session: any; token: JWT }) {
       // Make sure we have both token.user and session.user before assigning
       if (token.user && session.user) {
         const userFromToken = token.user as User

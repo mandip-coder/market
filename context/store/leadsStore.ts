@@ -29,22 +29,22 @@ interface LogCallValues {
   updatedBy: string;
   updatedAt: string;
 }
- export  interface EmailFormValues {
-    leadUUID: string;
-    dealUUID: string;
-    recipients: string[];
-    ccRecipients: string[];
-    bccRecipients: string[];
-    subject: string;
-    body: string;
-    attachments: {
-      filename: string;
-      url: string;
-      filePath: string;
-      size: number;
-      mimeType: string;
-    }[]
-  }
+export interface EmailFormValues {
+  leadUUID?: string;
+  dealUUID?: string;
+  recipients: string[];
+  ccRecipients: string[];
+  bccRecipients: string[];
+  subject: string;
+  body: string;
+  attachments: {
+    filename: string;
+    url: string;
+    filePath: string;
+    size: number;
+    mimeType: string;
+  }[]
+}
 
 
 interface LeadsStore {
@@ -389,7 +389,7 @@ export const useLeadStore = create<LeadsStore>((set, get) => ({
       ...values,
     };
 
-    set({ calls: [newCall,...calls] });
+    set({ calls: [newCall, ...calls] });
 
     addTimelineEvent({
       type: 'Call',
@@ -451,6 +451,7 @@ export const useLeadStore = create<LeadsStore>((set, get) => ({
     const newEmail: Email = {
       emailUUID: generateUniqueId(),
       leadUUID: values.leadUUID,
+      dealUUID: values.dealUUID,
       subject: values.subject,
       body: values.body,
       recipients: values.recipients,
