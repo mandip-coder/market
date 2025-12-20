@@ -1,23 +1,17 @@
-import { ProductSkeleton } from '@/components/Skeletons/ProductCardSkelton'
-import StageSkeleton from '@/components/Skeletons/StageSkeleton'
-import SuspenseWithBoundary from '@/components/SuspenseWithErrorBoundry/SuspenseWithErrorBoundry'
+
 import { ChevronRight, Package, TrendingUp } from 'lucide-react'
 import Link from 'next/link'
-import DealStagesUI from './components/DealStagesUI'
-import KPICardsUI from './components/KPICardsUI'
 import QuickActions from './components/QuickActions'
+import KPICardsUI from './components/KPICardsUI'
+import DealStagesUI from './components/DealStagesUI'
 import TopProductsUI from './components/TopProductsUI'
 
-export default async function Dashboard() {
+export default function Dashboard() {
   return (
     <main className="w-full">
       <div className="space-y-6">
-        {/* KPI Cards Section */}
-        <SuspenseWithBoundary>
-          <KPICardsUI />
-        </SuspenseWithBoundary>
+        <KPICardsUI />
 
-        {/* Top Products Section */}
         <div className="border-0 shadow bg-white dark:bg-black rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -36,38 +30,19 @@ export default async function Dashboard() {
             </Link>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <SuspenseWithBoundary loading={
-              <>
-                {Array.from({ length: 4 }).map((_, index) => (
-                  <ProductSkeleton key={index} />
-                ))}
-              </>
-            }>
-              <TopProductsUI />
-            </SuspenseWithBoundary>
+            <TopProductsUI />
           </div>
         </div>
 
-        {/* Quick Actions and Deal Stages Section */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-          <SuspenseWithBoundary>
-            <QuickActions />
-          </SuspenseWithBoundary>
+          <QuickActions />
           <div className="border-0 shadow-lg bg-white dark:bg-black rounded-xl p-5">
             <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-5 flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-orange-500" />
               Deal Stages
             </h2>
             <div className="space-y-0">
-              <SuspenseWithBoundary loading={
-                <div className="space-y-3">
-                  {Array.from({ length: 8 }).map((_, index) => (
-                    <StageSkeleton key={index} />
-                  ))}
-                </div>
-              }>
-                <DealStagesUI />
-              </SuspenseWithBoundary>
+              <DealStagesUI />
             </div>
           </div>
         </div>

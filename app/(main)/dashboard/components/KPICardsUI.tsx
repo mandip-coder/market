@@ -1,32 +1,46 @@
-import { APIPATH } from "@/shared/constants/url";
-import { SERVERAPI } from "@/Utils/apiFunctions";
-import { Col, Row } from "antd";
+'use client'
+
+import { useKPIStatsQuery } from '@/app/(main)/dashboard/api/queries'
+import { Col, Row, Skeleton } from 'antd'
 import {
   Activity,
   Handshake,
   HeartHandshake,
   Trophy,
-} from "lucide-react";
-import { KpiCard } from "./KpiCard";
+} from 'lucide-react'
+import { KpiCard } from '@/app/(main)/dashboard/components/KpiCard'
 
-interface KPIStats {
-    activeOpenDealsAll: number;
-    wonDealsAll: number;
-    totalDealsAll: number;
-    activeMonth: number;
-}
+export default function KPICardsUI() {
+  const { data: stats, isLoading, isError, error } = useKPIStatsQuery()
 
+  if (isLoading) {
+    return (
+      <Row gutter={[24, 24]}>
+        {[1, 2, 3, 4].map((i) => (
+          <Col md={12} xl={6} key={i}>
+            <Skeleton.Button active block style={{ height: 120 }} />
+          </Col>
+        ))}
+      </Row>
+    )
+  }
 
-export default async function KPICardsUI() {
-    const kpiStatsData = await SERVERAPI(APIPATH.DASHBOARD.KPIDATA)
-    const stats = kpiStatsData.data as KPIStats
+  if (isError) {
+    return (
+      <div className="text-center py-8 text-red-500">
+        Failed to load KPI stats: {error?.message}
+      </div>
+    )
+  }
+
+  if (!stats) return null
+
   return (
     <Row gutter={[24, 24]}>
-      {/* KPI Cards */}
       <Col md={12} xl={6}>
         <KpiCard
           title="Total Deals"
-          value={stats.totalDealsAll} 
+          value={stats.totalDealsAll}
           icon={<Handshake className="text-2xl" />}
           color="#4f46e5"
         />
@@ -38,7 +52,6 @@ export default async function KPICardsUI() {
           value={stats.wonDealsAll}
           icon={<Trophy className="text-2xl" />}
           color="#10b981"
-          // trend={{ isPositive: false, value: 2 }}
         />
       </Col>
 
@@ -48,7 +61,6 @@ export default async function KPICardsUI() {
           value={stats.activeOpenDealsAll}
           icon={<HeartHandshake className="text-2xl" />}
           color="#f59e0b"
-          // trend={{ isPositive: true, value: 10 }}
         />
       </Col>
 
@@ -58,9 +70,8 @@ export default async function KPICardsUI() {
           value={stats.activeMonth}
           icon={<Activity className="text-2xl" />}
           color="#10b981"
-          // trend={{ isPositive: true, value: 50 }}
         />
       </Col>
     </Row>
-  );
+  )
 }
