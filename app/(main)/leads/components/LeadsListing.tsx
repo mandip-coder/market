@@ -4,16 +4,15 @@ import AsyncSearchSelect from '@/components/AsyncSearchSelect/AsyncSearchSelect'
 import { ProductSkeleton } from '@/components/Skeletons/ProductCardSkelton';
 import { useLeadStore } from '@/context/store/leadsStore';
 import { useDropDowns, useLeadViewState } from '@/context/store/optimizedSelectors';
-import { useApi } from '@/hooks/useAPI';
-import { useLoading } from '@/hooks/useLoading';
-import { APIPATH } from '@/shared/constants/url';
-import { Button, Input, Pagination, PaginationProps } from "antd";
+import { Button, Input, Pagination, PaginationProps, Select } from "antd";
 import { SelectProps } from 'antd/lib';
 import { motion } from "framer-motion";
 import debounce from 'lodash.debounce';
 import { Activity, Plus, Search } from 'lucide-react';
-import { memo, use, useCallback, useRef, useState } from 'react';
+import { memo, useCallback, useRef, useState } from 'react';
 import LeadCardReimagined from './LeadCard';
+import { useLeads } from '@/app/(main)/leads/services';
+import FullPageSkeleton from '@/components/Skeletons/FullpageSkeleton';
 
 export interface Lead {
   leadUUID: string;
@@ -75,11 +74,10 @@ const FilterControls = memo(({
         prefix={<Search className="h-4 w-4 text-slate-400" />}
         onChange={(e) => onSearchChange(e.target.value)}
       />
-      <AsyncSearchSelect
+      <Select
         allowClear
         placeholder={hcoList.length === 0 ? "Loading..." : "Select Healthcare"}
         className="w-80"
-        fetchUrl=""
         options={hcoList.map((hco) => ({
           label: hco.hcoName,
           value: hco.hcoUUID,
@@ -151,54 +149,30 @@ const EmptyState = memo(() => {
 EmptyState.displayName = "EmptyState";
 
 // ==================== MAIN COMPONENT ====================
-interface LeadsListingProps {
-  leadPromise: Promise<{
-    data: {
-      list: Lead[];
-      filterCount: number;
-      totalCount: number;
-    };
-  }>;
 
-}
-
-export default function LeadsLising({ leadPromise }: LeadsListingProps) {
-  const leadsData = use(leadPromise);
-  const API = useApi();
-  const [leads, setLeads] = useState<Lead[]>(leadsData.data.list);
+export default function LeadsLising() {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [healthcareFilter, setHealthcareFilter] = useState("");
   const { page, setPage, pageSize, setPageSize } = useLeadViewState();
 
-  const [loading, setLoading] = useLoading();
+  // Fetch leads using React Query
+  const { data: leadsData, isLoading: loading } = useLeads({
+    page,
+    pageSize,
+    searchQuery: debouncedSearchQuery,
+    statusFilter,
+    healthcareFilter,
+  });
 
-  // Fetch leads function
-  const fetchLeads = useCallback(
-    async (newPage: number, newPageSize: number, search: string, status: string, hcoUUID: string = "") => {
-      setLoading(true);
-      const response = await API.get(
-        APIPATH.LEAD.GETLEAD +
-        `?page=${newPage}&limit=${newPageSize}${search ? `&searchLead=${search}` : ""
-        }${status ? `&searchLeadStatus=${status}` : ""}${hcoUUID ? `&searchHcoUUID=${hcoUUID}` : ""
-        }`
-      );
-      if (response) {
-        setLeads(response.data.list);
-        setPage(newPage);
-        setPageSize(newPageSize);
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      }
-      setLoading(false);
-    },
-    [API, setPage, setPageSize, setLoading]
-  );
+  const leads = leadsData?.data?.list || [];
+  const totalCount = leadsData?.data?.totalCount || 0;
 
   const debouncedFetch = useRef(
-    debounce((search: string, status: string, hcoUUID: string) => {
+    debounce((search: string) => {
       setDebouncedSearchQuery(search);
-      fetchLeads(1, pageSize, search, status, hcoUUID);
+      setPage(1); // Reset to first page on search
     }, 500)
   ).current;
 
@@ -206,45 +180,48 @@ export default function LeadsLising({ leadPromise }: LeadsListingProps) {
   const handleSearchChange = useCallback(
     (value: string) => {
       setSearchQuery(value);
-      debouncedFetch(value, statusFilter, healthcareFilter);
+      debouncedFetch(value);
     },
-    [debouncedFetch, statusFilter, healthcareFilter]
+    [debouncedFetch]
   );
 
   // Handle status filter change
   const handleStatusFilterChange = useCallback(
     (status: string) => {
       setStatusFilter(status);
+      setPage(1); // Reset to first page on filter change
       debouncedFetch.cancel();
-      fetchLeads(1, pageSize, searchQuery, status, healthcareFilter);
     },
-    [fetchLeads, searchQuery, debouncedFetch, healthcareFilter, pageSize]
+    [debouncedFetch, setPage]
   );
 
   // Handle healthcare filter change
   const handleHealthCareChange: SelectProps["onSelect"] = useCallback(
     (value: string) => {
       setHealthcareFilter(value);
+      setPage(1); // Reset to first page on filter change
       debouncedFetch.cancel();
-      fetchLeads(1, pageSize, searchQuery, statusFilter, value);
     },
-    [fetchLeads, searchQuery, statusFilter, debouncedFetch, pageSize]
+    [debouncedFetch, setPage]
   );
 
   // Handle healthcare clear
   const handleHealthCareClear = useCallback(() => {
     setHealthcareFilter("");
+    setPage(1);
     debouncedFetch.cancel();
-    fetchLeads(1, pageSize, searchQuery, statusFilter, "");
-  }, [fetchLeads, searchQuery, statusFilter, debouncedFetch, pageSize]);
+  }, [debouncedFetch, setPage]);
 
   // Handle page change
   const handlePageChange: PaginationProps["onChange"] = useCallback(
     (newPage: number, newPageSize: number) => {
-      const finalPageSize = newPageSize || pageSize;
-      fetchLeads(newPage, finalPageSize, debouncedSearchQuery, statusFilter, healthcareFilter);
+      setPage(newPage);
+      if (newPageSize !== pageSize) {
+        setPageSize(newPageSize);
+      }
+      window.scrollTo({ top: 0, behavior: "smooth" });
     },
-    [fetchLeads, debouncedSearchQuery, statusFilter, healthcareFilter, pageSize]
+    [setPage, setPageSize, pageSize]
   );
 
   // Handle clear filters
@@ -253,9 +230,9 @@ export default function LeadsLising({ leadPromise }: LeadsListingProps) {
     setDebouncedSearchQuery("");
     setStatusFilter("");
     setHealthcareFilter("");
+    setPage(1);
     debouncedFetch.cancel();
-    fetchLeads(1, pageSize, "", "", "");
-  }, [fetchLeads, debouncedFetch, pageSize]);
+  }, [debouncedFetch, setPage]);
 
   return (
     <>
@@ -274,13 +251,13 @@ export default function LeadsLising({ leadPromise }: LeadsListingProps) {
         <>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
             <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
-              Showing {leads.length} of {leadsData.data.totalCount} leads
+              Showing {leads.length} of {totalCount} leads
             </p>
 
             <Pagination
               defaultCurrent={1}
               current={page}
-              total={leadsData.data.totalCount}
+              total={totalCount}
               pageSize={pageSize}
               onChange={handlePageChange}
               pageSizeOptions={["10", "20", "50", "100"]}
@@ -295,6 +272,12 @@ export default function LeadsLising({ leadPromise }: LeadsListingProps) {
             ))}
           </div>
         </>
+      ) : loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          {Array.from({ length: pageSize }).map((_, index) => (
+            <ProductSkeleton key={index} />
+          ))}
+        </div>
       ) : (
         <EmptyState />
       )}

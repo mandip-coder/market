@@ -1,15 +1,14 @@
 "use client";
 import { Tabs } from "antd";
 import { CheckCircle, FileText, Mail, Phone } from "lucide-react";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useState, useMemo } from "react";
 import { motion } from "motion/react";
-import { useLeadStore } from "@/context/store/leadsStore";
-import { useLeadDetailsTabs } from "@/context/store/optimizedSelectors";
 import { TabsProps } from "antd/lib";
 import { Lead } from "../../components/LeadsListing";
 import CallModal from "../../components/modals/CallModal";
 import EmailModal from "../../components/modals/EmailModal";
 import FollowUpModal from "../../components/modals/FollowUpModal";
+import { useLeadFollowUps, useLeadCalls, useLeadEmails } from "../../services";
 
 interface LeadDetails {
   lead: {
@@ -20,60 +19,25 @@ interface LeadDetails {
 const LeadDetails: React.FC<LeadDetails> = ({ lead }) => {
   const leadDetails = lead.data;
   const [activeTab, setActiveTab] = useState<string>("overview");
-  const [activeOverviewTab, setActiveOverviewTab] =
-    useState<string>("followup");
-  const setContactPersons = useLeadStore((state) => state.setContactPersons);
-  const {
-    followUps,
-    calls,
-    emails,
-    attachments,
-    setHcoUUID,
-    setHcoName,
-    setLeadUUID,
-  } = useLeadDetailsTabs();
+  const [activeOverviewTab, setActiveOverviewTab] = useState<string>("followup");
 
-  useEffect(() => {
-    if (leadDetails) {
-      setContactPersons(leadDetails.contactPersons);
-      setHcoUUID(leadDetails.hcoUUID);
-      setHcoName(leadDetails.hcoName);
-      setLeadUUID(leadDetails.leadUUID);
-    }
-  }, [leadDetails]);
+  // Fetch tab data with lazy loading - only fetch when tab is active
+  const { data: followUps = [] } = useLeadFollowUps(
+    leadDetails.leadUUID,
+    activeTab === "overview" && activeOverviewTab === "followup"
+  );
+
+  const { data: calls = [] } = useLeadCalls(
+    leadDetails.leadUUID,
+    activeTab === "overview" && activeOverviewTab === "logCall"
+  );
+
+  const { data: emails = [] } = useLeadEmails(
+    leadDetails.leadUUID,
+    activeTab === "overview" && activeOverviewTab === "email"
+  );
 
   const overViewTabItems: TabsProps["items"] = [
-    //   {
-    //   key: 'products',
-    //   label: (
-    //     <span className="flex items-center gap-1.5">
-    //       <ShoppingCart className="w-4 h-4" />
-    //       <span>Products</span>
-    //       {selectedProducts.length > 0 && (
-    //         <span className="ml-1 px-1.5 py-0.5 text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 rounded-full">
-    //           {selectedProducts.length}
-    //         </span>
-    //       )}
-    //     </span>
-    //   ),
-    //   children: <SuspenseWithBoundary>
-    //     <ProductModal />
-    //   </SuspenseWithBoundary>
-    // }, {
-    //   key: 'attachments',
-    //   label: (
-    //     <span className="flex items-center gap-1.5">
-    //       <Paperclip className="w-4 h-4" />
-    //       <span>Attachments</span>
-    //       {attachments.length > 0 && (
-    //         <span className="ml-1 px-1.5 py-0.5 text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 rounded-full">
-    //           {attachments.length}
-    //         </span>
-    //       )}
-    //     </span>
-    //   ),
-    //   children: <UploadModal />
-    // },
     {
       key: "followup",
       label: (
@@ -87,7 +51,14 @@ const LeadDetails: React.FC<LeadDetails> = ({ lead }) => {
           )}
         </span>
       ),
-      children: <FollowUpModal />,
+      children: (
+        <FollowUpModal
+          leadUUID={leadDetails.leadUUID}
+          hcoUUID={leadDetails.hcoUUID}
+          hcoName={leadDetails.hcoName}
+          contactPersons={leadDetails.contactPersons}
+        />
+      ),
     },
     {
       key: "logCall",
@@ -102,7 +73,11 @@ const LeadDetails: React.FC<LeadDetails> = ({ lead }) => {
           )}
         </span>
       ),
-      children: <CallModal />,
+      children: (
+        <CallModal
+          leadUUID={leadDetails.leadUUID}
+        />
+      ),
     },
     {
       key: "email",
@@ -117,7 +92,12 @@ const LeadDetails: React.FC<LeadDetails> = ({ lead }) => {
           )}
         </span>
       ),
-      children: <EmailModal />,
+      children: (
+        <EmailModal
+          leadUUID={leadDetails.leadUUID}
+          contactPersons={leadDetails.contactPersons}
+        />
+      ),
     },
   ];
 
@@ -143,18 +123,8 @@ const LeadDetails: React.FC<LeadDetails> = ({ lead }) => {
           </div>
         ),
       },
-      // {
-      //   key: 'timeline',
-      //   label: (
-      //     <span className="flex items-center gap-1.5">
-      //       <Clock className="w-3.5 h-3.5" />
-      //       <span className="font-medium">Timeline</span>
-      //     </span>
-      //   ),
-      //   children: <TimelineComponent timelineEvents={timelineEvents} excludeEventTypes={['Note', 'Stage Change', 'Reminder',"Meeting",]} />
-      // }
     ],
-    [activeOverviewTab, followUps, calls, emails, attachments]
+    [activeOverviewTab, followUps.length, calls.length, emails.length, leadDetails]
   );
 
   const isCancelled = leadDetails?.leadStatus === 'cancelled';
