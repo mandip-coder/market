@@ -1,5 +1,5 @@
 import { Healthcare } from "@/app/(main)/healthcares/lib/types";
-import { useDropdownsStore } from "@/context/store/dropdownsStore";
+import { useHCOList, usePersonalityTraits } from "@/services/dropdowns";
 import { useApi } from "@/hooks/useAPI";
 import { useLoading } from "@/hooks/useLoading";
 import { rowGutter } from "@/shared/constants/themeConfig";
@@ -88,7 +88,10 @@ const ContactModal = memo(
   }: ContactModalProps) => {
     const handleCloseModal = useCallback((values: any) => onClose(), [onClose]);
     const isEditMode = !!initialContact;
-    const { hcoList, personalityTraits } = useDropdownsStore();
+
+    // Use React Query hooks instead of Zustand store
+    const { data: hcoList = [], } = useHCOList();
+    const { data: personalityTraits = [] } = usePersonalityTraits();
     const validationSchema = useMemo(
       () =>
         Yup.object().shape({
@@ -155,15 +158,15 @@ const ContactModal = memo(
               onSave(addResponse.data);
             }
             toast.success("Contact Added Successfully");
-          resetForm();
-          handleCloseModal(values);
-        }
-      }).finally(() => {
-        setSubmitting(false);
-        setLoading(false);
-      });
+            resetForm();
+            handleCloseModal(values);
+          }
+        }).finally(() => {
+          setSubmitting(false);
+          setLoading(false);
+        });
       },
-      [onSave, setLoading, handleCloseModal, isEditMode, initialContact,loading]
+      [onSave, setLoading, handleCloseModal, isEditMode, initialContact, loading]
     );
 
     return (
@@ -179,27 +182,27 @@ const ContactModal = memo(
         }
         open={open}
         onClose={() => handleCloseModal(null)}
-        footer={ <div style={{ marginTop: 24, textAlign: "right" }}>
-                  <Space>
-                    <Button
-                      className="rounded-xl dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                      onClick={() => handleCloseModal(null)}
-                      disabled={formikRef.current?.isSubmitting}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      type="primary"
-                      htmlType="submit"
-                      form="contactForm"
-                      className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl"
-                      loading={formikRef.current?.isSubmitting}
-                      disabled={formikRef.current?.isSubmitting}
-                    >
-                      {isEditMode ? "Update" : "Save"}
-                    </Button>
-                  </Space>
-                </div>}
+        footer={<div style={{ marginTop: 24, textAlign: "right" }}>
+          <Space>
+            <Button
+              className="rounded-xl dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              onClick={() => handleCloseModal(null)}
+              disabled={formikRef.current?.isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="primary"
+              htmlType="submit"
+              form="contactForm"
+              className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl"
+              loading={formikRef.current?.isSubmitting}
+              disabled={formikRef.current?.isSubmitting}
+            >
+              {isEditMode ? "Update" : "Save"}
+            </Button>
+          </Space>
+        </div>}
         destroyOnHidden
         maskClosable={false}
       >
@@ -215,7 +218,7 @@ const ContactModal = memo(
         >
           {({
             setFieldValue,
-            
+
             values,
             errors,
             touched,
@@ -408,7 +411,7 @@ const ContactModal = memo(
                   </Row>
                 </div>
 
-               
+
               </Form>
             );
           }}

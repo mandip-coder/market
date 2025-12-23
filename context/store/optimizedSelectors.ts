@@ -124,11 +124,11 @@ export const useLeadFollowUps = () =>
       hcoUUID: state.hcoUUID,
       hcoName: state.hcoName,
       setFollowUps: state.setFollowUps,
-    
+
     }))
   );
-export const useDealFollowUps=()=>useDealStore(
-  useShallow((state)=>({
+export const useDealFollowUps = () => useDealStore(
+  useShallow((state) => ({
     followUps: state.followUps,
     addFollowUp: state.addFollowUp,
     updateFollowUp: state.updateFollowUp,
@@ -174,8 +174,8 @@ export const useDropDownsSetters = () => useDropdownsStore(
     setPersonalityTraits: state.setPersonalityTraits,
   }))
 )
-export const useDealCallModalStore=()=>useDealStore(
-  useShallow((state)=>({
+export const useDealCallModalStore = () => useDealStore(
+  useShallow((state) => ({
     calls: state.calls,
     logCall: state.logCall,
     updateCall: state.updateCall,

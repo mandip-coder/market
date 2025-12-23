@@ -9,9 +9,7 @@ import "@fontsource/be-vietnam/500.css";
 import { Metadata } from "next";
 import { Inter, Poppins } from "next/font/google";
 
-import DropDownHydrator from "@/components/DropDownHydrator";
 import StoreHydrator from "@/components/StoreHydrator";
-import SuspenseWithBoundary from "@/components/SuspenseWithErrorBoundry/SuspenseWithErrorBoundry";
 import { QueryProvider } from "@/context/QueryProvider";
 import "simplebar-react/dist/simplebar.min.css";
 
@@ -68,9 +66,7 @@ export default function RootLayout({
       <body className="font-sans">
         <SessionProvider>
           <StoreHydrator />
-          <SuspenseWithBoundary loading={null}>
-            <DropDownHydrator />
-          </SuspenseWithBoundary>
+
           <ThemeContextProvider>
             <SidebarContextProvider>
               <QueryProvider>{children}
