@@ -1,33 +1,20 @@
 import { CallModal as SharedCallModal } from '@/components/shared/modals/CallModal';
-import { useLeadStore } from '@/context/store/leadsStore';
-import { useShallow } from 'zustand/react/shallow';
+import { CallLog } from '@/lib/types';
+import { Lead, useCreateCall, useUpdateCall, useDeleteCall } from '../../services';
 
-export const useCallsModalStore=()=>useLeadStore(
-  useShallow((state)=>({
-    calls: state.calls,
-    logCall: state.logCall,
-    updateCall: state.updateCall,
-    deleteCall: state.deleteCall,
-    contactPersons: state.contactPersons,
-    setContactPersons: state.setContactPersons,
-    leadUUID: state.leadUUID,
-    hcoUUID: state.hcoUUID,
-    hcoName: state.hcoName,
-    setCalls: state.setCalls,
-  }))
-)
+export default function CallModal({ lead, calls }: { lead: Lead, calls: CallLog[] }) {
 
-export default function CallModal() {
-  const { calls, logCall, updateCall, deleteCall,setCalls,leadUUID } = useCallsModalStore();
-  
+  const createCall = useCreateCall(lead.leadUUID);
+  const updateCall = useUpdateCall(lead.leadUUID);
+  const deleteCall = useDeleteCall(lead.leadUUID);
+
   return (
-    <SharedCallModal 
-      calls={calls} 
-      logCall={logCall} 
-      updateCall={updateCall} 
-      deleteCall={deleteCall} 
-      setCalls={setCalls}
-      leadUUID={leadUUID}
+    <SharedCallModal
+      calls={calls}
+      createCall={createCall}
+      updateCall={updateCall}
+      deleteCall={deleteCall}
+      leadUUID={lead.leadUUID}
     />
   );
 }

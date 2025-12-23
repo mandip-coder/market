@@ -14,9 +14,6 @@ export default function FollowUpModal({ lead, followUps }: { lead: Lead, followU
   // const { data: contactPersons } = useContactsPersons(lead.hcoUUID);
   const contactPersons = lead.contactPersons
 
-  const setFollowUps = (followUps: FollowUP[]) => {
-
-  }
 
   return (
     <SharedFollowUpModal
@@ -30,7 +27,6 @@ export default function FollowUpModal({ lead, followUps }: { lead: Lead, followU
       contactPersons={contactPersons || []}
       hcoUUID={lead.hcoUUID}
       hcoName={lead.hcoName}
-      setFollowUps={setFollowUps}
       leadUUID={lead.leadUUID}
     />
   );

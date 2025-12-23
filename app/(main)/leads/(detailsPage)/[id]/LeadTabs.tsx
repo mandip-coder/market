@@ -76,8 +76,16 @@ const LeadDetails: React.FC<LeadDetails> = ({ lead }) => {
           )}
         </span>
       ),
-      children: (
-        <CallModal />
+      children: (<>
+        {callsLoading ? (
+          <Skeleton
+            active
+            className="h-[200px]"
+          />
+        ) : (
+          <CallModal lead={leadDetails} calls={calls} />
+        )}
+      </>
       ),
     },
     {

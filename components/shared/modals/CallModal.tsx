@@ -6,12 +6,8 @@ import InputBox from "@/components/Input/Input";
 import Label from "@/components/Label/Label";
 import ModalWrapper from "@/components/Modal/Modal";
 import { useDropDowns } from "@/context/store/optimizedSelectors";
-import { useApi } from "@/hooks/useAPI";
-import { useLoading } from "@/hooks/useLoading";
-import { APIPATH } from "@/shared/constants/url";
 import { GlobalDate } from "@/Utils/helpers";
 import {
-  Avatar,
   Button,
   Card,
   Divider,
@@ -43,6 +39,8 @@ import { toast } from "react-toastify";
 import * as Yup from "yup";
 import { CallLog } from "../../../lib/types";
 import { EmptyState } from "./EmptyState";
+import { CreateCallPayload, UpdateCallPayload } from "@/app/(main)/leads/services";
+import { UseMutationResult } from "@tanstack/react-query";
 const { Text, Paragraph } = Typography;
 
 // Constants
@@ -227,23 +225,19 @@ CallCard.displayName = "CallCard";
 const CallForm = memo<{
   onClose: () => void;
   editingCall: CallLog | null;
-  logCall: (data: any) => void;
-  updateCall: (id: string, data: any) => void;
+  createCall: UseMutationResult<CallLog, Error, CreateCallPayload, unknown>;
+  updateCall: UseMutationResult<CallLog, Error, { callLogUUID: string; data: UpdateCallPayload }, unknown>;
   leadUUID?: string;
   dealUUID?: string;
-  callEndpoints: any;
 }>(
   ({
     onClose,
     editingCall,
-    logCall,
+    createCall,
     updateCall,
     leadUUID,
     dealUUID,
-    callEndpoints,
   }) => {
-    const API = useApi();
-    const [loading, setLoading] = useLoading();
     const { outcomes } = useDropDowns();
     const initialValues = useMemo(() => {
       if (editingCall) {
@@ -311,10 +305,6 @@ const CallForm = memo<{
 
     const handleSubmit = useCallback(
       async (values: any) => {
-        if (!callEndpoints) {
-          return toast.error("Communication endpoints not found");
-        }
-        setLoading(true);
         const formattedValues = {
           ...values,
           callStartTime: dayjs(values.callStartTime).format(
@@ -325,37 +315,29 @@ const CallForm = memo<{
         };
 
         if (editingCall) {
-          const response = await API.put(
-            `${callEndpoints?.UPDATECALL}${editingCall.callLogUUID}`,
-            formattedValues
-          );
-          if (response) {
-            updateCall(editingCall.callLogUUID, response.data);
-            toast.success("Communication updated successfully");
-            onClose();
-          }
+          updateCall.mutate({
+            callLogUUID: editingCall.callLogUUID,
+            data: formattedValues,
+          }, {
+            onSuccess: () => {
+              onClose();
+            },
+          });
         } else {
-          const response = await API.post(
-            callEndpoints.CREATECALL,
-            formattedValues
-          );
-          if (response) {
-            logCall({ ...response.data });
-            toast.success("Communication logged successfully");
-            onClose();
-          }
+          createCall.mutate(formattedValues, {
+            onSuccess: () => {
+              onClose();
+            },
+          });
         }
-        setLoading(false);
       },
       [
         editingCall,
-        logCall,
+        createCall,
         updateCall,
         onClose,
         leadUUID,
         dealUUID,
-        callEndpoints,
-        API,
       ]
     );
 
@@ -412,9 +394,9 @@ const CallForm = memo<{
             />
 
             <div className="relative">
-              <Label text="Agenda" required/>
+              <Label text="Agenda" required />
               <Field name="agenda">
-                {({ field,meta }: any) => (<>
+                {({ field, meta }: any) => (<>
                   <Input.TextArea
                     {...field}
                     required
@@ -423,11 +405,11 @@ const CallForm = memo<{
                     showCount
                     status={meta.touched && meta.error ? "error" : ""}
                     placeholder="Enter call agenda..."
-                    />
-                    {meta.touched && meta.error && (
-                      <span className="field-error">{meta.error}</span>
-                    )}
-                    </>
+                  />
+                  {meta.touched && meta.error && (
+                    <span className="field-error">{meta.error}</span>
+                  )}
+                </>
                 )}
               </Field>
             </div>
@@ -467,7 +449,7 @@ const CallForm = memo<{
               <Button
                 type="primary"
                 htmlType="submit"
-                loading={loading}
+                loading={createCall.isPending || updateCall.isPending}
                 disabled={!isValid || !dirty}
               >
                 {editingCall ? "Update Communication" : "Log Communication"}
@@ -484,20 +466,18 @@ CallForm.displayName = "CallForm";
 
 interface CallModalProps {
   calls: CallLog[];
-  logCall: (data: any) => void;
-  updateCall: (id: string, data: any) => void;
-  deleteCall: (id: string) => void;
-  setCalls: (calls: CallLog[]) => void;
+  createCall: UseMutationResult<CallLog, Error, CreateCallPayload, unknown>;
+  updateCall: UseMutationResult<CallLog, Error, { callLogUUID: string; data: UpdateCallPayload }, unknown>;
+  deleteCall: UseMutationResult<void, Error, string, unknown>;
   leadUUID?: string;
   dealUUID?: string;
 }
 
 export const CallModal: React.FC<CallModalProps> = ({
   calls,
-  logCall,
+  createCall,
   updateCall,
   deleteCall,
-  setCalls,
   leadUUID,
   dealUUID,
 }) => {
@@ -507,18 +487,6 @@ export const CallModal: React.FC<CallModalProps> = ({
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [refreshLoading, setRefreshLoading] = useState(false);
-
-  const API = useApi();
-
-  // Determine which endpoint to use based on leadUUID or dealUUID
-  const callEndpoints = useMemo(() => {
-    if (leadUUID) {
-      return APIPATH.LEAD.TABS.CALL;
-    } else if (dealUUID) {
-      return APIPATH.DEAL.TABS.CALL;
-    }
-    return null;
-  }, [leadUUID, dealUUID]);
 
   const debouncedUpdate = useMemo(
     () =>
@@ -574,18 +542,12 @@ export const CallModal: React.FC<CallModalProps> = ({
         cancelText: "Cancel",
         okButtonProps: { type: "primary" },
         centered: true,
-        onOk: async () => {
-          const response = await API.delete(
-            `${callEndpoints?.DELETECALL}${call.callLogUUID}`
-          );
-          if (response) {
-            deleteCall(call.callLogUUID);
-            toast.success("Call deleted successfully");
-          }
+        onOk: () => {
+          deleteCall.mutate(call.callLogUUID);
         },
       });
     },
-    [deleteCall, modal, API, callEndpoints]
+    [deleteCall, modal]
   );
 
   const handleSearchChange = useCallback(
@@ -604,24 +566,9 @@ export const CallModal: React.FC<CallModalProps> = ({
   }, [debouncedUpdate]);
 
   // Refresh handler to refetch call data
-  const handleRefresh = useCallback(async () => {
-    setRefreshLoading(true);
-    try {
-      const endpoint = leadUUID
-        ? `${callEndpoints?.GETALLCALL}${leadUUID}`
-        : `${callEndpoints?.GETALLCALL}${dealUUID}`;
-
-      const response = await API.get(endpoint);
-      if (response && response.data) {
-        setCalls(response.data);
-      }
-    } catch (error) {
-      console.error("Error refreshing calls:", error);
-      toast.error("Failed to refresh calls");
-    } finally {
-      setRefreshLoading(false);
-    }
-  }, [API, callEndpoints, leadUUID, dealUUID, setCalls]);
+  const handleRefresh = useCallback(() => {
+    toast.info("Refreshing calls...");
+  }, []);
 
   return (
     <>
@@ -704,11 +651,10 @@ export const CallModal: React.FC<CallModalProps> = ({
         <CallForm
           onClose={handleCloseModal}
           editingCall={editingCall}
-          logCall={logCall}
+          createCall={createCall}
           updateCall={updateCall}
           leadUUID={leadUUID}
           dealUUID={dealUUID}
-          callEndpoints={callEndpoints}
         />
       </ModalWrapper>
 

@@ -67,7 +67,6 @@ interface FollowUpModalProps {
   hcoName: string | null;
   leadUUID?: string;
   dealUUID?: string;
-  setFollowUps: (followUps: FollowUP[]) => void;
 }
 const FollowUpModesEnum = {
   CALL: "Call",
@@ -96,7 +95,6 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
   deleteFollowUp,
   contactPersons,
   onAddContactPerson,
-  setFollowUps,
   hcoUUID,
   hcoName,
   leadUUID,
@@ -271,8 +269,7 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
 
   // Refresh handler to refetch follow-up data
   const handleRefresh = useCallback(() => {
-    // Trigger refetch by invalidating queries
-    // The parent component should handle this via query invalidation
+
     toast.info("Refreshing follow-ups...");
   }, []);
 
