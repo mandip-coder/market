@@ -121,7 +121,9 @@ export function useCreateLead() {
   return useMutation({
     mutationFn: (data: CreateLeadData) => leadsService.createLead(data),
     onSuccess: (data: Lead) => {
-      queryClient.setQueryData(leadsKeys.lists(), (old: Lead[]) => {
+      // Update all list queries (with different filters) by adding the new lead
+      queryClient.setQueriesData({ queryKey: leadsKeys.lists() }, (old: Lead[] | undefined) => {
+        if (!old) return old;
         return [...old, data];
       });
       toast.success('Lead created successfully');
@@ -143,7 +145,9 @@ export function useCancelLead() {
   return useMutation({
     mutationFn: (data: CancelLeadData) => leadsService.cancelLead(data),
     onSuccess: (data: Lead, variables: CancelLeadData) => {
-      queryClient.setQueryData(leadsKeys.lists(), (old: Lead[]) => {
+      // Update all list queries (with different filters) by updating the cancelled lead
+      queryClient.setQueriesData({ queryKey: leadsKeys.lists() }, (old: Lead[] | undefined) => {
+        if (!old) return old;
         return old.map((lead) => {
           if (lead.leadUUID === variables.leadUUID) {
             return { ...lead, ...data };
@@ -151,6 +155,8 @@ export function useCancelLead() {
           return lead;
         });
       });
+      // Update the specific lead detail cache
+      queryClient.setQueryData(leadsKeys.detail(variables.leadUUID), data);
       toast.success('Lead cancelled successfully');
     },
     onError: (error: Error) => {
@@ -170,9 +176,13 @@ export function useConvertLead() {
   return useMutation({
     mutationFn: (leadUUID: string) => leadsService.convertLeadToDeal(leadUUID),
     onSuccess: (data: Lead) => {
-      queryClient.setQueryData(leadsKeys.lists(), (old: Lead[]) => {
+      // Update all list queries (with different filters) by removing the converted lead
+      queryClient.setQueriesData({ queryKey: leadsKeys.lists() }, (old: Lead[] | undefined) => {
+        if (!old) return old;
         return old.filter((lead) => lead.leadUUID !== data.leadUUID);
       });
+      // Remove the specific lead detail from cache
+      queryClient.removeQueries({ queryKey: leadsKeys.detail(data.leadUUID) });
       toast.success('Lead converted to deal successfully');
     },
     onError: (error: Error) => {
