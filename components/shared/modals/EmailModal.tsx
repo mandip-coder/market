@@ -34,11 +34,9 @@ import * as Yup from 'yup';
 import { Email } from '../../../lib/types';
 import ContactOptionsRender from '../ContactOptionsRender';
 import { EmptyState } from './EmptyState';
-import { EmailFormValues, useLeadStore,  } from '@/context/store/leadsStore';
-import { useShallow } from 'zustand/react/shallow';
-import { useApi } from '@/hooks/useAPI';
-import { APIPATH } from '@/shared/constants/url';
-import { useLoading } from '@/hooks/useLoading';
+import { EmailFormValues } from '@/context/store/leadsStore';
+import { SendEmailPayload } from '@/app/(main)/leads/services';
+import { UseMutationResult } from '@tanstack/react-query';
 
 export const FILE_ICON_MAP: Record<string, ReactElement> = {
   pdf: <FileText className="text-red-500" />,
@@ -64,7 +62,7 @@ const getFileIcon = (filename: string, className?: string): ReactElement => {
 
 interface EmailModalProps {
   emails: Email[];
-  sendEmail: (values: Email) => void;
+  sendEmail: UseMutationResult<Email, Error, SendEmailPayload, unknown>;
   dealUUID?: string;
   leadUUID?: string;
   contactPersons: HCOContactPerson[];
@@ -85,20 +83,8 @@ export const EmailModal: React.FC<EmailModalProps> = ({
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
   const [showCC, setShowCC] = useState(false);
   const [showBCC, setShowBCC] = useState(false);
-  const [loading, setLoading] = useLoading();
-  const API=useApi()
 
   const formikRef = useRef<FormikProps<typeof initialValues>>(null);
-
-  // Determine which endpoint to use based on leadUUID or dealUUID
-  const emailEndpoints = useMemo(() => {
-    if (leadUUID) {
-      return APIPATH.LEAD.TABS.EMAIL;
-    } else if (dealUUID) {
-      return APIPATH.DEAL.TABS.EMAIL;
-    }
-    return null;
-  }, [leadUUID, dealUUID]);
 
   const validationSchema = Yup.object({
     leadUUID: leadUUID ? Yup.string().required('Lead UUID is required') : Yup.string(),
@@ -129,7 +115,7 @@ export const EmailModal: React.FC<EmailModalProps> = ({
   };
 
   // Memoize contact options to avoid recreating on every render
-  const contactOptions = useMemo(() => 
+  const contactOptions = useMemo(() =>
     contactPersons
       .filter(contact => contact.email)
       .map(contact => ({
@@ -232,106 +218,98 @@ export const EmailModal: React.FC<EmailModalProps> = ({
           initialValues={initialValues}
           validationSchema={validationSchema}
           onSubmit={(values) => {
-            setLoading(true);
-            if (!emailEndpoints) {
-              toast.error('Email endpoints not found');
-              return;
-            }
-            
             const formattedValues = {
               ...values,
               ...(leadUUID && { leadUUID }),
               ...(dealUUID && { dealUUID }),
             };
 
-            API.post(emailEndpoints.CREATEEMAIL, formattedValues).then((res)=>{
-              sendEmail(res.data);
-              toast.success('Email sent successfully!');
-            }).finally(()=>{
-              setLoading(false);
-              handleCloseModal();
-            })
+            sendEmail.mutate(formattedValues, {
+              onSuccess: () => {
+                handleCloseModal();
+              },
+            });
           }}
         >
-          {({ values, setFieldValue, handleSubmit,isSubmitting,errors,touched,setFieldTouched }) =>{
-            return  (
-            <Form onSubmit={handleSubmit}>
-              <div className="flex items-center justify-end">
-                <div className="flex gap-2">
-                  {!showCC && (
-                    <Button
-                      type="dashed"
-                      size="small"
-                      onClick={() => setShowCC(true)}
-                      className="text-xs"
-                    >
-                      + CC
-                    </Button>
-                  )}
-                  {!showBCC && (
-                    <Button
-                      type="dashed"
-                      size="small"
-                      onClick={() => setShowBCC(true)}
-                      className="text-xs"
-                    >
-                      + BCC
-                    </Button>
-                  )}
+          {({ values, setFieldValue, handleSubmit, isSubmitting, errors, touched, setFieldTouched }) => {
+            return (
+              <Form onSubmit={handleSubmit}>
+                <div className="flex items-center justify-end">
+                  <div className="flex gap-2">
+                    {!showCC && (
+                      <Button
+                        type="dashed"
+                        size="small"
+                        onClick={() => setShowCC(true)}
+                        className="text-xs"
+                      >
+                        + CC
+                      </Button>
+                    )}
+                    {!showBCC && (
+                      <Button
+                        type="dashed"
+                        size="small"
+                        onClick={() => setShowBCC(true)}
+                        className="text-xs"
+                      >
+                        + BCC
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              <div className='space-y-4'>
-                <CustomSelect
-                  label='To'
-                  required
-                  name='recipients'
-                  mode="multiple"
-                  className="w-full"
-                  hideSelected
-                  showSearch={{
-                    optionFilterProp: "label"
-                  }}
-                  options={contactOptions}
-                  optionRender={(option) => <ContactOptionsRender option={option} />}
-                />
-
-                <RecipientField
-                  show={showCC}
-                  onClose={() => setShowCC(false)}
-                  name="ccRecipients"
-                  label="CC Recipients"
-                  contactPersons={contactPersons}
-                  colorScheme="blue"
-                />
-
-                <RecipientField
-                  show={showBCC}
-                  onClose={() => setShowBCC(false)}
-                  name="bccRecipients"
-                  label="BCC Recipients"
-                  contactPersons={contactPersons}
-                  colorScheme="purple"
-                />
-
-                <InputBox
-                  name='subject'
-                  label='Subject'
-                  required
-                  placeholder="Enter subject..."
-                />
-
-                <div className='relative'>
-                  <Label text='Body' required />
-                  <QuillEditor
-                    value={values.body}
-                    onBlur={()=>setFieldTouched('body',true)}
-                    onChange={(value) => setFieldValue('body', value)}
-                    placeholder="Write your email content here..."
-                    status={errors.body&& touched.body ? 'error' : undefined}
+                <div className='space-y-4'>
+                  <CustomSelect
+                    label='To'
+                    required
+                    name='recipients'
+                    mode="multiple"
+                    className="w-full"
+                    hideSelected
+                    showSearch={{
+                      optionFilterProp: "label"
+                    }}
+                    options={contactOptions}
+                    optionRender={(option) => <ContactOptionsRender option={option} />}
                   />
-                  {errors.body&& touched.body && <span className="field-error">{errors.body}</span>}
-                </div>
+
+                  <RecipientField
+                    show={showCC}
+                    onClose={() => setShowCC(false)}
+                    name="ccRecipients"
+                    label="CC Recipients"
+                    contactPersons={contactPersons}
+                    colorScheme="blue"
+                  />
+
+                  <RecipientField
+                    show={showBCC}
+                    onClose={() => setShowBCC(false)}
+                    name="bccRecipients"
+                    label="BCC Recipients"
+                    contactPersons={contactPersons}
+                    colorScheme="purple"
+                  />
+
+                  <InputBox
+                    name='subject'
+                    label='Subject'
+                    required
+                    placeholder="Enter subject..."
+                  />
+
+                  <div className='relative'>
+                    <Label text='Body' required />
+                    <QuillEditor
+                      value={values.body}
+                      onBlur={() => setFieldTouched('body', true)}
+                      onChange={(value) => setFieldValue('body', value)}
+                      placeholder="Write your email content here..."
+                      status={errors.body && touched.body ? 'error' : undefined}
+                    />
+                    {errors.body && touched.body && <span className="field-error">{errors.body}</span>}
+                  </div>
 
                   <Button
                     type='default'
@@ -342,47 +320,47 @@ export const EmailModal: React.FC<EmailModalProps> = ({
                     Add Attachments {values.attachments.length > 0 && `(${values.attachments.length})`}
                   </Button>
 
-                {values.attachments.length > 0 && (
-                  <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-2 bg-gray-50 dark:bg-gray-800/50 mb-4">
-                    <div className="flex flex-wrap gap-2">
-                      {values.attachments.map((attachment, index) => (
-                        <Tag
-                          key={index}
-                          closable
-                          color="blue"
-                          className="!flex !items-center !gap-2 !px-3 !py-2 !text-sm"
-                          closeIcon={<CloseOutlined />}
-                          onClose={() => {
-                            const newAttachments = values.attachments.filter((_, i) => i !== index);
-                            setFieldValue('attachments', newAttachments);
-                          }}
-                          icon={getFileIcon(attachment.filename)}
-                        >
-                          {attachment.filename}
-                        </Tag>
-                      ))}
+                  {values.attachments.length > 0 && (
+                    <div className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-2 bg-gray-50 dark:bg-gray-800/50 mb-4">
+                      <div className="flex flex-wrap gap-2">
+                        {values.attachments.map((attachment, index) => (
+                          <Tag
+                            key={index}
+                            closable
+                            color="blue"
+                            className="!flex !items-center !gap-2 !px-3 !py-2 !text-sm"
+                            closeIcon={<CloseOutlined />}
+                            onClose={() => {
+                              const newAttachments = values.attachments.filter((_, i) => i !== index);
+                              setFieldValue('attachments', newAttachments);
+                            }}
+                            icon={getFileIcon(attachment.filename)}
+                          >
+                            {attachment.filename}
+                          </Tag>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
 
-              <div className="flex justify-end gap-3 ">
-                <Button onClick={handleCloseModal}>
-                  Cancel
-                </Button>
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  loading={loading}
-                  disabled={loading||isSubmitting}
-                  icon={<SendOutlined />}
-                  className="shadow-lg"
-                >
-                  Send Email
-                </Button>
-              </div>
-            </Form>
-          )
+                <div className="flex justify-end gap-3 ">
+                  <Button onClick={handleCloseModal}>
+                    Cancel
+                  </Button>
+                  <Button
+                    type="primary"
+                    htmlType="submit"
+                    loading={sendEmail.isPending}
+                    disabled={sendEmail.isPending || isSubmitting}
+                    icon={<SendOutlined />}
+                    className="shadow-lg"
+                  >
+                    Send Email
+                  </Button>
+                </div>
+              </Form>
+            )
           }}
         </Formik>
       </ModalWrapper>
@@ -434,17 +412,17 @@ export const EmailModal: React.FC<EmailModalProps> = ({
           </div>
         )}
       </Modal>
-      
+
       <AttachmentModal
-          visible={isAttachmentModalVisible}
-          onClose={() => setIsAttachmentModalVisible(false)}
-          onSelect={(attachments) => {
-            setIsAttachmentModalVisible(false)
-            const existingAttachments = formikRef.current?.values.attachments || [];
-            formikRef.current?.setFieldValue('attachments', [...existingAttachments, ...attachments]);
-          }}
-          
-        />
+        visible={isAttachmentModalVisible}
+        onClose={() => setIsAttachmentModalVisible(false)}
+        onSelect={(attachments) => {
+          setIsAttachmentModalVisible(false)
+          const existingAttachments = formikRef.current?.values.attachments || [];
+          formikRef.current?.setFieldValue('attachments', [...existingAttachments, ...attachments]);
+        }}
+
+      />
     </>
   );
 };

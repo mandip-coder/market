@@ -66,17 +66,19 @@ export const leadsService = {
   /**
    * Cancel a lead
    */
-  cancelLead: async (data: CancelLeadData): Promise<void> => {
-    await apiClient.put(APIPATH.LEAD.CANCEL + data.leadUUID, {
+  cancelLead: async (data: CancelLeadData): Promise<Lead> => {
+    const response = await apiClient.put<{ data: Lead }>(APIPATH.LEAD.CANCEL + data.leadUUID, {
       closeReason: data.closeReason,
     });
+    return response.data;
   },
 
   /**
    * Convert lead to deal
    */
-  convertLeadToDeal: async (leadUUID: string): Promise<void> => {
-    await apiClient.post(APIPATH.LEAD.CONVERT + leadUUID);
+  convertLeadToDeal: async (leadUUID: string): Promise<Lead> => {
+    const response = await apiClient.post<{ data: Lead }>(APIPATH.LEAD.CONVERT + leadUUID);
+    return response.data;
   },
 
   // ==================== TAB DATA FETCHING ====================

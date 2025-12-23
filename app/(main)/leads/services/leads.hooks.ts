@@ -142,11 +142,11 @@ export function useCancelLead() {
 
   return useMutation({
     mutationFn: (data: CancelLeadData) => leadsService.cancelLead(data),
-    onSuccess: (_, variables) => {
+    onSuccess: (data: Lead, variables: CancelLeadData) => {
       queryClient.setQueryData(leadsKeys.lists(), (old: Lead[]) => {
         return old.map((lead) => {
           if (lead.leadUUID === variables.leadUUID) {
-            return { ...lead, ...variables };
+            return { ...lead, ...data };
           }
           return lead;
         });
@@ -169,9 +169,9 @@ export function useConvertLead() {
 
   return useMutation({
     mutationFn: (leadUUID: string) => leadsService.convertLeadToDeal(leadUUID),
-    onSuccess: (_, leadUUID) => {
+    onSuccess: (data: Lead) => {
       queryClient.setQueryData(leadsKeys.lists(), (old: Lead[]) => {
-        return old.filter((lead) => lead.leadUUID !== leadUUID);
+        return old.filter((lead) => lead.leadUUID !== data.leadUUID);
       });
       toast.success('Lead converted to deal successfully');
     },

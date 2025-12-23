@@ -101,8 +101,16 @@ const LeadDetails: React.FC<LeadDetails> = ({ lead }) => {
           )}
         </span>
       ),
-      children: (
-        <EmailModal />
+      children: (<>
+        {emailsLoading ? (
+          <Skeleton
+            active
+            className="h-[200px]"
+          />
+        ) : (
+          <EmailModal lead={leadDetails} emails={emails} />
+        )}
+      </>
       ),
     },
   ];
