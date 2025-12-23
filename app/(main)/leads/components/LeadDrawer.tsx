@@ -7,7 +7,6 @@ import CustomSelect from "@/components/CustomSelect/CustomSelect";
 import Input from "@/components/Input/Input";
 import Label from "@/components/Label/Label";
 import { useLeadStore } from "@/context/store/leadsStore";
-import { useLoading } from "@/hooks/useLoading";
 import { Button, Col, Drawer, Row } from "antd";
 import TextArea from "antd/es/input/TextArea";
 import {
@@ -31,6 +30,7 @@ import { useApi } from "@/hooks/useAPI";
 import { APIPATH } from "@/shared/constants/url";
 import { fetchContacts } from "@/Utils/helpers";
 import ContactOptionsRender from "@/components/shared/ContactOptionsRender";
+import { useCreateLead } from "../services/leads.hooks";
 
 export interface LeadFormData {
   leadName: string;
@@ -58,7 +58,6 @@ const validationSchema = Yup.object().shape({
 });
 
 function LeadDrawer() {
-  const [loading, setLoading] = useLoading();
   const [AddNewContactModalOpen, setAddNewContactModalOpen] = useState(false);
   const { leadModal, toggleLeadDrawer, preFilledData } = useLeadModal();
   const { usersList, hcoList, leadSources } = useDropDowns();
@@ -69,6 +68,9 @@ function LeadDrawer() {
   const formikRef = useRef<FormikProps<LeadFormData>>(null);
   const router = useRouter();
   const API = useApi();
+
+  // Use React Query mutation hook for creating leads
+  const createLeadMutation = useCreateLead();
 
   async function fetchContactOptions() {
     const contacts = await fetchContacts(
@@ -97,14 +99,12 @@ function LeadDrawer() {
   }, [selectedHcoUUID]);
 
   const handleSubmit = async (values: LeadFormData): Promise<void> => {
-    setLoading(true);
-    const response = await API.post(APIPATH.LEAD.CREATELEAD, values);
-    if (response) {
-      toast.success("Lead created successfully");
-      toggleLeadDrawer();
-      router.push(`/leads/${response.data.leadUUID}`);
-    }
-    setLoading(false);
+    createLeadMutation.mutate(values, {
+      onSuccess: (data) => {
+        toggleLeadDrawer();
+        router.push(`/leads/${data.leadUUID}`);
+      },
+    });
   };
 
   const handleClearForm = useCallback(() => {
@@ -145,7 +145,7 @@ function LeadDrawer() {
               type="primary"
               form="leadForm"
               htmlType="submit"
-              loading={loading}
+              loading={createLeadMutation.isPending}
               icon={<Search size={16} />}
             >
               Start Prospect
@@ -241,11 +241,10 @@ function LeadDrawer() {
                       required
                       name="contactPersons"
                       label="Contact Persons"
-                      placeholder={`${
-                        values.hcoUUID
-                          ? "Select contact person"
-                          : "Select healthcare first"
-                      }`}
+                      placeholder={`${values.hcoUUID
+                        ? "Select contact person"
+                        : "Select healthcare first"
+                        }`}
                       loading={!values.hcoUUID}
                       disabled={!values.hcoUUID}
                       mode="multiple"

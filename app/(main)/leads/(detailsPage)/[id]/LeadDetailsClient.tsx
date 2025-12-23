@@ -4,7 +4,7 @@ import { useLead } from '@/app/(main)/leads/services';
 import FullPageSkeleton from '@/components/Skeletons/FullpageSkeleton';
 import AppErrorUI from '@/components/AppErrorUI/AppErrorUI';
 import LeadDetailsHeader from './LeadDetailsHeader';
-import LeadDetails from './LeadDetails';
+import LeadDetails from './LeadTabs';
 
 interface LeadDetailsClientProps {
   id: string;

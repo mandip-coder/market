@@ -21,4 +21,8 @@ export const leadsKeys = {
   followUps: (id: string) => [...leadsKeys.tabs(id), 'followUps'] as const,
   calls: (id: string) => [...leadsKeys.tabs(id), 'calls'] as const,
   emails: (id: string) => [...leadsKeys.tabs(id), 'emails'] as const,
+
+  //keys for contacts
+  contacts: () => [...leadsKeys.all, 'contactPersons'] as const,
+  contact: (id: string) => [...leadsKeys.contacts(), id] as const,
 } as const;

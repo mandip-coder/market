@@ -18,7 +18,7 @@ export interface CreateFollowUpPayload {
   dealUUID?: string;
   subject: string;
   scheduledDate: string;
-  contactPersons: string[]; // Array of contact person UUIDs
+  contactPersons: string[];
   description: string;
   followUpMode: string;
 }
@@ -124,6 +124,11 @@ export function useCreateLead() {
       queryClient.setQueryData(leadsKeys.lists(), (old: Lead[]) => {
         return [...old, data];
       });
+      toast.success('Lead created successfully');
+    },
+    onError: (error: Error) => {
+      console.error('Error creating lead:', error);
+      toast.error(error.message || 'Failed to create lead');
     },
   });
 }
@@ -138,10 +143,19 @@ export function useCancelLead() {
   return useMutation({
     mutationFn: (data: CancelLeadData) => leadsService.cancelLead(data),
     onSuccess: (_, variables) => {
-      // Invalidate the specific lead detail
-      queryClient.invalidateQueries({ queryKey: leadsKeys.detail(variables.leadUUID) });
-      // Invalidate all leads lists
-      queryClient.invalidateQueries({ queryKey: leadsKeys.lists() });
+      queryClient.setQueryData(leadsKeys.lists(), (old: Lead[]) => {
+        return old.map((lead) => {
+          if (lead.leadUUID === variables.leadUUID) {
+            return { ...lead, ...variables };
+          }
+          return lead;
+        });
+      });
+      toast.success('Lead cancelled successfully');
+    },
+    onError: (error: Error) => {
+      console.error('Error cancelling lead:', error);
+      toast.error(error.message || 'Failed to cancel lead');
     },
   });
 }
@@ -154,12 +168,16 @@ export function useConvertLead() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: ConvertLeadData) => leadsService.convertLeadToDeal(data),
-    onSuccess: (_, variables) => {
-      // Invalidate the specific lead detail
-      queryClient.invalidateQueries({ queryKey: leadsKeys.detail(variables.leadUUID) });
-      // Invalidate all leads lists
-      queryClient.invalidateQueries({ queryKey: leadsKeys.lists() });
+    mutationFn: (leadUUID: string) => leadsService.convertLeadToDeal(leadUUID),
+    onSuccess: (_, leadUUID) => {
+      queryClient.setQueryData(leadsKeys.lists(), (old: Lead[]) => {
+        return old.filter((lead) => lead.leadUUID !== leadUUID);
+      });
+      toast.success('Lead converted to deal successfully');
+    },
+    onError: (error: Error) => {
+      console.error('Error converting lead:', error);
+      toast.error(error.message || 'Failed to convert lead');
     },
   });
 }
@@ -174,8 +192,8 @@ export function useLeadFollowUps(leadUUID: string, enabled: boolean = true) {
   return useQuery({
     queryKey: leadsKeys.followUps(leadUUID),
     queryFn: () => leadsService.fetchLeadFollowUps(leadUUID),
-    staleTime: 60 * 60000, // 1 hour
-    gcTime: 60 * 60000,
+    staleTime: 5 * 60 * 1000, // 5 minutes - prevents excessive refetches
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
     enabled: enabled && !!leadUUID,
   });
 }
@@ -220,14 +238,13 @@ export function useCreateFollowUp(leadUUID: string) {
   return useMutation({
     mutationFn: (data: CreateFollowUpPayload) => leadsService.createFollowUp(data),
     onSuccess: (newFollowUp: FollowUP) => {
-      // Optimistically add to cache
+      // Add to cache
       queryClient.setQueryData<FollowUP[]>(leadsKeys.followUps(leadUUID), (old = []) => {
         return [...old, newFollowUp];
       });
       toast.success('Follow-up created successfully');
     },
     onError: (error: Error) => {
-      console.error('Error creating follow-up:', error);
       toast.error(error.message || 'Failed to create follow-up');
     },
   });
@@ -243,15 +260,13 @@ export function useUpdateFollowUp(leadUUID: string) {
   return useMutation({
     mutationFn: ({ followUpUUID, data }: { followUpUUID: string; data: UpdateFollowUpPayload }) =>
       leadsService.updateFollowUp(followUpUUID, data),
-    onSuccess: (updatedFollowUp: FollowUP, variables) => {
-      // Optimistically update in cache
+    onSuccess: (updatedFollowUp: FollowUP) => {
       queryClient.setQueryData<FollowUP[]>(leadsKeys.followUps(leadUUID), (old = []) => {
-        return old.map(f => f.followUpUUID === variables.followUpUUID ? updatedFollowUp : f);
+        return old.map(f => f.followUpUUID === updatedFollowUp.followUpUUID ? updatedFollowUp : f);
       });
       toast.success('Follow-up updated successfully');
     },
     onError: (error: Error) => {
-      console.error('Error updating follow-up:', error);
       toast.error(error.message || 'Failed to update follow-up');
     },
   });
@@ -267,12 +282,12 @@ export function useCompleteFollowUp(leadUUID: string) {
   return useMutation({
     mutationFn: ({ followUpUUID, data }: { followUpUUID: string; data: CompleteFollowUpValues }) =>
       leadsService.completeFollowUp(followUpUUID, data),
-    onSuccess: (_, variables) => {
-      // Optimistically update status in cache
+    onSuccess: (updatedFollowUp: FollowUP, variables) => {
+      // Update cache with server response
       queryClient.setQueryData<FollowUP[]>(leadsKeys.followUps(leadUUID), (old = []) => {
         return old.map(f =>
           f.followUpUUID === variables.followUpUUID
-            ? { ...f, status: 'Completed' as const, outcome: variables.data.outcome }
+            ? { ...f, ...updatedFollowUp }
             : f
         );
       });
@@ -294,13 +309,12 @@ export function useCancelFollowUp(leadUUID: string) {
 
   return useMutation({
     mutationFn: ({ followUpUUID, data }: { followUpUUID: string; data: CancelFollowUpValues }) =>
-      leadsService.cancelFollowUp(followUpUUID, data),
-    onSuccess: (_, variables) => {
-      // Optimistically update status in cache
+      leadsService.cancelFollowUp(followUpUUID, data.cancellationReason),
+    onSuccess: (updatedFollowUp: FollowUP, variables) => {
       queryClient.setQueryData<FollowUP[]>(leadsKeys.followUps(leadUUID), (old = []) => {
         return old.map(f =>
           f.followUpUUID === variables.followUpUUID
-            ? { ...f, status: 'Cancelled' as const, cancellationReason: variables.data.cancellationReason }
+            ? { ...f, ...updatedFollowUp }
             : f
         );
       });
@@ -323,16 +337,13 @@ export function useRescheduleFollowUp(leadUUID: string) {
   return useMutation({
     mutationFn: ({ followUpUUID, data }: { followUpUUID: string; data: RescheduleFollowUpValues }) =>
       leadsService.rescheduleFollowUp(followUpUUID, data),
-    onSuccess: (_, variables) => {
-      // Optimistically update status in cache
+    onSuccess: (updatedFollowUp: FollowUP, variables) => {
       queryClient.setQueryData<FollowUP[]>(leadsKeys.followUps(leadUUID), (old = []) => {
         return old.map(f =>
           f.followUpUUID === variables.followUpUUID
             ? {
               ...f,
-              status: 'Rescheduled' as const,
-              scheduledDate: variables.data.scheduledDate.format('YYYY-MM-DD HH:mm:ss'),
-              nextFollowUpNotes: variables.data.nextFollowUpNotes
+              ...updatedFollowUp
             }
             : f
         );
@@ -340,32 +351,35 @@ export function useRescheduleFollowUp(leadUUID: string) {
       toast.success('Follow-up rescheduled successfully');
     },
     onError: (error: Error) => {
-      console.error('Error rescheduling follow-up:', error);
       toast.error(error.message || 'Failed to reschedule follow-up');
     },
   });
 }
 
-/**
- * Hook to delete a follow-up
- * Removes from cache optimistically on success
- */
+
 export function useDeleteFollowUp(leadUUID: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (followUpUUID: string) => leadsService.deleteFollowUp(followUpUUID),
     onSuccess: (_, followUpUUID) => {
-      // Optimistically remove from cache
       queryClient.setQueryData<FollowUP[]>(leadsKeys.followUps(leadUUID), (old = []) => {
         return old.filter(f => f.followUpUUID !== followUpUUID);
       });
       toast.success('Follow-up deleted successfully');
     },
     onError: (error: Error) => {
-      console.error('Error deleting follow-up:', error);
       toast.error(error.message || 'Failed to delete follow-up');
     },
+  });
+}
+export function useContactsPersons(hcoUUID: string) {
+  return useQuery({
+    queryKey: leadsKeys.contacts(),
+    queryFn: () => leadsService.getContacts(hcoUUID),
+    staleTime: Infinity,
+    enabled: !!hcoUUID,
+    retry: 0,
   });
 }
 

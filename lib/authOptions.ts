@@ -1,9 +1,8 @@
-import NextAuth, { User } from "next-auth"
-import Credentials from "next-auth/providers/credentials"
-import { JWT } from "next-auth/jwt"
-import { jwtDecode } from "jwt-decode"
 import { APIPATH } from "@/shared/constants/url"
-import { Company } from "@/app/(main)/master/company-master/components/CompanyDataTable"
+import { jwtDecode } from "jwt-decode"
+import NextAuth, { User } from "next-auth"
+import { JWT } from "next-auth/jwt"
+import Credentials from "next-auth/providers/credentials"
 
 // Authentication function
 async function authorizeUser(credentials: Record<string, unknown> | undefined) {

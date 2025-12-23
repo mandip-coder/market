@@ -4,6 +4,7 @@ import { LeadFilters, LeadsResponse, CreateLeadData, CancelLeadData, ConvertLead
 import { FollowUP, CallLog, Email } from '@/lib/types';
 import { CancelFollowUpValues, CompleteFollowUpValues, RescheduleFollowUpValues } from '@/context/store/dealsStore';
 import { CreateFollowUpPayload, UpdateFollowUpPayload, CreateCallPayload, UpdateCallPayload, SendEmailPayload } from './leads.hooks';
+import { HCOContactPerson } from '@/components/AddNewContactModal/AddNewContactModal';
 
 /**
  * Leads API Service
@@ -47,6 +48,14 @@ export const leadsService = {
   },
 
   /**
+   * Fetch contacts for a lead
+   */
+  getContacts: async (hcoUUID: string): Promise<HCOContactPerson[]> => {
+    const response = await apiClient.get<{ data: HCOContactPerson[] }>(APIPATH.HCO.CONTACTPERSONS(hcoUUID));
+    return response.data;
+  },
+
+  /**
    * Create a new lead
    */
   createLead: async (data: CreateLeadData): Promise<Lead> => {
@@ -66,8 +75,8 @@ export const leadsService = {
   /**
    * Convert lead to deal
    */
-  convertLeadToDeal: async (data: ConvertLeadData): Promise<void> => {
-    await apiClient.post(APIPATH.LEAD.CONVERT + data.leadUUID);
+  convertLeadToDeal: async (leadUUID: string): Promise<void> => {
+    await apiClient.post(APIPATH.LEAD.CONVERT + leadUUID);
   },
 
   // ==================== TAB DATA FETCHING ====================
@@ -129,38 +138,40 @@ export const leadsService = {
   /**
    * Complete a follow-up
    */
-  completeFollowUp: async (followUpUUID: string, data: CompleteFollowUpValues): Promise<void> => {
-    await apiClient.post(
-      APIPATH.LEAD.TABS.FOLLOWUP.COMPLETEFOLLOWUP + followUpUUID,
-      data
+  completeFollowUp: async (followUpUUID: string, data: CompleteFollowUpValues): Promise<FollowUP> => {
+    const response = await apiClient.patch<{ data: FollowUP }>(
+      APIPATH.LEAD.TABS.FOLLOWUP.COMPLETEFOLLOWUP + followUpUUID + "/" + data.outcome,
     );
+    return response.data;
   },
 
   /**
    * Cancel a follow-up
    */
-  cancelFollowUp: async (followUpUUID: string, data: CancelFollowUpValues): Promise<void> => {
-    await apiClient.post(
-      APIPATH.LEAD.TABS.FOLLOWUP.CANCELFOLLOWUP + followUpUUID,
-      data
+  cancelFollowUp: async (followUpUUID: string, reason: string): Promise<FollowUP> => {
+    const response = await apiClient.patch<{ data: FollowUP }>(
+      APIPATH.LEAD.TABS.FOLLOWUP.CANCELFOLLOWUP + followUpUUID + "?reason=" + reason,
     );
+    return response.data;
   },
 
   /**
    * Reschedule a follow-up
    */
-  rescheduleFollowUp: async (followUpUUID: string, data: RescheduleFollowUpValues): Promise<void> => {
-    await apiClient.post(
+  rescheduleFollowUp: async (followUpUUID: string, data: RescheduleFollowUpValues): Promise<FollowUP> => {
+    const response = await apiClient.post<{ data: FollowUP }>(
       APIPATH.LEAD.TABS.FOLLOWUP.RESCHEDULEFOLLOWUP + followUpUUID,
       data
     );
+    return response.data;
   },
 
   /**
    * Delete a follow-up
    */
-  deleteFollowUp: async (followUpUUID: string): Promise<void> => {
-    await apiClient.delete(APIPATH.LEAD.TABS.FOLLOWUP.DELETEFOLLOWUP + followUpUUID);
+  deleteFollowUp: async (followUpUUID: string): Promise<FollowUP> => {
+    const response = await apiClient.delete<{ data: FollowUP }>(APIPATH.LEAD.TABS.FOLLOWUP.DELETEFOLLOWUP + followUpUUID);
+    return response.data;
   },
 
   // ==================== CALL MUTATIONS ====================

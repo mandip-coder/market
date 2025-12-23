@@ -48,7 +48,7 @@ export interface CancelFollowUpValues {
 }
 
 export interface RescheduleFollowUpValues {
-  scheduledDate: Dayjs;
+  scheduledDate: string;
   nextFollowUpNotes: string;
 }
 
@@ -526,8 +526,8 @@ export const useDealStore = create<DealStore>((set, get,) => ({
       const updatedFollowUps = [...followUps];
       updatedFollowUps[followUpIndex] = {
         ...updatedFollowUps[followUpIndex],
-       ...values,
-       scheduledDate: dayjs(values.scheduledDate).format('YYYY-MM-DD HH:mm:ss'),
+        ...values,
+        scheduledDate: dayjs(values.scheduledDate).format('YYYY-MM-DD HH:mm:ss'),
       };
       set({ followUps: updatedFollowUps });
 
@@ -647,7 +647,7 @@ export const useDealStore = create<DealStore>((set, get,) => ({
     const newNote: Note = {
       ...values,
     };
-    set({ notes: [newNote,...notes] });
+    set({ notes: [newNote, ...notes] });
 
     addTimelineEvent({
       type: 'Note',

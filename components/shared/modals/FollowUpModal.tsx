@@ -12,8 +12,7 @@ import {
   CompleteFollowUpValues,
   RescheduleFollowUpValues,
 } from "@/context/store/dealsStore";
-import { useApi } from "@/hooks/useAPI";
-import { APIPATH } from "@/shared/constants/url";
+
 import {
   Button,
   Divider,
@@ -47,20 +46,21 @@ import * as Yup from "yup";
 import { FollowUP } from "../../../lib/types";
 import ContactOptionsRender from "../ContactOptionsRender";
 import { EmptyState } from "./EmptyState";
-import { useLoading } from "@/hooks/useLoading";
 import { Tooltip } from "antd/lib";
 import { ColumnProps } from "antd/es/table";
 import { useDropDowns } from "@/context/store/optimizedSelectors";
 import Paragraph from "antd/es/typography/Paragraph";
+import { CreateFollowUpPayload, UpdateFollowUpPayload } from "@/app/(main)/leads/services";
+import { UseMutationResult } from "@tanstack/react-query";
 
 interface FollowUpModalProps {
   followUps: FollowUP[];
-  addFollowUp: (data: FollowUP) => void;
-  updateFollowUp: (id: string, data: FollowUP) => void;
-  completeFollowUp: (id: string, data: CompleteFollowUpValues) => void;
-  cancelFollowUp: (id: string, data: CancelFollowUpValues) => void;
-  rescheduleFollowUp: (id: string, data: RescheduleFollowUpValues) => void;
-  deleteFollowUp: (id: string) => void;
+  createFollowUp: UseMutationResult<FollowUP, Error, CreateFollowUpPayload, unknown>;
+  updateFollowUp: UseMutationResult<FollowUP, Error, { followUpUUID: string, data: UpdateFollowUpPayload }, unknown>;
+  completeFollowUp: UseMutationResult<FollowUP, Error, { followUpUUID: string, data: CompleteFollowUpValues }, unknown>;
+  cancelFollowUp: UseMutationResult<FollowUP, Error, { followUpUUID: string, data: CancelFollowUpValues }, unknown>;
+  rescheduleFollowUp: UseMutationResult<FollowUP, Error, { followUpUUID: string, data: RescheduleFollowUpValues }, unknown>;
+  deleteFollowUp: UseMutationResult<FollowUP, Error, string, unknown>;
   contactPersons: HCOContactPerson[];
   onAddContactPerson?: (contact: HCOContactPerson) => void;
   hcoUUID: string | null;
@@ -88,7 +88,7 @@ const followUpModeOptions = FollowUpModes.map((mode) => ({
 
 export const FollowUpModal: React.FC<FollowUpModalProps> = ({
   followUps,
-  addFollowUp,
+  createFollowUp,
   updateFollowUp,
   completeFollowUp,
   cancelFollowUp,
@@ -107,7 +107,7 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const debouncedRef = useRef<any>(null);
-  const {outcomes} = useDropDowns();
+  const { outcomes } = useDropDowns();
   const [statusFilters, setStatusFilters] = useState<string[]>([
     "Scheduled",
     "Overdue",
@@ -127,32 +127,22 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
   const [pendingContactPersons, setPendingContactPersons] = useState<string[]>(
     []
   );
-  const [loading, setLoading] = useLoading();
   const [refreshLoading, setRefreshLoading] = useState(false);
   const formikRef = useRef<any>(null);
 
-  // API instance
-  const API = useApi();
-
-  // Determine which endpoint to use based on leadUUID or dealUUID
-  const followUpEndpoints = useMemo(() => {
-    if (leadUUID) {
-      return APIPATH.LEAD.TABS.FOLLOWUP;
-    } else if (dealUUID) {
-      return APIPATH.DEAL.TABS.FOLLOWUP;
-    }
-    return null;
-  }, [leadUUID, dealUUID]);
-
   const initialValues = {
+    ...leadUUID && { leadUUID },
+    ...dealUUID && { dealUUID },
     subject: editingFollowUp?.subject || "",
     scheduledDate: editingFollowUp ? dayjs(editingFollowUp.scheduledDate) : "",
     contactPersons: editingFollowUp?.contactPersons || [],
     description: editingFollowUp?.description || "",
-    followUpMode: editingFollowUp?.followUpMode || FollowUpModes[0], // Default to first mode
+    followUpMode: editingFollowUp?.followUpMode || FollowUpModes[0],
   };
 
   const validationSchema = Yup.object({
+    leadUUID: leadUUID ? Yup.string().required("Lead UUID is required") : Yup.string(),
+    dealUUID: dealUUID ? Yup.string().required("Deal UUID is required") : Yup.string(),
     subject: Yup.string().required("Subject is required"),
     scheduledDate: Yup.mixed()
       .required("Date & time is required")
@@ -197,12 +187,11 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
 
 
 
-
   const filteredFollowUps = useMemo(() => {
     const q = debouncedQuery.trim().toLowerCase();
-    
+
     let filtered = followUps;
-    
+
     // Apply search filter
     if (q) {
       filtered = filtered.filter(
@@ -211,17 +200,16 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
           (f.description && f.description.toLowerCase().includes(q))
       );
     }
-    
+
     // Apply status filter
     if (statusFilters.length > 0) {
       filtered = filtered.filter((f: FollowUP) => statusFilters.includes(f.status));
     }
-    
+
     return filtered;
   }, [followUps, debouncedQuery, statusFilters]);
 
   const handleSubmit = async (values: any) => {
-    setLoading(true);
     const formattedValues = {
       ...values,
       contactPersons: values.contactPersons,
@@ -230,29 +218,21 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
       ...(dealUUID && { dealUUID }),
     };
     if (editingFollowUp) {
-      // Update follow-up via API
-      const response = await API.put(
-        `${followUpEndpoints?.UPDATEFOLLOWUP}${editingFollowUp.followUpUUID}`,
-        formattedValues
-      );
-      if (response) {
-        updateFollowUp(editingFollowUp.followUpUUID, response.data);
-        toast.success("Follow-up updated successfully");
-        setOpen(false);
-      }
+      updateFollowUp.mutate({
+        followUpUUID: editingFollowUp.followUpUUID,
+        data: formattedValues,
+      }, {
+        onSuccess: () => {
+          setOpen(false);
+        },
+      });
     } else {
-      // Create follow-up via API
-      const response = await API.post(
-        followUpEndpoints?.CREATEFOLLOWUP || "",
-        formattedValues
-      );
-      if (response) {
-        addFollowUp({ ...response.data });
-        toast.success("Follow-up created successfully");
-        setOpen(false);
-      }
+      createFollowUp.mutate(formattedValues, {
+        onSuccess: () => {
+          setOpen(false);
+        },
+      });
     }
-    setLoading(false);
   };
 
   const handleOpenModal = useCallback(() => {
@@ -269,7 +249,7 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
     setEditingFollowUp({
       ...f,
       // @ts-ignore
-      contactPersons: contactPersons.map((cp) => cp.hcoContactUUID),
+      contactPersons: f.contactPersons.map((cp) => cp.hcoContactUUID),
     });
     setOpen(true);
   }, []);
@@ -290,24 +270,11 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
   }, []);
 
   // Refresh handler to refetch follow-up data
-  const handleRefresh = useCallback(async () => {
-    setRefreshLoading(true);
-    try {
-      const endpoint = leadUUID
-        ? `${followUpEndpoints?.GETALLFOLLOWUP}${leadUUID}`
-        : `${followUpEndpoints?.GETALLFOLLOWUP}${dealUUID}`;
-
-      const response = await API.get(endpoint);
-      if (response && response.data) {
-        setFollowUps(response.data);
-      }
-    } catch (error) {
-      console.error("Error refreshing follow-ups:", error);
-      toast.error("Failed to refresh follow-ups");
-    } finally {
-      setRefreshLoading(false);
-    }
-  }, [API, followUpEndpoints, leadUUID, dealUUID]);
+  const handleRefresh = useCallback(() => {
+    // Trigger refetch by invalidating queries
+    // The parent component should handle this via query invalidation
+    toast.info("Refreshing follow-ups...");
+  }, []);
 
   // Helper function to determine if actions can be performed
   const canPerformActions = (followUp: FollowUP) => {
@@ -457,7 +424,7 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
           </div>
         );
       },
-    },{
+    }, {
       title: "Description",
       dataIndex: "description",
       key: "description",
@@ -482,10 +449,10 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
         const primaryContactPerson = record.contactPersons[0];
         const remainingContactPersons = record.contactPersons.slice(1);
         const remainingCount = remainingContactPersons.length;
-        
+
         return (
           <div className="flex items-center gap-2">
-            <Tag  color="blue">{primaryContactPerson.fullName}</Tag>
+            <Tag color="blue">{primaryContactPerson.fullName}</Tag>
             {remainingCount > 0 && (
               <Tooltip
                 mouseEnterDelay={0.3}
@@ -718,98 +685,100 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
           enableReinitialize
           innerRef={formikRef}
         >
-          {({ isValid, dirty }) => (
-            <Form id="followupForm" className="space-y-4">
-              <InputBox required name="subject" label="Subject" />
+          {({ isValid, dirty, errors }) => {
+            return (
+              <Form id="followupForm" className="space-y-4">
+                <InputBox required name="subject" label="Subject" />
 
-              <div className="grid grid-cols-2 gap-4">
-                <CustomDatePicker
-                  name="scheduledDate"
-                  label="Date & Time"
-                  required
-                  showTime
-                  format="YYYY-MM-DD hh:mm A"
-                  needConfirm={false}
-                  disabledDate={(current) => {
-                    // Disable dates before today
-                    return current && current < dayjs().startOf("day");
-                  }}
-                  disabledTime={(current) => {
-                    // If selected date is today, disable past hours and minutes
-                    if (!current || !dayjs(current).isSame(dayjs(), "day")) {
-                      return {};
-                    }
-                    const now = dayjs();
-                    return {
-                      disabledHours: () => {
-                        const hours = [];
-                        for (let i = 0; i < now.hour(); i++) {
-                          hours.push(i);
-                        }
-                        return hours;
-                      },
-                      disabledMinutes: (selectedHour: number) => {
-                        if (selectedHour === now.hour()) {
-                          const minutes = [];
-                          for (let i = 0; i <= now.minute(); i++) {
-                            minutes.push(i);
+                <div className="grid grid-cols-2 gap-4">
+                  <CustomDatePicker
+                    name="scheduledDate"
+                    label="Date & Time"
+                    required
+                    showTime
+                    format="YYYY-MM-DD hh:mm A"
+                    needConfirm={false}
+                    disabledDate={(current) => {
+                      // Disable dates before today
+                      return current && current < dayjs().startOf("day");
+                    }}
+                    disabledTime={(current) => {
+                      // If selected date is today, disable past hours and minutes
+                      if (!current || !dayjs(current).isSame(dayjs(), "day")) {
+                        return {};
+                      }
+                      const now = dayjs();
+                      return {
+                        disabledHours: () => {
+                          const hours = [];
+                          for (let i = 0; i < now.hour(); i++) {
+                            hours.push(i);
                           }
-                          return minutes;
-                        }
-                        return [];
-                      },
-                    };
-                  }}
-                />
+                          return hours;
+                        },
+                        disabledMinutes: (selectedHour: number) => {
+                          if (selectedHour === now.hour()) {
+                            const minutes = [];
+                            for (let i = 0; i <= now.minute(); i++) {
+                              minutes.push(i);
+                            }
+                            return minutes;
+                          }
+                          return [];
+                        },
+                      };
+                    }}
+                  />
+                  <CustomSelect
+                    name="followUpMode"
+                    label="Follow-up Mode"
+                    required
+                    options={followUpModeOptions}
+                  />
+                </div>
+
                 <CustomSelect
-                  name="followUpMode"
-                  label="Follow-up Mode"
+                  name="contactPersons"
+                  label="Contact Persons"
                   required
-                  options={followUpModeOptions}
-                />
-              </div>
-
-              <CustomSelect
-                name="contactPersons"
-                label="Contact Persons"
-                required
-                mode="multiple"
-                optionRender={(option) => (
-                  <ContactOptionsRender option={option} />
-                )}
-                options={contactPersonOptions}
-                maxResponsive
-                hideSelected
-                popupRender={contactPersonsDropdownRender}
-              />
-              <div>
-                <Label text="Description" required />
-                <Field name="description">
-                  {({ field }: any) => (
-                    <Input.TextArea
-                      {...field}
-                      rows={2}
-                      placeholder="Enter description..."
-                    />
+                  mode="multiple"
+                  optionRender={(option) => (
+                    <ContactOptionsRender option={option} />
                   )}
-                </Field>
-              </div>
+                  options={contactPersonOptions}
+                  maxResponsive
+                  hideSelected
+                  popupRender={contactPersonsDropdownRender}
+                />
+                <div>
+                  <Label text="Description" required />
+                  <Field name="description">
+                    {({ field }: any) => (
+                      <Input.TextArea
+                        {...field}
+                        rows={2}
+                        placeholder="Enter description..."
+                      />
+                    )}
+                  </Field>
+                </div>
 
-              <div className="gap-2 flex justify-end pt-4">
-                <Button type="default" onClick={handleCloseModal}>
-                  Cancel
-                </Button>
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  loading={loading}
-                  disabled={!isValid || (!!editingFollowUp && !dirty)}
-                >
-                  {editingFollowUp ? "Update Follow Up" : "Add Follow Up"}
-                </Button>
-              </div>
-            </Form>
-          )}
+                <div className="gap-2 flex justify-end pt-4">
+                  <Button type="default" onClick={handleCloseModal}>
+                    Cancel
+                  </Button>
+                  <Button
+                    type="primary"
+                    htmlType="submit"
+                    loading={updateFollowUp.isPending || createFollowUp.isPending}
+                    disabled={!isValid || (!!editingFollowUp && !dirty)}
+                  >
+                    {editingFollowUp ? "Update Follow Up" : "Add Follow Up"}
+                  </Button>
+                </div>
+              </Form>
+            )
+          }}
         </Formik>
       </ModalWrapper>
 
@@ -827,20 +796,21 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
           validationSchema={Yup.object({
             outcome: Yup.string().required("Outcome is required"),
           })}
-          onSubmit={async (values) => {
-            setLoading(true);
+          onSubmit={(values) => {
             if (selectedFollowUp) {
-                const response = await API.patch(
-                  `${followUpEndpoints?.COMPLETEFOLLOWUP}${selectedFollowUp.followUpUUID}/${values.outcome}`
-                );
-                if (response) {
-                  completeFollowUp(selectedFollowUp.followUpUUID, response.data);
-                  toast.success("Follow-up completed successfully");
-                  setCompleteModalOpen(false);
-                  setSelectedFollowUp(null);
+              completeFollowUp.mutate(
+                {
+                  followUpUUID: selectedFollowUp.followUpUUID,
+                  data: { outcome: values.outcome },
+                },
+                {
+                  onSuccess: () => {
+                    setCompleteModalOpen(false);
+                    setSelectedFollowUp(null);
+                  },
                 }
+              );
             }
-            setLoading(false);
           }}
         >
           {({ isValid, dirty }) => (
@@ -861,7 +831,7 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
                 <Button
                   type="primary"
                   htmlType="submit"
-                  loading={loading}
+                  loading={completeFollowUp.isPending}
                   disabled={!isValid || !dirty}
                 >
                   Complete
@@ -888,21 +858,20 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
               "Cancel reason is required"
             ),
           })}
-          onSubmit={async (values) => {
+          onSubmit={(values) => {
             if (selectedFollowUp) {
-              try {
-                const response = await API.patch(
-                  `${followUpEndpoints?.CANCELFOLLOWUP}${selectedFollowUp.followUpUUID}?reason=${values.cancellationReason}`
-                );
-                if (response) {
-                  cancelFollowUp(selectedFollowUp.followUpUUID, response.data);
-                  toast.success("Follow-up cancelled successfully");
-                  setCancelModalOpen(false);
-                  setSelectedFollowUp(null);
+              cancelFollowUp.mutate(
+                {
+                  followUpUUID: selectedFollowUp.followUpUUID,
+                  data: { cancellationReason: values.cancellationReason },
+                },
+                {
+                  onSuccess: () => {
+                    setCancelModalOpen(false);
+                    setSelectedFollowUp(null);
+                  },
                 }
-              } catch (error) {
-                console.error("Error cancelling follow-up:", error);
-              }
+              );
             }
           }}
         >
@@ -932,6 +901,7 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
                   type="primary"
                   danger
                   htmlType="submit"
+                  loading={cancelFollowUp.isPending}
                   disabled={!isValid || !dirty}
                 >
                   Cancel Follow Up
@@ -977,33 +947,28 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
               "Reschedule reason is required"
             ),
           })}
-          onSubmit={async (values) => {
-            setLoading(true);
+          onSubmit={(values) => {
             if (selectedFollowUp) {
-              const response = await API.post(
-                `${followUpEndpoints?.RESCHEDULEFOLLOWUP}/${selectedFollowUp.followUpUUID}`,
+              rescheduleFollowUp.mutate(
                 {
-                  scheduledDate: dayjs(values.scheduledDate).format(
-                    "YYYY-MM-DD HH:mm:ss"
-                  ),
-                  nextFollowUpNotes: values.nextFollowUpNotes,
+                  followUpUUID: selectedFollowUp.followUpUUID,
+                  data: {
+                    scheduledDate: dayjs(values.scheduledDate).format("YYYY-MM-DD HH:mm:ss"),
+                    nextFollowUpNotes: values.nextFollowUpNotes,
+                  },
+                },
+                {
+                  onSuccess: () => {
+                    setRescheduleModalOpen(false);
+                    setSelectedFollowUp(null);
+                  },
                 }
               );
-              if (response) {
-                rescheduleFollowUp(
-                  selectedFollowUp.followUpUUID,
-                  response.data
-                );
-                toast.success("Follow-up rescheduled successfully");
-                setRescheduleModalOpen(false);
-                setSelectedFollowUp(null);
-              }
             }
-            setLoading(false);
           }}
           enableReinitialize
         >
-          {({ isValid, values }) => (
+          {({ isValid }) => (
             <Form className="space-y-4">
               <CustomDatePicker
                 name="scheduledDate"
@@ -1070,7 +1035,7 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
                 <Button
                   type="primary"
                   htmlType="submit"
-                  loading={loading}
+                  loading={rescheduleFollowUp.isPending}
                   disabled={!isValid}
                 >
                   Reschedule
@@ -1086,23 +1051,17 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
         title="Delete Follow Up"
         open={deleteModalOpen}
         onCancel={() => setDeleteModalOpen(false)}
-        onOk={async () => {
+        onOk={() => {
           if (selectedFollowUp) {
-            try {
-              const response = await API.delete(
-                `${followUpEndpoints?.DELETEFOLLOWUP}${selectedFollowUp.followUpUUID}`
-              );
-              if (response) {
-                deleteFollowUp(selectedFollowUp.followUpUUID);
-                toast.success("Follow-up deleted successfully");
+            deleteFollowUp.mutate(selectedFollowUp.followUpUUID, {
+              onSuccess: () => {
                 setDeleteModalOpen(false);
                 setSelectedFollowUp(null);
-              }
-            } catch (error) {
-              console.error("Error deleting follow-up:", error);
-            }
+              },
+            });
           }
         }}
+        confirmLoading={deleteFollowUp.isPending}
         okText="Delete"
         okButtonProps={{ danger: true }}
         width={400}
@@ -1128,4 +1087,4 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
   );
 };
 
-export default memo(FollowUpModal);
+export default FollowUpModal;

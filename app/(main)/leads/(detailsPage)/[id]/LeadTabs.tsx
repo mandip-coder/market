@@ -1,5 +1,5 @@
 "use client";
-import { Tabs } from "antd";
+import { Skeleton, Tabs } from "antd";
 import { CheckCircle, FileText, Mail, Phone } from "lucide-react";
 import React, { useState, useMemo } from "react";
 import { motion } from "motion/react";
@@ -22,17 +22,17 @@ const LeadDetails: React.FC<LeadDetails> = ({ lead }) => {
   const [activeOverviewTab, setActiveOverviewTab] = useState<string>("followup");
 
   // Fetch tab data with lazy loading - only fetch when tab is active
-  const { data: followUps = [] } = useLeadFollowUps(
+  const { data: followUps = [], isLoading: followUpsLoading } = useLeadFollowUps(
     leadDetails.leadUUID,
     activeTab === "overview" && activeOverviewTab === "followup"
   );
 
-  const { data: calls = [] } = useLeadCalls(
+  const { data: calls = [], isLoading: callsLoading } = useLeadCalls(
     leadDetails.leadUUID,
     activeTab === "overview" && activeOverviewTab === "logCall"
   );
 
-  const { data: emails = [] } = useLeadEmails(
+  const { data: emails = [], isLoading: emailsLoading } = useLeadEmails(
     leadDetails.leadUUID,
     activeTab === "overview" && activeOverviewTab === "email"
   );
@@ -51,13 +51,16 @@ const LeadDetails: React.FC<LeadDetails> = ({ lead }) => {
           )}
         </span>
       ),
-      children: (
-        <FollowUpModal
-          leadUUID={leadDetails.leadUUID}
-          hcoUUID={leadDetails.hcoUUID}
-          hcoName={leadDetails.hcoName}
-          contactPersons={leadDetails.contactPersons}
-        />
+      children: (<>
+        {followUpsLoading ? (
+          <Skeleton
+            active
+            className="h-[200px]"
+          />
+        ) : (
+          <FollowUpModal lead={leadDetails} followUps={followUps} />
+        )}
+      </>
       ),
     },
     {
@@ -74,9 +77,7 @@ const LeadDetails: React.FC<LeadDetails> = ({ lead }) => {
         </span>
       ),
       children: (
-        <CallModal
-          leadUUID={leadDetails.leadUUID}
-        />
+        <CallModal />
       ),
     },
     {
@@ -93,10 +94,7 @@ const LeadDetails: React.FC<LeadDetails> = ({ lead }) => {
         </span>
       ),
       children: (
-        <EmailModal
-          leadUUID={leadDetails.leadUUID}
-          contactPersons={leadDetails.contactPersons}
-        />
+        <EmailModal />
       ),
     },
   ];
@@ -124,7 +122,7 @@ const LeadDetails: React.FC<LeadDetails> = ({ lead }) => {
         ),
       },
     ],
-    [activeOverviewTab, followUps.length, calls.length, emails.length, leadDetails]
+    [activeOverviewTab, followUps, calls, emails, leadDetails]
   );
 
   const isCancelled = leadDetails?.leadStatus === 'cancelled';

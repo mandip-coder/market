@@ -85,7 +85,7 @@ export type followUpStatus = 'Scheduled' | 'Rescheduled' | 'Overdue' | 'Complete
 export interface FollowUP {
   followUpUUID: string;
   subject: string;
-  contactPersons: HCOContactPerson[]; // Array of contact person UUIDs
+  contactPersons: HCOContactPerson[];
   description: string;
   status: followUpStatus;
   cancellationReason?: string; // For cancelled follow-ups
