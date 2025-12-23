@@ -1,9 +1,10 @@
 "use client"
+import { useLeads } from '@/app/(main)/leads/services';
 import { HCOContactPerson } from '@/components/AddNewContactModal/AddNewContactModal';
-import AsyncSearchSelect from '@/components/AsyncSearchSelect/AsyncSearchSelect';
 import { ProductSkeleton } from '@/components/Skeletons/ProductCardSkelton';
 import { useLeadStore } from '@/context/store/leadsStore';
-import { useDropDowns, useLeadViewState } from '@/context/store/optimizedSelectors';
+import { useLeadViewState } from '@/context/store/optimizedSelectors';
+import { useHCOList } from '@/services/dropdowns';
 import { Button, Input, Pagination, PaginationProps, Select } from "antd";
 import { SelectProps } from 'antd/lib';
 import { motion } from "framer-motion";
@@ -11,8 +12,6 @@ import debounce from 'lodash.debounce';
 import { Activity, Plus, Search } from 'lucide-react';
 import { memo, useCallback, useRef, useState } from 'react';
 import LeadCardReimagined from './LeadCard';
-import { useLeads } from '@/app/(main)/leads/services';
-import FullPageSkeleton from '@/components/Skeletons/FullpageSkeleton';
 
 export interface Lead {
   leadUUID: string;
@@ -51,7 +50,7 @@ const FilterControls = memo(({
   onHealthcareChange: SelectProps["onSelect"];
   onHealthcareClear: () => void;
 }) => {
-  const { hcoList } = useDropDowns()
+  const { data: hcoList = [], } = useHCOList()
   const handleClear = useCallback(() => {
     onClearFilters();
   }, [onClearFilters]);

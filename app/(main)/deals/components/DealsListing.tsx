@@ -190,12 +190,13 @@ const TableView = memo(({
         key: "dealName",
         width: 150,
         sorter: true,
+
         render: (text) => (
           <div className="flex items-center gap-2">
             <div className="p-1 bg-indigo-100 dark:bg-indigo-900/30 rounded-md">
               <Activity className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
             </div>
-            <span className="font-medium text-sm">{text}</span>
+            <span className="font-medium text-sm truncate max-w-60">{text}</span>
           </div>
         ),
       },
@@ -399,17 +400,17 @@ export default function DealsListing({ dealPromise, hcoListPromise }: DealsListi
   const fetchDeals = useCallback(
     async (newPage: number, newPageSize: number, search: string, stage: string, hcoUUID: string = "") => {
       setLoading(true);
-        const response = await API.get(
-          APIPATH.DEAL.GETDEAL +
-          `?page=${newPage}&limit=${newPageSize}${search ? `&searchDeal=${search}` : ""
-          }${stage ? `&searchDealStage=${stage}` : ""}${hcoUUID ? `&searchHcoUUID=${hcoUUID}` : ""
-          }`
-        );
-        if(response){
-          setDeals(response.data.list);
-          setPage(newPage);
-          setPageSize(newPageSize);
-          setTableParams((prev) => ({
+      const response = await API.get(
+        APIPATH.DEAL.GETDEAL +
+        `?page=${newPage}&limit=${newPageSize}${search ? `&searchDeal=${search}` : ""
+        }${stage ? `&searchDealStage=${stage}` : ""}${hcoUUID ? `&searchHcoUUID=${hcoUUID}` : ""
+        }`
+      );
+      if (response) {
+        setDeals(response.data.list);
+        setPage(newPage);
+        setPageSize(newPageSize);
+        setTableParams((prev) => ({
           ...prev,
           pagination: {
             ...prev.pagination,
@@ -418,7 +419,7 @@ export default function DealsListing({ dealPromise, hcoListPromise }: DealsListi
             total: response.data.totalCount,
           },
         }));
-        
+
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
       setLoading(false);
