@@ -6,7 +6,7 @@ import { useDropdownContactPersons } from '@/services/dropdowns/dropdowns.hooks'
 
 export default function EmailModal({ lead, emails, refetching, refetch }: { lead: Lead, emails: Email[], refetching: boolean, refetch: () => void }) {
   const sendEmail = useSendEmail(lead.leadUUID);
-  const {data:contactPersons=[]}=useDropdownContactPersons(lead.hcoUUID)
+  const { data: contactPersons = [] } = useDropdownContactPersons(lead.hcoUUID)
   return (
     <SharedEmailModal
       emails={emails}
@@ -15,6 +15,8 @@ export default function EmailModal({ lead, emails, refetching, refetch }: { lead
       contactPersons={contactPersons}
       refetching={refetching}
       refetch={refetch}
+      hcoUUID={lead.hcoUUID}
+      hcoName={lead.hcoName}
     />
   );
 }

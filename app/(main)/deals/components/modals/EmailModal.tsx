@@ -4,9 +4,9 @@ import { useSendEmail } from '../../services/deals.hooks';
 import { Deal } from '../../services/deals.types';
 import { useDropdownContactPersons } from '@/services/dropdowns/dropdowns.hooks';
 
-export default function EmailModal({ deal, emails,refetching,refetch }: { deal: Deal, emails: Email[],refetching:boolean,refetch:()=>void }) {
+export default function EmailModal({ deal, emails, refetching, refetch }: { deal: Deal, emails: Email[], refetching: boolean, refetch: () => void }) {
   const sendEmail = useSendEmail(deal.dealUUID);
-  const {data:contactPersons=[]}=useDropdownContactPersons(deal.hcoUUID)
+  const { data: contactPersons = [] } = useDropdownContactPersons(deal.hcoUUID)
   return (
     <SharedEmailModal
       emails={emails}
@@ -15,6 +15,8 @@ export default function EmailModal({ deal, emails,refetching,refetch }: { deal: 
       contactPersons={contactPersons}
       refetching={refetching}
       refetch={refetch}
+      hcoUUID={deal.hcoUUID}
+      hcoName={deal.hcoName}
     />
   );
 }

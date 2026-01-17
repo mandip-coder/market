@@ -10,7 +10,7 @@ import { dropdownsService } from "./dropdowns.service";
 import { healthcaresKeys } from "@/app/(main)/healthcares/services/healthcares.queryKeys";
 import { Country, HCOType, ICB, LeadSource, PersonalityTrait, User, Product, Healthcare, RegionalOffice, Role, TherapeuticArea, LossReason, DealStage, ProductDocumentCategory, Region, HCOService, ICBWithUUID } from "./dropdowns.types";
 
-/** 
+/**
  * Hook to fetch HCO list
  * Cached with infinite stale time - data rarely changes
  */
@@ -411,15 +411,7 @@ export function useRegions(options?: Omit<UseQueryOptions<Region[], Error>, 'que
     ...options
   });
 }
-export function useICBList(options?: Omit<UseQueryOptions<ICBWithUUID[], Error>, 'queryKey' | 'queryFn'>) {
-  return useQuery({
-    queryKey: dropdownKeys.icbList(),
-    queryFn: () => dropdownsService.fetchICBSList(),
-    staleTime: Infinity,
-    gcTime: Infinity,
-    ...options
-  });
-}
+
 export function useHcoServices(options?: Omit<UseQueryOptions<HCOService[], Error>, 'queryKey' | 'queryFn'>) {
   return useQuery({
     queryKey: dropdownKeys.services(),

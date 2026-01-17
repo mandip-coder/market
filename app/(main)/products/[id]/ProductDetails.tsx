@@ -46,9 +46,7 @@ import {
   useProductById,
   useUpdateDocumentStatus,
 } from "../services/products.hooks";
-import { CoverageAnalyticsTab } from "./components/CoverageAnalyticsTab";
 import { ProductCoverageView } from "./components/ProductCoverageView";
-import { RecommendationsTab } from "./components/RecommendationsTab";
 import {
   EditDocumentButton,
   UploadDocumentModal,
@@ -57,6 +55,7 @@ import { useFetchProductDeals } from "./services/productDeals.hooks";
 import ProductDetailsHeader from "./components/ProductDetailsHeader";
 import AppErrorUI from "@/components/AppErrorUI/AppErrorUI";
 import { ApiError } from "@/lib/apiClient/ApiError";
+import { useAuthorization } from "@/hooks/useAuthorization";
 
 const { Title } = Typography;
 
@@ -196,6 +195,9 @@ const RepositoryTab = memo<RepositoryTabProps>(({ productUUID }) => {
   const { mutateAsync: deleteDocument } = useDeleteProductDocument();
   const { mutateAsync: updateDocumentStatus } = useUpdateDocumentStatus();
 
+  const { isAdmin, isSuperAdmin, } = useAuthorization();
+  const canManageDocuments = isAdmin() || isSuperAdmin();
+
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
@@ -277,12 +279,8 @@ const RepositoryTab = memo<RepositoryTabProps>(({ productUUID }) => {
           productDocumentUUID: doc.productDocumentUUID,
           sensitive: newSensitiveValue,
         });
-        toast.success("Document status updated successfully!");
       } catch (error: any) {
         console.error("Update error:", error);
-        toast.error(
-          error?.response?.data?.message || "Failed to update document status"
-        );
       }
     },
     [updateDocumentStatus, productUUID]
@@ -367,7 +365,7 @@ const RepositoryTab = memo<RepositoryTabProps>(({ productUUID }) => {
             >
               Refresh
             </Button>
-            <UploadDocumentModal productUUID={productUUID} />
+            {canManageDocuments && <UploadDocumentModal productUUID={productUUID} />}
           </div>
         </div>
       </div>
@@ -402,7 +400,7 @@ const RepositoryTab = memo<RepositoryTabProps>(({ productUUID }) => {
           >
             Refresh
           </Button>
-          <UploadDocumentModal productUUID={productUUID} />
+          {canManageDocuments && <UploadDocumentModal productUUID={productUUID} />}
         </div>
       </div>
 
@@ -522,18 +520,20 @@ const RepositoryTab = memo<RepositoryTabProps>(({ productUUID }) => {
                     </div>
 
                     {/* Sensitive Checkbox */}
-                    <div className="mb-3">
-                      <Checkbox
-                        checked={!doc.sensitive}
-                        onChange={(e) =>
-                          handleSensitiveToggle(doc, e.target.checked)
-                        }
-                      >
-                        <span className="text-xs text-slate-600 dark:text-slate-400">
-                          Non-Sensitive Document
-                        </span>
-                      </Checkbox>
-                    </div>
+                    {canManageDocuments && (
+                      <div className="mb-3">
+                        <Checkbox
+                          checked={!doc.sensitive}
+                          onChange={(e) =>
+                            handleSensitiveToggle(doc, e.target.checked)
+                          }
+                        >
+                          <span className="text-xs text-slate-600 dark:text-slate-400">
+                            Non-Sensitive Document
+                          </span>
+                        </Checkbox>
+                      </div>
+                    )}
 
                     {/* Action Buttons */}
                     <div className="flex items-center gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
@@ -550,24 +550,28 @@ const RepositoryTab = memo<RepositoryTabProps>(({ productUUID }) => {
                       >
                         Download
                       </Button>
-                      <EditDocumentButton
-                        productUUID={productUUID}
-                        document={doc}
-                      />
-                      <Button
-                        type="text"
-                        danger
-                        size="small"
-                        icon={<Trash2 className="h-4 w-4" />}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(doc);
-                        }}
-                        loading={deletingDocId === doc.productDocumentUUID}
-                        aria-label={`Delete ${doc.documentName}`}
-                      >
-                        Delete
-                      </Button>
+                      {canManageDocuments && (
+                        <>
+                          <EditDocumentButton
+                            productUUID={productUUID}
+                            document={doc}
+                          />
+                          <Button
+                            type="text"
+                            danger
+                            size="small"
+                            icon={<Trash2 className="h-4 w-4" />}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(doc);
+                            }}
+                            loading={deletingDocId === doc.productDocumentUUID}
+                            aria-label={`Delete ${doc.documentName}`}
+                          >
+                            Delete
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </Card>
@@ -623,7 +627,7 @@ const RepositoryTab = memo<RepositoryTabProps>(({ productUUID }) => {
                 "The selected categories don't contain any documents yet. Upload documents to get started."
               )}
             </p>
-            {!searchTerm && (
+            {!searchTerm && canManageDocuments && (
               <div className="mt-6">
                 <UploadDocumentModal productUUID={productUUID} />
               </div>

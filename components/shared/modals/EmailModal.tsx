@@ -1,6 +1,6 @@
 "use client";
 import { SendEmailPayload } from "@/app/(main)/leads/services/leads.types";
-import { HCOContactPerson } from "@/components/AddNewContactModal/AddNewContactModal";
+import AddNewContactModal, { HCOContactPerson } from "@/components/AddNewContactModal/AddNewContactModal";
 import CustomSelect from "@/components/CustomSelect/CustomSelect";
 import { QuillEditor } from "@/components/Editor/QuillEditor";
 import InputBox from "@/components/Input/Input";
@@ -18,7 +18,8 @@ import {
   SendOutlined
 } from "@ant-design/icons";
 import { UseMutationResult } from "@tanstack/react-query";
-import { Button, Input, Modal, Tag } from "antd";
+import { Divider, Tag } from "antd";
+import { Button, Input, Modal } from "antd";
 import dayjs from "dayjs";
 import { Form, Formik, FormikProps } from "formik";
 import {
@@ -31,6 +32,7 @@ import {
   Plus,
   RefreshCw,
   Search,
+  UserPlus
 } from "lucide-react";
 import {
   cloneElement,
@@ -92,6 +94,8 @@ interface EmailModalProps {
   contactPersons: HCOContactPerson[];
   refetching: boolean;
   refetch: () => void;
+  hcoUUID?: string;
+  hcoName?: string;
 }
 
 export const EmailModal: React.FC<EmailModalProps> = ({
@@ -102,6 +106,8 @@ export const EmailModal: React.FC<EmailModalProps> = ({
   contactPersons,
   refetching,
   refetch,
+  hcoUUID,
+  hcoName,
 }) => {
   const [isEmailModalVisible, setIsEmailModalVisible] = useState(false);
   const [isAttachmentModalVisible, setIsAttachmentModalVisible] =
@@ -112,8 +118,9 @@ export const EmailModal: React.FC<EmailModalProps> = ({
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
   const [showCC, setShowCC] = useState(false);
   const [showBCC, setShowBCC] = useState(false);
-  const {data:systemUsers=[],isLoading:systemUsersLoading}=useUsers()
-  const formikRef = useRef<FormikProps<typeof initialValues>>(null);
+  const { data: systemUsers = [], isLoading: systemUsersLoading } = useUsers()
+  const [addContactModalOpen, setAddContactModalOpen] = useState(false);
+  const formikRef = useRef<FormikProps<EmailFormValues>>(null);
 
   const validationSchema = Yup.object({
     leadUUID: leadUUID
@@ -179,6 +186,36 @@ export const EmailModal: React.FC<EmailModalProps> = ({
     setSearchTerm("");
   };
 
+  const handleAddNewContact = (contactData: HCOContactPerson) => {
+    setTimeout(() => {
+      if (contactData) {
+        const currentRecipients = formikRef.current?.values.recipients || [];
+        formikRef.current?.setFieldValue("recipients", [
+          ...currentRecipients,
+          contactData.hcoContactUUID,
+        ]);
+        formikRef.current?.setFieldTouched("recipients", true);
+        setAddContactModalOpen(false);
+      }
+    }, 100);
+  };
+
+  const contactPersonsDropdownRender = (menu: React.ReactNode) => (
+    <>
+      {menu}
+      <Divider style={{ margin: "8px 0" }} />
+      <div className="flex items-center justify-end p-2">
+        <Button
+          type="primary"
+          icon={<UserPlus size={16} />}
+          onClick={() => setAddContactModalOpen(true)}
+        >
+          Add New Contact
+        </Button>
+      </div>
+    </>
+  );
+
   return (
     <>
       <div className="p-6">
@@ -197,30 +234,30 @@ export const EmailModal: React.FC<EmailModalProps> = ({
           </Button>
         </div>
 
-            <div className="mb-6 flex items-center gap-2 justify-between">
-            <Input
-              placeholder="Search follow ups by subject or remark..."
-              prefix={<Search size={16} className="text-gray-400" />}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              value={searchTerm}
-              className="w-full max-w-md"
-              allowClear
-              onClear={() => setSearchTerm("")}
-            />
-             <Button
-              size="small"
-              icon={
-                <RefreshCw
-                  size={16}
-                  className={refetching ? "animate-spin" : ""}
-                />
-              }
-              onClick={refetch}
-              title="Refresh calls"
-            >
-              Refresh
-            </Button>
-          </div>
+        <div className="mb-6 flex items-center gap-2 justify-between">
+          <Input
+            placeholder="Search follow ups by subject or remark..."
+            prefix={<Search size={16} className="text-gray-400" />}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            value={searchTerm}
+            className="w-full max-w-md"
+            allowClear
+            onClear={() => setSearchTerm("")}
+          />
+          <Button
+            size="small"
+            icon={
+              <RefreshCw
+                size={16}
+                className={refetching ? "animate-spin" : ""}
+              />
+            }
+            onClick={refetch}
+            title="Refresh calls"
+          >
+            Refresh
+          </Button>
+        </div>
 
         {/* Email List */}
         <div className="space-y-3">
@@ -337,6 +374,7 @@ export const EmailModal: React.FC<EmailModalProps> = ({
                     optionRender={(option) => (
                       <ContactOptionsRender option={option} />
                     )}
+                    popupRender={contactPersonsDropdownRender}
                   />
 
                   <RecipientField
@@ -459,8 +497,8 @@ export const EmailModal: React.FC<EmailModalProps> = ({
                 <div className="flex items-center gap-1.5 px-2.5 py-1 bg-green-50 dark:bg-green-900/20 rounded-full border border-green-200 dark:border-green-800">
                   {viewingEmail.deliveryStatus === 'delivered' ? <CheckCircleOutlined className="!text-green-600 dark:!text-green-400 text-xs" /> : <ExclamationCircleOutlined className="!text-red-600 dark:!text-red-400 text-xs" />}
                   <span className="text-xs font-medium !text-green-700 dark:!text-green-400">
-                    {viewingEmail.deliveryStatus === 'delivered' ? 'Delivered' : 
-                     viewingEmail.deliveryStatus === 'sent' ? 'Sent' : 'Failed'}
+                    {viewingEmail.deliveryStatus === 'delivered' ? 'Delivered' :
+                      viewingEmail.deliveryStatus === 'sent' ? 'Sent' : 'Failed'}
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
@@ -487,9 +525,9 @@ export const EmailModal: React.FC<EmailModalProps> = ({
                     <div className="flex-1 flex flex-wrap gap-1.5">
                       {viewingEmail.recipients.map(
                         (recipient: string, idx: number) => (
-                          <Tag 
-                            key={idx} 
-                            color="blue" 
+                          <Tag
+                            key={idx}
+                            color="blue"
                             className="!m-0 !px-2 !py-0.5 !text-xs !rounded-full"
                           >
                             {recipient}
@@ -514,9 +552,9 @@ export const EmailModal: React.FC<EmailModalProps> = ({
                     <div className="flex-1 flex flex-wrap gap-1.5">
                       {viewingEmail.ccRecipients.map(
                         (recipient: string, idx: number) => (
-                          <Tag 
-                            key={idx} 
-                            color="cyan" 
+                          <Tag
+                            key={idx}
+                            color="cyan"
                             className="!m-0 !px-2 !py-0.5 !text-xs !rounded-full"
                           >
                             {recipient}
@@ -541,9 +579,9 @@ export const EmailModal: React.FC<EmailModalProps> = ({
                     <div className="flex-1 flex flex-wrap gap-1.5">
                       {viewingEmail.bccRecipients.map(
                         (recipient: string, idx: number) => (
-                          <Tag 
-                            key={idx} 
-                            color="purple" 
+                          <Tag
+                            key={idx}
+                            color="purple"
                             className="!m-0 !px-2 !py-0.5 !text-xs !rounded-full"
                           >
                             {recipient}
@@ -567,15 +605,15 @@ export const EmailModal: React.FC<EmailModalProps> = ({
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {viewingEmail.attachments.map((attachment, idx) => (
-                      <a
-                        key={idx}
-                        href={attachment.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hover:underline text-xs text-blue-600 dark:text-blue-400"
-                      >
-                        {attachment.filename}
-                      </a>
+                    <a
+                      key={idx}
+                      href={attachment.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:underline text-xs text-blue-600 dark:text-blue-400"
+                    >
+                      {attachment.filename}
+                    </a>
                   ))}
                 </div>
               </div>
@@ -608,6 +646,16 @@ export const EmailModal: React.FC<EmailModalProps> = ({
             ...attachments,
           ]);
         }}
+      />
+
+      <AddNewContactModal
+        open={addContactModalOpen}
+        onClose={() => setAddContactModalOpen(false)}
+        onSave={(values) => handleAddNewContact(values)}
+        showExtraFields={false}
+        requireHelthcareId={true}
+        hcoUUID={hcoUUID || undefined}
+        hcoName={hcoName || undefined}
       />
     </>
   );

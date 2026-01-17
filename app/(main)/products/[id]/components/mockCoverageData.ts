@@ -13,7 +13,7 @@ const MOCK_STAGE_UUIDS = {
  * Mock deals data for product coverage view
  * This simulates the response from PRODUCTWISEDEALS API endpoint
  */
-export const MOCK_PRODUCT_DEALS: Deal[] = [
+export const MOCK_PRODUCT_DEALS: any[] = [
   // NHS Deals
   {
     dealUUID: 'deal-001',
@@ -415,7 +415,7 @@ export const MOCK_HEALTHCARES_WITH_DEALS: HealthcareWithDeals[] = [
   {
     hcoUUID: 'hco-nhs-002',
     hcoName: 'NHS Scotland',
-     regionUUID: 'region-001',
+    regionUUID: 'region-001',
     region: 'London',
     hcoServices: [
       {
@@ -463,7 +463,7 @@ export const MOCK_HEALTHCARES_WITH_DEALS: HealthcareWithDeals[] = [
     hcoUUID: 'hco-icb-001',
     hcoName: 'NHS Birmingham and Solihull ICB',
     hcoType: 'ICB',
-     regionUUID: 'region-001',
+    regionUUID: 'region-001',
     region: 'London',
     hcoServices: [
       {
