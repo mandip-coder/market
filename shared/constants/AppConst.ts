@@ -10,6 +10,7 @@ import {
   Mailbox,
   PackageSearch,
   Search,
+  Shield,
   UserRoundCog
 } from "lucide-react";
 import React from "react";
@@ -35,7 +36,7 @@ function getItem(
 
 // Base menu items shared between both menus
 const baseMenuItems = [
-  getItem("Admin", "/admin", LayoutDashboard),
+  getItem("Admin", "/admin", Shield),
   getItem("Dashboard", "/dashboard", LayoutDashboard),
   getItem("Prospects", "/leads", Search),
   getItem("Deals", "/deals", HeartHandshake),

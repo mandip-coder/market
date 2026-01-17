@@ -18,16 +18,16 @@ export default function UnauthorizedPage() {
         subTitle={
           <div className="space-y-2">
             <p>Sorry, you don't have permission to access this page.</p>
-            {currentCompany && (
+            {/* {currentCompany && (
               <p className="text-sm text-gray-500">
                 Current company: <strong>{currentCompany.displayName}</strong>
               </p>
-            )}
-            {pageAccess && pageAccess.length > 0 && (
+            )} */}
+            {/* {pageAccess && pageAccess.length > 0 && (
               <p className="text-sm text-gray-500">
                 Your access: {pageAccess.join(", ")}
               </p>
-            )}
+            )} */}
           </div>
         }
         extra={

@@ -68,18 +68,13 @@ export default auth((req) => {
     const roles = getCurrentRoles(currentCompany);
     const pageAccess = getCurrentPageAccess(currentCompany);
 
-    // // Super admins have access to everything
-    // if (isSuperAdmin(roles)) {
-    //   return NextResponse.next();
-    // }
-
     // Check if user has access to the current route
-    // if (!canAccessRoute(pageAccess, pathName)) {
-    //   // User doesn't have access to this route
-    //   return NextResponse.redirect(
-    //     new URL(getPath(pagePath.unauthorized), req.url)
-    //   );
-    // }
+    if (!canAccessRoute(pageAccess, pathName)) {
+      // User doesn't have access to this route
+      return NextResponse.redirect(
+        new URL(getPath(pagePath.unauthorized), req.url)
+      );
+    }
   }
 
   return NextResponse.next();

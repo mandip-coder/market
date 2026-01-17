@@ -85,7 +85,7 @@ interface DocumentCategory {
   documentcategoryName: string;
 }
 
-interface EmptyAccessRepositoryProps {}
+interface EmptyAccessRepositoryProps { }
 
 // ============================================================================
 // CONSTANTS
@@ -251,12 +251,8 @@ const RepositoryTab = memo<RepositoryTabProps>(({ productUUID }) => {
               productUUID,
               productDocumentUUID: doc.productDocumentUUID,
             });
-            toast.success("Document deleted successfully!");
           } catch (error: any) {
-            console.error("Delete error:", error);
-            toast.error(
-              error?.response?.data?.message || "Failed to delete document"
-            );
+
           } finally {
             setDeletingDocId(null);
           }
@@ -333,8 +329,8 @@ const RepositoryTab = memo<RepositoryTabProps>(({ productUUID }) => {
       </div>
     );
   }
-  if(error){
-    const statusCode=error instanceof ApiError ? error.statusCode : 500;
+  if (error) {
+    const statusCode = error instanceof ApiError ? error.statusCode : 500;
     return (
       <AppErrorUI
         code={statusCode}
@@ -444,7 +440,7 @@ const RepositoryTab = memo<RepositoryTabProps>(({ productUUID }) => {
 
       {/* Documents Grid */}
       <motion.div
-        className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"
+        className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4"
         layout
       >
         <AnimatePresence mode="popLayout">
@@ -695,11 +691,9 @@ export default function ProductDetailsTabs({ id }: ProductDetailsTabsProps) {
           </span>
         ),
         children:
-          accessRepository.length === 1 ? (
-            <EmptyAccessRepository />
-          ) : (
-            <RepositoryTab productUUID={id} />
-          ),
+
+          <RepositoryTab productUUID={id} />
+
       },
       {
         key: "deal" as const,
@@ -738,11 +732,21 @@ export default function ProductDetailsTabs({ id }: ProductDetailsTabsProps) {
   }
 
   // Product not found state
+  if (error) {
+    const statusCode = error instanceof ApiError ? error.statusCode : 500;
+    return (
+      <AppErrorUI
+        code={statusCode}
+        message={error.message}
+      />
+    );
+  }
   if (!product) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600 dark:text-blue-400" />
-      </div>
+      <AppErrorUI
+        code={500}
+        message="Product not found"
+      />
     );
   }
 

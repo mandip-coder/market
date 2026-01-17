@@ -118,7 +118,7 @@ const RecipientSelectionDrawer: React.FC<RecipientSelectionDrawerProps> = ({
 
     const [appliedFilters, setAppliedFilters] = useState<IMassEmailFilters | undefined>(undefined);
 
-    // Pass appliedFilters to hook. Only fetch when appliedFilters is set (enabled: !!appliedFilters). 
+    // Pass appliedFilters to hook. Only fetch when appliedFilters is set (enabled: !!appliedFilters).
     // If the hook is triggered, it will use the params from appliedFilters.
     const { data: contactsData, isLoading: isLoadingContacts, isFetching } = useContactPersons(appliedFilters, !!appliedFilters);
 
@@ -275,9 +275,9 @@ const RecipientSelectionDrawer: React.FC<RecipientSelectionDrawerProps> = ({
 
     // Sync selection with structural filters
     // If a filter is removed, remove any contacts that no longer belong to the filtered set
-    // NOTE: With API loading, this logic might need adjustment. For now, we keep selectedRowKeys based on what's loaded 
+    // NOTE: With API loading, this logic might need adjustment. For now, we keep selectedRowKeys based on what's loaded
     // OR we should perhaps NOT clear selection just because filters change, as user might want to accumulate.
-    // However, the original logic was "Sync selection with structural filters". 
+    // However, the original logic was "Sync selection with structural filters".
     // Let's Comment this out for now as we are doing manual load.
 
     const onTableSelectionChange = (keys: React.Key[]) => {
@@ -286,7 +286,7 @@ const RecipientSelectionDrawer: React.FC<RecipientSelectionDrawerProps> = ({
         setSelectedContactMap(prev => {
             const next = new Map(prev);
 
-            // 1. Identify which ones were removed (if we are in 'showSelectedOnly' mode, 
+            // 1. Identify which ones were removed (if we are in 'showSelectedOnly' mode,
             // or just generally compare against current map)
             const newKeysSet = new Set(keys);
 
@@ -298,7 +298,7 @@ const RecipientSelectionDrawer: React.FC<RecipientSelectionDrawerProps> = ({
             });
 
             // 2. Add new ones from current visible/loaded list
-            // We can only add if we have the full object. 
+            // We can only add if we have the full object.
             // 'displayContacts' contains full objects.
             displayContacts.forEach(c => {
                 if (newKeysSet.has(c.hcoContactUUID)) {
@@ -439,7 +439,7 @@ const RecipientSelectionDrawer: React.FC<RecipientSelectionDrawerProps> = ({
                                             const newICBs = Array.from(new Set([...prev, ...associatedICBs]));
 
                                             // Reverse lookup 2: Select associated Regions based on NEW set of ICBs
-                                            // We need to look up regions for these ICBs. We can use icbsData for this lookup 
+                                            // We need to look up regions for these ICBs. We can use icbsData for this lookup
                                             // assuming icbsData contains the relevant ICBs (which it should if loaded).
                                             const associatedRegions = (icbsData || [])
                                                 .filter(icb => newICBs.includes(icb.icbUUID))
@@ -527,7 +527,7 @@ const RecipientSelectionDrawer: React.FC<RecipientSelectionDrawerProps> = ({
                                     >
                                         All
                                     </Checkbox>
-                                    <Divider type="vertical" className="m-0 h-3" />
+                                    <Divider orientation="vertical" className="m-0 h-3" />
                                     <Checkbox
                                         className="text-[10px]"
                                         checked={showSelectedOnly}
