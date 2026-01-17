@@ -1,9 +1,11 @@
-import { Healthcare } from "@/app/(main)/healthcares/lib/types";
-import { useHCOList, usePersonalityTraits } from "@/services/dropdowns";
-import { useApi } from "@/hooks/useAPI";
-import { useLoading } from "@/hooks/useLoading";
+import { Healthcare } from "@/app/(main)/healthcares/services/types";
+import {
+  useCreateContactPerson,
+  useHCOList,
+  usePersonalityTraits,
+  useUpdateContactPerson,
+} from "@/services/dropdowns/dropdowns.hooks";
 import { rowGutter } from "@/shared/constants/themeConfig";
-import { APIPATH } from "@/shared/constants/url";
 import {
   Button,
   Checkbox,
@@ -12,39 +14,32 @@ import {
   Drawer,
   Row,
   Space,
+  Switch,
   Tag,
   TimePicker,
-  Typography
+  Typography,
 } from "antd";
 import TextArea from "antd/es/input/TextArea";
-import dayjs from "dayjs";
+import dayjs, { Dayjs } from "dayjs";
 import { Form, Formik, FormikHelpers } from "formik";
-import {
-  Brain,
-  Building,
-  Mail,
-  Phone,
-  User
-} from "lucide-react";
+import { Brain, Building, Mail, Phone, User } from "lucide-react";
 import { memo, useCallback, useMemo, useRef } from "react";
-import { toast } from "react-toastify";
 import * as Yup from "yup";
 import CustomSelect from "../CustomSelect/CustomSelect";
 import Input from "../Input/Input";
 import Label from "../Label/Label";
-
-
 
 export interface HCOContactPerson {
   fullName: string;
   role: string;
   email: string;
   phone: string;
-  linkedin?: string;
+  linkedinUrl?: string;
   responsibility?: string;
-  startTime?: string;
-  endTime?: string;
+  workingHoursStart?: string | Dayjs | null;
+  workingHoursEnd?: string | Dayjs | null;
   status: "active" | "inactive";
+  unsubscribe: boolean;
   rating?: number;
   hcoUUID: string;
   hcoContactUUID: string;
@@ -66,15 +61,34 @@ interface ContactModalProps {
   hcoName?: string;
   showExtraFields?: boolean;
   requireHelthcareId?: boolean;
-  healthcareOptions?: Healthcare[]
+  healthcareOptions?: Healthcare[];
 }
 
 interface PersonalityTraits {
-  personalityTraitsName: string;
-  personalityTraitsUUID: string;
+  personalityTraitName: string;
+  personalityTraitUUID: string;
 }
-
-
+const validationSchema = Yup.object().shape({
+  fullName: Yup.string().required("Name is required"),
+  role: Yup.string().required("Role is required"),
+  email: Yup.string().email("Please enter a valid email"),
+  workingHoursStart: Yup.string()
+    .typeError("Please select a valid time")
+    .nullable(),
+  workingHoursEnd: Yup.string()
+    .typeError("Please select a valid time")
+    .nullable(),
+  phone: Yup.string().matches(
+    /^\d{10}$/,
+    "Please enter a valid 10-digit phone number"
+  ),
+  linkedinUrl: Yup.string().url("Please enter a valid LinkedIn URL").nullable(),
+  responsibility: Yup.string().required("Responsibility is required"),
+  remarks: Yup.string(),
+  hcoUUID: Yup.string().required("Healthcare is required"),
+  status: Yup.string().required("Status is required"),
+  unsubscribe: Yup.boolean(),
+});
 
 const ContactModal = memo(
   ({
@@ -86,61 +100,41 @@ const ContactModal = memo(
     hcoName,
     requireHelthcareId = false,
   }: ContactModalProps) => {
-    const handleCloseModal = useCallback((values: any) => onClose(), [onClose]);
+    const handleCloseModal = useCallback(() => onClose(), [onClose]);
     const isEditMode = !!initialContact;
 
     // Use React Query hooks instead of Zustand store
-    const { data: hcoList = [], } = useHCOList();
-    const { data: personalityTraits = [] } = usePersonalityTraits();
-    const validationSchema = useMemo(
-      () =>
-        Yup.object().shape({
-          fullName: Yup.string().required("Name is required"),
-          role: Yup.string().required("Role is required"),
-          email: Yup.string().email("Please enter a valid email"),
-          phone: Yup.string().matches(
-            /^\d{10}$/,
-            "Please enter a valid 10-digit phone number"
-          ),
-          linkedin: Yup.string().url("Please enter a valid LinkedIn URL"),
-          responsibility: Yup.string().required("Responsibility is required"),
-          remarks: Yup.string(),
-          hcoUUID: Yup.string().required("Healthcare is required"),
-          status: Yup.string().required("Status is required"),
-        }),
-      []
-    );
-
-    const [loading, setLoading] = useLoading();
-
-    const API = useApi();
-
-
-
+    const { data: hcoList = [] } = useHCOList({
+      enabled: open,
+    });
+    const { data: personalityTraits = [] } = usePersonalityTraits({
+      enabled: open,
+    });
 
     const initialValues: HCOContactPerson = useMemo(() => {
       if (initialContact) {
         return {
           ...initialContact,
+          personalityTraitUUID: initialContact.personalityTrait.map(
+            (trait) => trait.personalityTraitUUID
+          ),
         };
       }
+
       return {
         hcoContactUUID: "",
         fullName: "",
         role: "",
         email: "",
         phone: "",
-        linkedin: "",
+        linkedinUrl: "",
         responsibility: "",
-        startTime: "",
-        endTime: "",
+        workingHoursStart: null,
+        workingHoursEnd: null,
         remarks: "",
         hcoUUID: hcoUUID || "",
-        status: "active" as "active",
-        createdAt: "",
-        updatedAt: "",
-        createdBy: "",
-        updatedBy: "",
+        status: "active",
+        unsubscribe: false,
         personalityTrait: [],
         personalityTraitUUID: [],
       };
@@ -148,83 +142,102 @@ const ContactModal = memo(
 
     const formikRef = useRef<any>(null);
 
+    // Use the mutation hook for creating contact person
+    const createContactMutation = useCreateContactPerson(hcoUUID || "");
+    const updateContactMutation = useUpdateContactPerson(hcoUUID || "");
     const handleSubmit = useCallback(
-      async (values: HCOContactPerson, { setSubmitting, resetForm }: FormikHelpers<HCOContactPerson>) => {
-        setSubmitting(true);
-        setLoading(true);
-        API.post(APIPATH.CONTACT.CREATECONTACT, values).then((addResponse) => {
-          if (addResponse) {
-            if (onSave) {
-              onSave(addResponse.data);
-            }
-            toast.success("Contact Added Successfully");
-            resetForm();
-            handleCloseModal(values);
-          }
-        }).finally(() => {
-          setSubmitting(false);
-          setLoading(false);
-        });
+      async (
+        values: HCOContactPerson,
+        { resetForm }: FormikHelpers<HCOContactPerson>
+      ) => {
+        if (isEditMode) {
+          await updateContactMutation.mutateAsync(values, {
+            onSuccess: (response) => {
+              if (onSave) {
+                onSave(response);
+              }
+              resetForm();
+              handleCloseModal();
+            },
+          });
+        } else {
+          await createContactMutation.mutateAsync(values, {
+            onSuccess: (response) => {
+              if (onSave) {
+                onSave(response);
+              }
+              resetForm();
+              handleCloseModal();
+            },
+          });
+        }
       },
-      [onSave, setLoading, handleCloseModal, isEditMode, initialContact, loading]
+      [
+        onSave,
+        handleCloseModal,
+        createContactMutation,
+        hcoUUID,
+        updateContactMutation,
+      ]
     );
 
     return (
-      <Drawer
-        size="large"
-        title={
-          <div className="flex items-center gap-3">
-            <User className="h-5 w-5 text-blue-500 dark:text-blue-400" />
-            <span className="dark:text-white">
-              {isEditMode ? "Edit Contact" : "Add New Contact"}
-            </span>
-          </div>
-        }
-        open={open}
-        onClose={() => handleCloseModal(null)}
-        footer={<div style={{ marginTop: 24, textAlign: "right" }}>
-          <Space>
-            <Button
-              className="rounded-xl dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              onClick={() => handleCloseModal(null)}
-              disabled={formikRef.current?.isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="primary"
-              htmlType="submit"
-              form="contactForm"
-              className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl"
-              loading={formikRef.current?.isSubmitting}
-              disabled={formikRef.current?.isSubmitting}
-            >
-              {isEditMode ? "Update" : "Save"}
-            </Button>
-          </Space>
-        </div>}
-        destroyOnHidden
-        maskClosable={false}
+      <Formik<HCOContactPerson>
+        initialValues={initialValues}
+        validationSchema={validationSchema}
+        innerRef={formikRef}
+        onSubmit={handleSubmit}
+        enableReinitialize
+        validateOnChange={false}
       >
-
-        <Formik<HCOContactPerson>
-          initialValues={initialValues}
-          validationSchema={validationSchema}
-          innerRef={formikRef}
-          onSubmit={handleSubmit}
-          enableReinitialize
-          validateOnChange={false}
-          validateOnBlur={false}
-        >
-          {({
-            setFieldValue,
-
-            values,
-            errors,
-            touched,
-            handleBlur,
-          }) => {
-            return (
+        {({
+          setFieldValue,
+          values,
+          errors,
+          touched,
+          handleBlur,
+          isSubmitting,
+          dirty,
+        }) => {
+          return (
+            <Drawer
+              size="large"
+              title={
+                <div className="flex items-center gap-3">
+                  <User className="h-5 w-5 text-blue-500 dark:text-blue-400" />
+                  <span className="dark:text-white">
+                    {isEditMode ? "Edit Contact" : "Add New Contact"}
+                  </span>
+                </div>
+              }
+              open={open}
+              onClose={() => handleCloseModal()}
+              footer={
+                <div style={{ marginTop: 24, textAlign: "right" }}>
+                  <Space>
+                    <Button
+                      className="rounded-xl dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                      onClick={() => handleCloseModal()}
+                      disabled={isSubmitting}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="primary"
+                      htmlType="submit"
+                      form="contactForm"
+                      className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl"
+                      loading={isSubmitting}
+                      disabled={isSubmitting || !dirty}
+                    >
+                      {isEditMode ? "Update" : "Save"}
+                    </Button>
+                  </Space>
+                </div>
+              }
+              destroyOnHidden
+              maskClosable={false}
+            >
               <Form id="contactForm">
                 <Row gutter={rowGutter}>
                   {/* Basic Information */}
@@ -264,6 +277,7 @@ const ContactModal = memo(
                       <Input
                         label="Phone"
                         name="phone"
+                        maxLength={10}
                         prefix={
                           <Phone className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                         }
@@ -273,36 +287,38 @@ const ContactModal = memo(
 
                   {/* LinkedIn Field */}
                   <Col span={12}>
-                    <Input label="LinkedIn" name="linkedin" />
+                    <Input label="LinkedIn" name="linkedinUrl" />
                   </Col>
                   <Col span={12}>
                     <Label text="Working Hours" />
                     <TimePicker.RangePicker
-                      format="hh:mm A"
+                      format="HH:mm"
                       className="w-full"
-                      onChange={(value) => {
-                        if (value && value.length === 2) {
-                          const startTime = value[0]?.format("HH:mm:ss");
-                          const endTime = value[1]?.format("HH:mm:ss");
-                          setFieldValue("startTime", startTime);
-                          setFieldValue("endTime", endTime);
-                        } else {
-                          setFieldValue("startTime", null);
-                          setFieldValue("endTime", null);
+                      value={[
+                        values.workingHoursStart
+                          ? dayjs(values.workingHoursStart, "HH:mm")
+                          : null,
+                        values.workingHoursEnd
+                          ? dayjs(values.workingHoursEnd, "HH:mm")
+                          : null,
+                      ]}
+                      onChange={(dates) => {
+                        if (!dates) {
+                          setFieldValue("workingHoursStart", null);
+                          setFieldValue("workingHoursEnd", null);
+                          return;
                         }
+
+                        // Save back as String "HH:mm:ss" to keep Formik state consistent
+                        setFieldValue(
+                          "workingHoursStart",
+                          dates[0] ? dates[0].format("HH:mm") : null
+                        );
+                        setFieldValue(
+                          "workingHoursEnd",
+                          dates[1] ? dates[1].format("HH:mm") : null
+                        );
                       }}
-                      value={
-                        values.startTime && values.endTime
-                          ? [
-                            values.startTime
-                              ? dayjs(values.startTime, "HH:mm:ss")
-                              : null,
-                            values.endTime
-                              ? dayjs(values.endTime, "HH:mm:ss")
-                              : null,
-                          ]
-                          : null
-                      }
                     />
                   </Col>
                   <Col span={24}>
@@ -334,12 +350,34 @@ const ContactModal = memo(
                     <Label text="Remarks" />
                     <TextArea
                       name="remarks"
-                      onChange={(e) =>
-                        setFieldValue("remarks", e.target.value)
-                      }
+                      onChange={(e) => setFieldValue("remarks", e.target.value)}
                       onBlur={handleBlur}
                       value={values.remarks}
                       className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    />
+                  </Col>
+
+                  <Col span={12} className="flex items-center gap-2 mt-4">
+                    <Label text="Status" />
+                    <Switch
+                      checked={values.status === "active"}
+                      onChange={(checked) =>
+                        setFieldValue("status", checked ? "active" : "inactive")
+                      }
+                      size="small"
+                      checkedChildren="Active"
+                      unCheckedChildren="Inactive"
+                    />
+                  </Col>
+                  
+                  <Col span={12} className="flex items-center gap-2 mt-4">
+                    <Label text="Unsubscribe (Emails)" />
+                    <Switch
+                      checked={values.unsubscribe}
+                      onChange={(checked) => setFieldValue("unsubscribe", checked)}
+                      checkedChildren="Yes"
+                      size="small"
+                      unCheckedChildren="No"
                     />
                   </Col>
 
@@ -348,7 +386,7 @@ const ContactModal = memo(
                       {hcoUUID ? (
                         <div>
                           <Label text="Healthcare" required />
-                          <Tag>
+                          <Tag color="blue">
                             <Typography.Text color="" type="secondary">
                               {hcoName}
                             </Typography.Text>
@@ -392,14 +430,11 @@ const ContactModal = memo(
                             const currentTraits =
                               values.personalityTraitUUID || [];
                             const newTraits = e.target.checked
-                              ? [
-                                ...currentTraits,
-                                option.personalityTraitsUUID,
-                              ]
+                              ? [...currentTraits, option.personalityTraitsUUID]
                               : currentTraits.filter(
-                                (uuid: string) =>
-                                  uuid !== option.personalityTraitsUUID
-                              );
+                                  (uuid: string) =>
+                                    uuid !== option.personalityTraitsUUID
+                                );
                             setFieldValue("personalityTraitUUID", newTraits);
                           }}
                           className="dark:text-gray-300"
@@ -410,13 +445,11 @@ const ContactModal = memo(
                     ))}
                   </Row>
                 </div>
-
-
               </Form>
-            );
-          }}
-        </Formik>
-      </Drawer>
+            </Drawer>
+          );
+        }}
+      </Formik>
     );
   }
 );

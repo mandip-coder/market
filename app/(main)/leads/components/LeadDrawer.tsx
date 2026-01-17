@@ -1,36 +1,29 @@
 import AddNewContactModal, {
   HCOContactPerson,
 } from "@/components/AddNewContactModal/AddNewContactModal";
-import AsyncSearchSelect from "@/components/AsyncSearchSelect/AsyncSearchSelect";
 import CustomDatePicker from "@/components/CustomDatePicker/CustomDatePicker";
 import CustomSelect from "@/components/CustomSelect/CustomSelect";
 import Input from "@/components/Input/Input";
 import Label from "@/components/Label/Label";
-import { useLeadStore } from "@/context/store/leadsStore";
+import ContactOptionsRender from "@/components/shared/ContactOptionsRender";
+import { useLeadModal } from "@/context/store/optimizedSelectors";
+import { useDropdownContactPersons, useHCOList, useLeadSources, useUsers } from "@/services/dropdowns/dropdowns.hooks";
 import { Button, Col, Drawer, Row } from "antd";
 import TextArea from "antd/es/input/TextArea";
+import dayjs from "dayjs";
 import {
-  Field,
-  FieldMetaProps,
-  FieldProps,
   Form,
   Formik,
-  FormikHelpers,
-  FormikProps,
+  FormikProps
 } from "formik";
 import { Plus, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "react-toastify";
+import { toast } from '@/components/AppToaster/AppToaster';
 import * as Yup from "yup";
-import HealthCareData from "../../deals/healthcares.json";
-import dayjs from "dayjs";
-import { useDropDowns, useLeadModal } from "@/context/store/optimizedSelectors";
-import { useApi } from "@/hooks/useAPI";
-import { APIPATH } from "@/shared/constants/url";
-import { fetchContacts } from "@/Utils/helpers";
-import ContactOptionsRender from "@/components/shared/ContactOptionsRender";
 import { useCreateLead } from "../services/leads.hooks";
+import { useApplyRecommendation } from "../services/recommendations.hooks";
+import { contactDropDownFilter } from "@/Utils/helpers";
 
 export interface LeadFormData {
   leadName: string;
@@ -40,13 +33,13 @@ export interface LeadFormData {
   contactPersons: string[];
   assignTo: string[];
   hcoUUID: string;
-  leadUUID: string;
+  // leadUUID: string;
 }
 
 const validationSchema = Yup.object().shape({
-  leadName: Yup.string().required("Lead name is required"),
+  leadName: Yup.string().required("Title is required"),
   summary: Yup.string().required("Summary is required"),
-  leadSource: Yup.string().required("Lead source is required"),
+  leadSource: Yup.string().required("Prospect source is required"),
   contactPersons: Yup.array()
     .required("Contact person is required")
     .min(1, "At least one contact person is required"),
@@ -59,48 +52,50 @@ const validationSchema = Yup.object().shape({
 
 function LeadDrawer() {
   const [AddNewContactModalOpen, setAddNewContactModalOpen] = useState(false);
-  const { leadModal, toggleLeadDrawer, preFilledData } = useLeadModal();
-  const { usersList, hcoList, leadSources } = useDropDowns();
-  const [contactsOptions, setContactsOptions] = useState<HCOContactPerson[]>(
-    []
-  );
+  const { leadModal, toggleLeadDrawer, preFilledData, recommendationUUID, clearRecommendationUUID } = useLeadModal();
+
+  const { data: hcoList = [] } = useHCOList({
+    enabled: leadModal,
+  })
+  const { data: usersList = [] } = useUsers({
+    enabled: leadModal,
+  })
+  const { data: leadSources = [] } = useLeadSources({
+    enabled: leadModal,
+  })
+
   const [selectedHcoUUID, setSelectedHcoUUID] = useState<string>("");
+
   const formikRef = useRef<FormikProps<LeadFormData>>(null);
   const router = useRouter();
-  const API = useApi();
 
   // Use React Query mutation hook for creating leads
   const createLeadMutation = useCreateLead();
+  const applyRecommendationMutation = useApplyRecommendation();
+  const { data: hcoContactList = [] } = useDropdownContactPersons(selectedHcoUUID);
 
-  async function fetchContactOptions() {
-    const contacts = await fetchContacts(
-      API,
-      selectedHcoUUID
-    );
-    setContactsOptions(contacts ?? []);
-  }
   useEffect(() => {
     if (leadModal && preFilledData?.hcoUUID) {
       setSelectedHcoUUID(preFilledData.hcoUUID);
     } else if (!leadModal) {
       setSelectedHcoUUID("");
-      setContactsOptions([]);
+
     }
   }, [leadModal, preFilledData?.hcoUUID]);
 
-  useEffect(() => {
-    if (
-      selectedHcoUUID !== "" &&
-      selectedHcoUUID !== undefined &&
-      selectedHcoUUID !== null
-    ) {
-      fetchContactOptions();
-    }
-  }, [selectedHcoUUID]);
+
 
   const handleSubmit = async (values: LeadFormData): Promise<void> => {
     createLeadMutation.mutate(values, {
       onSuccess: (data) => {
+        // If this lead was created from a recommendation, apply it
+        if (recommendationUUID) {
+          applyRecommendationMutation.mutate(recommendationUUID, {
+            onSettled: () => {
+              clearRecommendationUUID();
+            },
+          });
+        }
         toggleLeadDrawer();
         router.push(`/leads/${data.leadUUID}`);
       },
@@ -115,20 +110,27 @@ function LeadDrawer() {
   }, []);
 
   const handleAddNewContact = (contactData: HCOContactPerson) => {
-    if (contactData) {
-      setContactsOptions((prev) => [...prev, contactData]);
-      formikRef.current?.setFieldValue(
-        "contactPersons",
-        contactData.hcoContactUUID
-      );
-      formikRef.current?.setFieldTouched("contactPersons", true);
-      setAddNewContactModalOpen(false);
-    }
+    setTimeout(() => {
+      if (contactData) {
+        const currentContacts = formikRef.current?.values.contactPersons || [];
+        formikRef.current?.setFieldValue(
+          "contactPersons",
+          [...currentContacts, contactData.hcoContactUUID]
+        );
+        formikRef.current?.setFieldTouched("contactPersons", true);
+        setAddNewContactModalOpen(false);
+      }
+
+    }, 100);
   };
 
   const handleClose = useCallback(() => {
+    // Clear recommendation UUID if drawer is closed without submitting
+    if (recommendationUUID) {
+      clearRecommendationUUID();
+    }
     toggleLeadDrawer();
-  }, []);
+  }, [recommendationUUID, clearRecommendationUUID, toggleLeadDrawer]);
 
   return (
     <>
@@ -163,7 +165,6 @@ function LeadDrawer() {
             leadSource: preFilledData?.leadSource || "",
             contactPersons: preFilledData?.contactPersons || [],
             assignTo: preFilledData?.assignTo || [],
-            leadUUID: preFilledData?.leadUUID || "",
           }}
           validationSchema={validationSchema}
           onSubmit={handleSubmit}
@@ -174,7 +175,7 @@ function LeadDrawer() {
               <Form id="leadForm">
                 <Row gutter={[16, 16]}>
                   <Col xs={24}>
-                    <Input name="leadName" label="Lead Name" required />
+                    <Input name="leadName" label="Title" required />
                   </Col>
 
                   <Col xs={24} sm={12}>
@@ -185,6 +186,7 @@ function LeadDrawer() {
                       required
                       value={values.hcoUUID}
                       placeholder="Select healthcare..."
+                      disabled={!!recommendationUUID && !!preFilledData?.hcoUUID}
                       options={hcoList.map((h) => ({
                         label: h.hcoName,
                         value: h.hcoUUID,
@@ -204,11 +206,14 @@ function LeadDrawer() {
                     <CustomSelect
                       required
                       name="leadSource"
-                      label="Lead Source"
+                      label="Prospect Source"
                       options={leadSources.map((source) => ({
                         label: source.leadSourceName,
                         value: source.leadSourceUUID,
                       }))}
+                      showSearch={{
+                        optionFilterProp: "label",
+                      }}
                     />
                   </Col>
 
@@ -231,6 +236,9 @@ function LeadDrawer() {
                         label: user.fullName,
                         value: user.userUUID,
                       }))}
+                      showSearch={{
+                        optionFilterProp: "label",
+                      }}
                       maxResponsive
                     />
                   </Col>
@@ -250,7 +258,10 @@ function LeadDrawer() {
                       mode="multiple"
                       allowClear
                       maxResponsive
-                      options={contactsOptions.map((contact) => ({
+                      showSearch={{
+                        filterOption: contactDropDownFilter
+                      }}
+                      options={hcoContactList.map((contact) => ({
                         label: contact.fullName,
                         value: contact.hcoContactUUID,
                         contact,
@@ -276,17 +287,18 @@ function LeadDrawer() {
                     />
                   </Col>
                   <Col xs={24}>
-                    <Label text="Summary" htmlFor="summary" />
+                    <Label text="Summary" htmlFor="summary" required />
                     <TextArea
                       name="summary"
                       id="summary"
                       value={values.summary}
                       onChange={handleChange}
                       onBlur={handleBlur}
-                      placeholder="Describe the lead, key discussion points, client's feedback, and any action items..."
+                      placeholder="Describe the Prospect, key discussion points, client's feedback, and any action items..."
                       maxLength={2000}
                       rows={8}
                       showCount
+                      required
                       className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                     />
                   </Col>

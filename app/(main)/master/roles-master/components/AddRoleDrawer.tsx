@@ -1,38 +1,23 @@
 'use client'
 import { useRoleStore } from "@/context/store/rolesStore";
-import { useApi } from "@/hooks/useAPI";
-import { useLoading } from "@/hooks/useLoading";
-import { APIPATH } from "@/shared/constants/url";
 import { Button, Drawer } from "antd";
 import { Form, Formik, FormikProps } from 'formik';
 import { Save } from "lucide-react";
 import { memo, useRef } from "react";
-import { toast } from "react-toastify";
 import * as Yup from 'yup';
 import BasicDetailsForm from "./BasicDetailsForm";
-import { Role } from "./RoleDataTable";
-
-
-
-export interface RolesFormData {
-  roleUUID: string;
-  roleName: string;
-  description: string;
-  roleCode: string;
-  isSystemRole: boolean;
-  status: "active" | "inactive"
-  createdAt: string;
-  updatedAt: string;
-}
+import { useCreateRole, useUpdateRole } from "../services/roles.hooks";
+import { Role } from "../services/roles.types";
 
 
 function AddRoleDrawer() {
-  const API = useApi()
-  const [loading, setLoading] = useLoading();
-  const formikRef = useRef<FormikProps<RolesFormData>>(null);
-  const { addRolesDrawer, toggleRolesDrawer, editRole, setTableDataState, setEditRole } = useRoleStore()
+  const formikRef = useRef<FormikProps<Role>>(null);
+  const { addRolesDrawer, toggleRolesDrawer, editRole, setEditRole } = useRoleStore()
   const isEditMode = !!editRole;
   const rolesData = editRole || null;
+
+  const createRoleMutation = useCreateRole();
+  const updateRoleMutation = useUpdateRole();
 
   const handleClose = () => {
     formikRef.current?.resetForm();
@@ -40,32 +25,27 @@ function AddRoleDrawer() {
     toggleRolesDrawer();
   };
 
-  const handleSubmit = async (values: RolesFormData): Promise<void> => {
-    setLoading(true);
-    try {
-      if (isEditMode) {
-        const res = await API.put(`${APIPATH.ROLES.UPDATEROLE}${rolesData?.roleUUID}`, values);
-        setTableDataState(prevData => prevData.map(r => r.roleUUID === rolesData?.roleUUID ? { ...r, ...res.data as Role } : r));
-        toast.success('Role updated successfully!');
+  const handleSubmit = async (values: Role): Promise<void> => {
+      if (isEditMode && rolesData?.roleUUID) {
+        await updateRoleMutation.mutateAsync({
+          roleUUID: rolesData.roleUUID,
+          role: values
+        },{
+          onSuccess: () => {
+            handleClose();
+          },
+        });
       } else {
-        const res = await API.post(APIPATH.ROLES.CREATEROLE, values)
-        if (res.status) {
-          const newRole = { ...res.data as Role, status: (res.data as Role).status || 'active' };
-          setTableDataState(prevData => [...prevData, newRole]);
-          toast.success('Role created successfully!');
-        } else {
-          toast.error(res.message);
-        }
+        const { roleUUID, createdAt, updatedAt, ...roleData } = values;
+        await createRoleMutation.mutateAsync(roleData,{
+          onSuccess: () => {
+            handleClose();
+          },
+        });
       }
-      handleClose();
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to create role. Please try again.');
-    } finally {
-      setLoading(false);
-    }
   };
 
-  const getInitialValues = (): RolesFormData => {
+  const getInitialValues = (): Role => {
     if (isEditMode && rolesData) {
       return {
         ...rolesData,
@@ -109,7 +89,7 @@ function AddRoleDrawer() {
           <Button
             type="primary"
             onClick={() => formikRef.current?.submitForm()}
-            loading={loading}
+            loading={createRoleMutation.isPending || updateRoleMutation.isPending}
             icon={<Save className="h-4 w-4" />}
           >
             {isEditMode ? 'Update' : 'Create'}

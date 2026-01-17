@@ -1,5 +1,5 @@
 import { DefaultSession } from "next-auth"
-import { Company } from "@/app/(main)/master/company-master/components/CompanyDataTable"
+import { Company, Role, PageAccess } from "@/types/authorization"
 
 declare module "next-auth" {
   interface Session {

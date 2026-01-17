@@ -14,6 +14,11 @@ export interface Lead {
   closeReason?: string;
   createdUUID?: string;
   contactPersons: HCOContactPerson[];
+  emailCount: number;
+  callLogCount: number;
+  followUpCount: number;
+  updatedUUID?: string;
+  updatedBy?: string;
 }
 
 export interface LeadFilters {
@@ -50,4 +55,80 @@ export interface CancelLeadData {
 
 export interface ConvertLeadData {
   leadUUID: string;
+  summary: string;
+}
+export interface CreateFollowUpPayload {
+  leadUUID?: string;
+  dealUUID?: string;
+  subject: string;
+  scheduledDate: string;
+  contactPersons: string[];
+  description: string;
+  followUpMode: string;
+}
+
+
+export interface UpdateFollowUpPayload {
+  subject?: string;
+  scheduledDate?: string;
+  contactPersons?: string[];
+  description?: string;
+  followUpMode?: string;
+}
+
+
+export interface CreateCallPayload {
+  leadUUID?: string;
+  dealUUID?: string;
+  subject: string;
+  callStartTime: string;
+  duration: string;
+  purpose: string;
+  agenda: string;
+  outcomeUUID: string;
+  comment?: string;
+}
+
+export interface UpdateCallPayload {
+  subject?: string;
+  callStartTime?: string;
+  duration?: string;
+  purpose?: string;
+  agenda?: string;
+  outcomeUUID?: string;
+  comment?: string;
+}
+
+
+export interface SendEmailPayload {
+  leadUUID?: string;
+  dealUUID?: string;
+  subject: string;
+  body: string;
+  recipients: string[];
+  ccRecipients?: string[];
+  bccRecipients?: string[];
+  attachments?: {
+    filename: string;
+    url: string;
+    filePath: string;
+    size: number;
+    mimeType: string;
+  }[];
+}
+
+export interface LeadTimelineCounts {
+  product: number;
+  attachment: number;
+  meeting: number;
+  followUp: number;
+  call: number;
+  email: number;
+  note: number;
+  stageChange: number;
+}
+
+export interface TimelineFilters {
+  page: number;
+  tabs: string[];
 }

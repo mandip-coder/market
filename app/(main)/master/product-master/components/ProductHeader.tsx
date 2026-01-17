@@ -1,5 +1,5 @@
 "use client";
-import AddProductForm from "@/app/(main)/products/AddProductForm";
+import AddProductForm from "@/app/(main)/products/AddProductDrawer";
 import PageHeading from "@/components/PageHeading/PageHeading";
 import { useProductStore } from "@/context/store/productStore";
 import { Button } from "antd";

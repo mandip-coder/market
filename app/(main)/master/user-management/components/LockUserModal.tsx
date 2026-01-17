@@ -4,8 +4,8 @@ import { useLoading } from "@/hooks/useLoading";
 import { DatePicker, Radio, Space } from "antd";
 import dayjs from "dayjs";
 import React, { useCallback, useState } from "react";
-import { toast } from "react-toastify";
-import { User } from "./UserDataTable";
+import { toast } from '@/components/AppToaster/AppToaster';
+import { User } from "../services/user.types";
 
 
 export const LockUserModal = React.memo(({
@@ -20,27 +20,16 @@ export const LockUserModal = React.memo(({
   currentLockUntil?: string;
 }) => {
   
-  const { setTableDataState,lockModal,setLockModal } = useUsersStore();
+  const { lockModal,setLockModal } = useUsersStore();
   const [permanent, setPermanent] = useState(!currentLockUntil);
   const [startDate, setStartDate] = useState<dayjs.Dayjs | null>(currentLockUntil ? dayjs() : null);
   const [endDate, setEndDate] = useState<dayjs.Dayjs | null>(currentLockUntil ? dayjs(currentLockUntil) : null);
-  const [loading, setLoading] = useLoading();
   const { RangePicker } = DatePicker;
-  const handleUserStatusUpdate = useCallback((userId: string, newStatus: User['status'], lockUntil?: string) => {
-    setTableDataState(prevData =>
-      prevData.map(user =>
-        user.userUUID === userId ? { ...user, status: newStatus, lockUntil } : user
-      )
-    );
-  }, []);
   const handleLockUser = useCallback((permanent: boolean, lockUntil?: string) => {
     if (!lockedUser) return;
 
     // Simulate API call
-    setLoading(true);
     setTimeout(() => {
-      handleUserStatusUpdate(lockedUser.userUUID, 'locked', lockUntil);
-      setLoading(false);
 
       const action = isEditing ? 'updated' : 'locked';
       const lockType = permanent ? 'permanently' : `until ${dayjs(lockUntil).format('MMM DD, YYYY')}`;
@@ -48,7 +37,7 @@ export const LockUserModal = React.memo(({
 
       setLockModal(false);
     }, 500);
-  }, [lockedUser, handleUserStatusUpdate, setLoading, isEditing]);
+  }, [lockedUser, isEditing]);
 
   // Initialize state when editing
   React.useEffect(() => {

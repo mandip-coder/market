@@ -1,30 +1,35 @@
 import { FollowUpModal as SharedFollowUpModal } from '@/components/shared/modals/FollowUpModal';
-import { useDealFollowUps } from '@/context/store/optimizedSelectors';
-import { HCOContactPerson } from '@/components/AddNewContactModal/AddNewContactModal';
-import { useCallback } from 'react';
+import { FollowUP } from '@/lib/types';
+import { useDropdownContactPersons } from '@/services/dropdowns/dropdowns.hooks';
+import { useCancelFollowUp, useCompleteFollowUp, useCreateFollowUp, useDeleteFollowUp, useRescheduleFollowUp, useUpdateFollowUp } from '../../services/deals.hooks';
+import { Deal } from '../../services/deals.types';
 
-export default function FollowUpModal() {
-  const { followUps, addFollowUp, updateFollowUp, completeFollowUp, cancelFollowUp, rescheduleFollowUp, deleteFollowUp, contactPersons, setContactPersons, hcoDetails, dealUUID,setFollowUps } = useDealFollowUps();
-  
-  const handleAddContactPerson = useCallback((contact: HCOContactPerson) => {
-    setContactPersons([...contactPersons, contact]);
-  }, [contactPersons, setContactPersons]);
-  
+export default function FollowUpModal({ deal, followUps, refetching, refetch }: { deal: Deal, followUps: FollowUP[], refetching: boolean, refetch: () => void }) {
+
+  const createFollowUp = useCreateFollowUp(deal.dealUUID);
+  const updateFollowUp = useUpdateFollowUp(deal.dealUUID);
+  const completeFollowUp = useCompleteFollowUp(deal.dealUUID);
+  const cancelFollowUp = useCancelFollowUp(deal.dealUUID);
+  const rescheduleFollowUp = useRescheduleFollowUp(deal.dealUUID);
+  const deleteFollowUp = useDeleteFollowUp(deal.dealUUID);
+  const { data: contactPersons } = useDropdownContactPersons(deal.hcoUUID);
+
+
   return (
-    <SharedFollowUpModal 
-      followUps={followUps} 
-      addFollowUp={addFollowUp} 
+    <SharedFollowUpModal
+      followUps={followUps}
+      createFollowUp={createFollowUp}
       updateFollowUp={updateFollowUp}
       completeFollowUp={completeFollowUp}
       cancelFollowUp={cancelFollowUp}
       rescheduleFollowUp={rescheduleFollowUp}
       deleteFollowUp={deleteFollowUp}
-      contactPersons={contactPersons}
-      onAddContactPerson={handleAddContactPerson}
-      hcoUUID={hcoDetails.hcoUUID}
-      hcoName={hcoDetails.hcoName}
-      dealUUID={dealUUID}
-      setFollowUps={setFollowUps}
+      contactPersons={contactPersons || []}
+      hcoUUID={deal.hcoUUID}
+      hcoName={deal.hcoName}
+      dealUUID={deal.dealUUID}
+      refetching={refetching}
+      refetch={refetch}
     />
   );
 }

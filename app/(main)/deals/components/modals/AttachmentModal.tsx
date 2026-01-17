@@ -1,8 +1,9 @@
 import { GlobalDate } from "@/Utils/helpers";
 import Label from "@/components/Label/Label";
 import ModalWrapper from "@/components/Modal/Modal";
-import { AppstoreOutlined, BarsOutlined, CheckCircleOutlined, FileExcelOutlined, FileImageOutlined, FileOutlined, FilePdfOutlined, FileUnknownOutlined, FileWordOutlined, FileZipOutlined, FolderOpenOutlined, FolderOutlined, PaperClipOutlined, RightOutlined, SearchOutlined, StarFilled, StarOutlined, UploadOutlined } from "@ant-design/icons";
-import { App, Badge, Breadcrumb, Button, Empty, Input, Segmented, Spin, Tabs, Tag, Typography, Upload } from "antd";
+import { APIPATH } from "@/shared/constants/url";
+import { AppstoreOutlined, BarsOutlined, CheckCircleOutlined, FileExcelOutlined, FileImageOutlined, FileOutlined, FilePdfOutlined, FileUnknownOutlined, FileWordOutlined, FileZipOutlined, FolderOpenOutlined, PaperClipOutlined, SearchOutlined, StarFilled, StarOutlined, UploadOutlined } from "@ant-design/icons";
+import { App, Badge, Button, Empty, Input, Segmented, Tabs, Tag, Typography, Upload } from "antd";
 import { UploadProps } from "antd/lib";
 import { HardDrive } from "lucide-react";
 import { JSX, memo, useCallback, useEffect, useMemo, useState } from "react";
@@ -27,7 +28,7 @@ interface Document {
 interface AttachmentModalProps {
   visible: boolean;
   onClose: () => void;
-  onSelect: (attachments: string[]) => void;
+  onSelect: (attachments: any[]) => void;
 }
 
 // Constants
@@ -500,8 +501,25 @@ const AttachmentModal = memo(({ visible, onClose, onSelect }: AttachmentModalPro
   }, []);
 
   const handleConfirm = useCallback(() => {
-    const serverAttachments = selectedDocs.map(doc => doc.path);
-    const uploadedAttachments = uploadedFiles.map(file => file.response?.url || file.name);
+    const serverAttachments = selectedDocs.map(doc => ({
+      filename: doc.name,
+      url: doc.path,
+      filePath: doc.path,
+      size: parseFloat(doc.size) || 0,
+      mimeType: doc.type
+    }));
+
+    const uploadedAttachments = uploadedFiles
+      .filter(file => file.status === 'done' && file.response)
+      .map(file => ({
+        filename: file.response.originalFileName || file.name,
+        url: file.response.fileUrl || "",
+        filePath: file.response.filePath || "",
+        size: file.response.fileSize || file.size || 0,
+        mimeType: file.response.fileType || file.type || "application/octet-stream",
+        storageType: file.response.storageType
+      }));
+
     onSelect([...serverAttachments, ...uploadedAttachments]);
 
     // Reset states
@@ -528,6 +546,10 @@ const AttachmentModal = memo(({ visible, onClose, onSelect }: AttachmentModalPro
   // Upload props
   const uploadProps: UploadProps = {
     multiple: true,
+    action: APIPATH.FILEUPLOAD,
+    data: {
+      moduleName: "email",
+    },
     maxCount: 10,
     fileList: uploadedFiles,
     beforeUpload: (file: File) => {

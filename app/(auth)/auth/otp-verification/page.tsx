@@ -1,11 +1,25 @@
 "use client";
-import React, { useEffect, useState, useCallback } from "react";
-import { Input, Button, Spin, Result } from "antd";
-import Image from "next/image";
+import { toast } from "@/components/AppToaster/AppToaster";
+import AuthLogo from "@/components/AuthLogo/AuthLogo";
+import { CheckCircleOutlined, ClockCircleOutlined, CloseCircleOutlined } from "@ant-design/icons";
+import { Button, Input, Result, Spin } from "antd";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CheckCircleOutlined, LoadingOutlined, ClockCircleOutlined, CloseCircleOutlined } from "@ant-design/icons";
-import { toast } from "@/components/AppToaster/AppToaster";
+import { useCallback, useEffect, useState } from "react";
+
+// Helper function to obscure email
+const obscureEmail = (email: string): string => {
+  if (!email) return '';
+  const [localPart, domain] = email.split('@');
+  if (!localPart || !domain) return email;
+
+  // Show first 2 characters and last 1 character of local part
+  const visibleStart = localPart.slice(0, 2);
+  const visibleEnd = localPart.slice(-1);
+  const obscuredPart = '*'.repeat(Math.max(3, localPart.length - 3));
+
+  return `${visibleStart}${obscuredPart}${visibleEnd}@${domain}`;
+};
 
 const RESENDTIME = 5;
 const VerifyOTP = () => {
@@ -17,7 +31,16 @@ const VerifyOTP = () => {
   const [resendLoading, setResendLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [attempts, setAttempts] = useState<number>(0);
+  const [email, setEmail] = useState<string>('');
   const router = useRouter();
+
+  // Retrieve email from sessionStorage
+  useEffect(() => {
+    const storedEmail = sessionStorage.getItem('loginEmail');
+    if (storedEmail) {
+      setEmail(storedEmail);
+    }
+  }, []);
 
   // Timer countdown effect
   useEffect(() => {
@@ -44,15 +67,15 @@ const VerifyOTP = () => {
     setError(null);
 
     // Simulate API call with random success/failure
-    new Promise((resolve, reject) => {
+    new Promise(() => {
       setTimeout(() => {
         // For testing: "123456" is always correct, others have 30% success rate
-        const isSuccess = otp === "123456" 
+        const isSuccess = otp === "123456"
         if (isSuccess) {
           setIsVerified(true);
           setLoading(false);
           toast.success("OTP verified successfully!");
-          
+
           setTimeout(() => {
             router.push('/auth/reset-password');
           }, 1000);
@@ -60,7 +83,7 @@ const VerifyOTP = () => {
           const newAttempts = attempts + 1;
           setAttempts(newAttempts);
           setLoading(false);
-          
+
           if (newAttempts >= 3) {
             setError("Too many failed attempts. Please request a new OTP.");
             setCanResend(true);
@@ -68,7 +91,7 @@ const VerifyOTP = () => {
           } else {
             setError(`Invalid OTP. ${3 - newAttempts} attempts remaining.`);
           }
-            setOtp("");
+          setOtp("");
         }
       }, 2000);
     });
@@ -86,7 +109,7 @@ const VerifyOTP = () => {
     setError(null);
     setAttempts(0);
 
-    new Promise((resolve) => {
+    new Promise(() => {
       setTimeout(() => {
         toast.success("A new OTP has been sent to your email");
         setTimer(RESENDTIME);
@@ -104,96 +127,93 @@ const VerifyOTP = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center">
-      <div className="w-full max-w-md">
-        {/* Header with logo */}
-        <div className="p-6 text-center">
-          <Image
-            className="w-auto max-w-[180px] mx-auto mb-5"
-            src={'/market-access/images/brand-logo.svg'}
-            height={80}
-            width={80}
-            alt="logo"
-          />
-          <h1 className="text-2xl font-bold">OTP Verification</h1>
-          <p className="mt-1">Enter the OTP sent to your email</p>
-        </div>
+    <div className="h-full flex flex-col items-center justify-center border border-white/20 shadow-2xl p-8 md:p-12 rounded-3xl w-full max-w-lg bg-white/70 dark:bg-black/60 backdrop-blur-xl">
+      {/* Header with logo */}
+      <div className="mb-6 text-center pb-2">
+        <AuthLogo />
+      </div>
+      <div className="mb-8 text-center">
+        <h1 className="text-2xl font-bold mb-2 text-gray-800 dark:text-white">OTP Verification</h1>
+        <span className="text-gray-600 font-medium text-sm md:text-base dark:text-gray-300">
+          Enter the OTP sent to {email ? <span className="font-semibold text-primary">{obscureEmail(email)}</span> : 'your email'}
+        </span>
+      </div>
 
-        {/* Main content */}
-        <div className="p-6">
-          {loading ? (
-            <div className="py-10 flex flex-col items-center justify-center">
-              <Spin size="large" />
-              <p className="text-lg text-gray-600 mt-6 animate-pulse">Verifying your OTP...</p>
-            </div>
-          ) : isVerified ? (
-            <Result
-              icon={<CheckCircleOutlined style={{ color: "#52c41a" }} />}
-              title="OTP Verified"
-              subTitle="Redirecting to reset password..."
-            />
-          ) : (
-            <>
-              <div className="mb-8 text-center">
-                <Input.OTP
-                  size="large"
-                  length={6}
-                  mask={true}
-                  value={otp}
-                  onChange={(value) => { 
-                    setOtp(value); 
-                    if (error) setError(null);
-                  }}
-                  disabled={loading||attempts>=3}
-                  status={error ? "error" : ""}
-                  className="text-center text-2xl tracking-widest py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:shadow-md transition-all"
-                  autoFocus
-                />
-                {error && (
-                  <div className="mt-2 text-red-500 text-sm flex items-center justify-center">
-                    <CloseCircleOutlined className="mr-1" />
-                    {error}
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-8 text-center">
-                <p className="text-gray-600 mb-3">Didn't receive the code?</p>
-
-                {/* Timer progress */}
-                {!canResend ? (
-                  <div className="mb-4">
-                    <div className="flex items-center justify-center text-sm text-gray-500 mb-2">
-                      <ClockCircleOutlined className="mr-1" />
-                      <span>Resend available in: {formatTime(timer)}</span>
-                    </div>
-                  </div>
-                ) : null}
-
-                <Button
-                  type="link"
-                  className={`p-0 h-auto font-semibold ${canResend ? 'text-blue-600 hover:text-blue-800' : 'text-gray-400'}`}
-                  onClick={handleResend}
-                  disabled={!canResend || resendLoading}
-                  loading={resendLoading}
-                >
-                  Resend OTP
-                </Button>
-              </div>
-            </>
-          )}
-
-          <div className="flex items-center justify-center mt-8 pt-6 border-t border-gray-100">
-            <Link
-              className="text-blue-600 font-semibold flex items-center hover:text-blue-800 transition-colors"
-              href="/auth/login"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M9.707 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 1.414L7.414 9H15a1 1 0 110 2H7.414l2.293 2.293a1 1 0 010 1.414z" clipRule="evenodd" />
-              </svg>
-              Back to Login
-            </Link>
+      {/* Main content */}
+      <div className="w-full">
+        {loading ? (
+          <div className="py-10 flex flex-col items-center justify-center">
+            <Spin size="large" />
+            <p className="text-lg text-gray-600 dark:text-gray-300 mt-6 animate-pulse">Verifying your OTP...</p>
           </div>
+        ) : isVerified ? (
+          <Result
+            icon={<CheckCircleOutlined style={{ color: "#52c41a" }} />}
+            title={<span className="dark:text-white">OTP Verified</span>}
+            subTitle={<span className="dark:text-gray-300">Redirecting to reset password...</span>}
+          />
+        ) : (
+          <>
+            <div className="mb-8 text-center flex flex-col items-center">
+              <Input.OTP
+                size="large"
+                length={6}
+                value={otp}
+                onChange={(value) => {
+                  setOtp(value);
+                  if (error) setError(null);
+                }}
+                autoFocus
+                disabled={loading || attempts >= 3}
+                status={error ? "error" : ""}
+                className="custom-otp-input mb-2 [&_input]:!rounded-lg"
+              />
+
+              {error && (
+                <div className="mt-2 text-red-500 text-sm flex items-center justify-center">
+                  <CloseCircleOutlined className="mr-1" />
+                  {error}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 text-center">
+              <p className="text-gray-600 dark:text-gray-400 mb-3">Didn't receive the code?</p>
+
+              {/* Timer progress */}
+              {!canResend ? (
+                <div className="mb-4">
+                  <div className="flex items-center justify-center text-sm text-gray-500 dark:text-gray-400 mb-2">
+                    <ClockCircleOutlined className="mr-1" />
+                    <span>Resend available in: {formatTime(timer)}</span>
+                  </div>
+                </div>
+              ) : null}
+
+              <Button
+                type="link"
+                className={`p-0 h-auto font-semibold ${canResend ? 'text-primary' : 'text-gray-400'}`}
+                onClick={handleResend}
+                disabled={!canResend || resendLoading}
+                loading={resendLoading}
+              >
+                Resend OTP
+              </Button>
+            </div>
+          </>
+        )}
+
+        <div className="flex items-center justify-center mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+          <Link
+            className="text-primary font-semibold flex items-center hover:underline transition-all"
+            href="/auth/login"
+            onClick={() => sessionStorage.removeItem('loginEmail')}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M9.707 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 1.414L7.414 9H15a1 1 0 110 2H7.414l2.293 2.293a1 1 0 010 1.414z" clipRule="evenodd" />
+            </svg>
+            Back to Login
+          </Link>
         </div>
       </div>
     </div>

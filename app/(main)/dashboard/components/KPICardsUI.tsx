@@ -1,6 +1,6 @@
 'use client'
 
-import { useKPIStatsQuery } from '@/app/(main)/dashboard/api/queries'
+import { useKPIStatsQuery } from '@/app/(main)/dashboard/services/dashboard.hooks'
 import { Col, Row, Skeleton } from 'antd'
 import {
   Activity,

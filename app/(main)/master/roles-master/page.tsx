@@ -1,17 +1,14 @@
-import SuspenseWithBoundary from "@/components/SuspenseWithErrorBoundry/SuspenseWithErrorBoundry";
 import DataTableSkeleton from "@/components/Skeletons/DataTableSkeleton";
-import { SERVERAPI } from "@/Utils/apiFunctions";
-import { APIPATH } from "@/shared/constants/url";
-import RolesHeader from "./components/RolesHeader";
+import SuspenseWithBoundary from "@/components/SuspenseWithErrorBoundry/SuspenseWithErrorBoundry";
 import RoleDataTable from "./components/RoleDataTable";
+import RolesHeader from "./components/RolesHeader";
 
 
 export default async function page() {
-  const dataPromise = SERVERAPI(APIPATH.ROLES.GETROLES);
   return (<>
     <RolesHeader />
     <SuspenseWithBoundary loading={<DataTableSkeleton />}>
-      <RoleDataTable tableData={dataPromise} />
+      <RoleDataTable  />
     </SuspenseWithBoundary>
   </>
   )

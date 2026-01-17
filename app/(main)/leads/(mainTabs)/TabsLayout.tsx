@@ -27,7 +27,7 @@ export default function TabsLayout({
       label: (
         <span className="flex items-center gap-1.5">
           <Search className="w-4 h-4" />
-          <span>Leads</span>
+          <span>Prospect</span>
         </span>
       ),
       children: leadListing,

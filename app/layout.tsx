@@ -9,7 +9,6 @@ import "@fontsource/be-vietnam/500.css";
 import { Metadata } from "next";
 import { Inter, Poppins } from "next/font/google";
 
-import StoreHydrator from "@/components/StoreHydrator";
 import { QueryProvider } from "@/context/QueryProvider";
 import "simplebar-react/dist/simplebar.min.css";
 
@@ -65,8 +64,6 @@ export default function RootLayout({
     <html lang="en" className={`${poppins.variable} ${inter.variable} `}>
       <body className="font-sans">
         <SessionProvider>
-          <StoreHydrator />
-
           <ThemeContextProvider>
             <SidebarContextProvider>
               <QueryProvider>{children}

@@ -1,25 +1,31 @@
 "use client";
-import AddNewContactModal from "@/components/AddNewContactModal/AddNewContactModal";
+import AddNewContactModal, {
+  HCOContactPerson,
+} from "@/components/AddNewContactModal/AddNewContactModal";
 import CustomDatePicker from "@/components/CustomDatePicker/CustomDatePicker";
 import CustomSelect from "@/components/CustomSelect/CustomSelect";
 import Input from "@/components/Input/Input";
 import Label from "@/components/Label/Label";
 import ContactOptionsRender from "@/components/shared/ContactOptionsRender";
 import { useDealStore } from "@/context/store/dealsStore";
-import { useDropDowns } from "@/context/store/optimizedSelectors";
-import { useApi } from "@/hooks/useAPI";
-import { useLoading } from "@/hooks/useLoading";
-import { useLoginUser } from "@/hooks/useToken";
-import { APIPATH } from "@/shared/constants/url";
+import {
+  useDropdownContactPersons,
+  useHCOList,
+  useLeadSources,
+  useProducts,
+  useUsers,
+} from "@/services/dropdowns/dropdowns.hooks";
 import { Button, Col, Drawer, Row } from "antd";
 import TextArea from "antd/es/input/TextArea";
 import dayjs, { Dayjs } from "dayjs";
 import { Field, Form, Formik, FormikProps } from "formik";
 import { Plus, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useRef, useState } from "react";
-import { toast } from "react-toastify";
+import { memo, useCallback, useRef, useState } from "react";
+import { toast } from '@/components/AppToaster/AppToaster';
 import * as Yup from "yup";
+import { useCreateDeal } from "../services/deals.hooks";
+import { contactDropDownFilter } from "@/Utils/helpers";
 
 interface DealFormData {
   dealUUID: string;
@@ -52,38 +58,40 @@ const validationSchema = Yup.object().shape({
     .required("Products are required"),
 });
 
-
-
-
-
-export default function DealDrawer() {
-  const { hcoList, leadSources, usersList, products } = useDropDowns()
-  const user = useLoginUser()
-  const [loading, setLoading] = useLoading();
+function DealDrawer() {
   const [AddNewContactModalOpen, setAddNewContactModalOpen] = useState(false);
-  const [contactsOptions, setContactsOptions] = useState<
-    { label: string; value: string }[]
-  >([]);
+  const [selectedHCO, setSelectedHCO] = useState<string>("");
   const { setDealDrawer, openDealDrawer } = useDealStore();
   const formikRef = useRef<FormikProps<DealFormData>>(null);
-  const API = useApi();
+  const { data: hcoList = [] } = useHCOList({
+    enabled: openDealDrawer,
+  });
+  const { data: products = [] } = useProducts({
+    enabled: openDealDrawer,
+  });
+  const { data: usersList = [] } = useUsers({
+    enabled: openDealDrawer,
+  });
+  const { data: leadSources = [] } = useLeadSources({
+    enabled: openDealDrawer,
+  });
+  const { data: contactsOptions = [],isFetching } = useDropdownContactPersons(selectedHCO);
+  const { mutate: createDeal, isPending } = useCreateDeal();
 
   const router = useRouter();
   const handleSubmit = async (values: DealFormData): Promise<void> => {
-    setLoading(true);
     const finalValues = {
       ...values,
-      dealDate: dayjs().format("YYYY-MM-DD"),
-    }
-    const response = await API.post(APIPATH.DEAL.CREATEDEAL, finalValues);
-    if (response) {
-      toast.success("Deal created successfully");
-      setDealDrawer(false);
-      formikRef.current?.resetForm();
-      router.push(`/deals/${response.data.dealUUID}`);
-    }
-    setLoading(false);
+      dealDate: dayjs(values.dealDate).format("YYYY-MM-DD"),
+    };
 
+    createDeal(finalValues, {
+      onSuccess: (data) => {
+        setDealDrawer(false);
+        formikRef.current?.resetForm();
+        router.push(`/deals/${data.dealUUID}`);
+      },
+    });
   };
 
   const handleClearForm = useCallback(() => {
@@ -93,20 +101,14 @@ export default function DealDrawer() {
     }
   }, []);
 
-  const handleAddNewContact = useCallback((contactData: any) => {
+  const handleAddNewContact = useCallback((contactData: HCOContactPerson) => {
     setAddNewContactModalOpen(false);
     if (contactData) {
-      const newId = String(Date.now());
-      const newOption = {
-        label: contactData.name + " - " + contactData.role,
-        value: newId,
-      };
-      setContactsOptions((prev) => [...prev, newOption]);
       setTimeout(() => {
         const currentContacts = formikRef.current?.values.contactPersons || [];
         formikRef.current?.setFieldValue("contactPersons", [
           ...currentContacts,
-          newId,
+          contactData.hcoContactUUID,
         ]);
         formikRef.current?.setFieldTouched("contactPersons", true);
       }, 0);
@@ -132,7 +134,7 @@ export default function DealDrawer() {
               type="primary"
               form="dealForm"
               htmlType="submit"
-              loading={loading}
+              loading={isPending}
               icon={<Save size={16} />}
             >
               Create Deal
@@ -156,182 +158,187 @@ export default function DealDrawer() {
           }}
           validationSchema={validationSchema}
           onSubmit={handleSubmit}
-          validateOnBlur
+          validateOnBlur={false}
+          validateOnChange={false}
         >
-          {({ values, handleChange, handleBlur, setFieldValue,errors }) =>{
+          {({ values, handleChange, handleBlur, setFieldValue }) => {
             return (
-            <Form id="dealForm">
-              <Row gutter={[16, 16]}>
-                <Col xs={24}>
-                  <Input name="dealName" label="Deal Name" required />
-                </Col>
+              <Form id="dealForm">
+                <Row gutter={[16, 16]}>
+                  <Col xs={24}>
+                    <Input name="dealName" label="Deal Name" required />
+                  </Col>
 
-                <Col xs={24} sm={12}>
-                  <CustomSelect
-                    allowClear
-                    name="hcoUUID"
-                    label="Healthcare"
-                    placeholder="Select healthcare..."
-                    required
-                    options={hcoList.map((h) => ({
-                      label: h.hcoName,
-                      value: h.hcoUUID,
-                    }))}
-                    onChange={(value) => {
-                      setFieldValue("hcoUUID", value);
-                      setFieldValue("contactPersons", []);
-                      const fetchContacts = async () => {
-                        if (value) {
-                          const response = await API.get(APIPATH.CONTACT.GETHCOCONTACT(value),);
-                          if (response) {
-                            const contacts = response.data as { hcoContactUUID: string; fullName: string }[];
-                            setContactsOptions(contacts.map((contact) => ({
+                  <Col xs={24} sm={12}>
+                    <CustomSelect
+                      allowClear
+                      name="hcoUUID"
+                      label="Healthcare"
+                      placeholder="Select healthcare..."
+                      required
+                      showSearch={{
+                        optionFilterProp: "label",
+                      }}
+                      options={hcoList.map((h) => ({
+                        label: h.hcoName,
+                        value: h.hcoUUID,
+                      }))}
+                      onChange={(value) => {
+                        setFieldValue("hcoUUID", value);
+                        setFieldValue("contactPersons", []);
+                        setSelectedHCO(value);
+                      }}
+                    />
+                  </Col>
+
+                  <Col xs={24} sm={12}>
+                    <CustomSelect
+                      name="leadSource"
+                      label="Lead Source"
+                      required
+                      options={leadSources.map((leadSource) => ({
+                        label: leadSource.leadSourceName,
+                        value: leadSource.leadSourceUUID,
+                      }))}
+                      showSearch={{
+                        optionFilterProp: "label",
+                      }}
+                    />
+                  </Col>
+
+                  <Col xs={24} sm={12}>
+                    <CustomDatePicker name="dealDate" label="Date" required />
+                  </Col>
+
+                  <Col xs={24} sm={12}>
+                    <CustomSelect
+                      name="assignTo"
+                      label="Assign To"
+                      mode="multiple"
+                      required
+                      maxResponsive
+                      allowClear
+                      placeholder="Select assign to..."
+                      options={usersList.map((user) => ({
+                        label: user.fullName,
+                        value: user.userUUID,
+                      }))}
+                      showSearch={{
+                        optionFilterProp: "label",
+                      }}
+                    />
+                  </Col>
+
+                  <Col xs={24} sm={12}>
+                    <Field name="contactPersons">
+                      {({ field, meta }: any) => (
+                        <div className="relative">
+                          <Label
+                            text="Contact Persons"
+                            htmlFor="contactPersons"
+                            required
+                          />
+                          <CustomSelect
+                            {...field}
+                            mode="multiple"
+                            value={field.value}
+                            placeholder={`${
+                              values.hcoUUID
+                                ? "Select contact persons"
+                                : "Select healthcare first"
+                            }`}
+                            loading={
+                              !values.hcoUUID ||isFetching
+                            }
+                            disabled={
+                              !values.hcoUUID||isFetching
+                            }
+                            allowClear
+                            options={contactsOptions.map((contact) => ({
                               label: contact.fullName,
                               value: contact.hcoContactUUID,
-                              ...contact
-                            })));
-                          }
-                        } else {
-                          setContactsOptions([]);
-                        }
-                      };
-                      fetchContacts();
-                    }}
-                  />
-                </Col>
-
-                <Col xs={24} sm={12}>
-                  <CustomSelect
-                    name="leadSource"
-                    label="Lead Source"
-                    required
-                    options={leadSources.map((leadSource) => ({
-                      label: leadSource.leadSourceName,
-                      value: leadSource.leadSourceUUID,
-                    }))}
-                  />
-                </Col>
-
-                <Col xs={24} sm={12}>
-                  <CustomDatePicker name="dealDate" label="Date" required />
-                </Col>
-
-                <Col xs={24} sm={12}>
-                  <CustomSelect
-                    name="assignTo"
-                    label="Assign To"
-                    mode="multiple"
-                    required
-                    maxResponsive
-                    allowClear
-                    placeholder="Select assign to..."
-                    options={usersList.map((user) => ({
-                      label: user.fullName,
-                      value: user.userUUID,
-                    }))}
-                  />
-                </Col>
-
-                <Col xs={24} sm={12}>
-                  <Field name="contactPersons">
-                    {({ field, meta }: any) => (
-                      <div className="relative">
-                        <Label
-                          text="Contact Persons"
-                          htmlFor="contactPersons"
-                          required
-                        />
-                        <CustomSelect
-                          {...field}
-                          mode="multiple"
-                          value={field.value}
-                          placeholder={`${values.hcoUUID
-                            ? "Select contact persons"
-                            : "Select healthcare first"
-                            }`}
-                          loading={!values.hcoUUID || contactsOptions.length === 0}
-                          disabled={!values.hcoUUID || contactsOptions.length === 0}
-                          allowClear
-                          options={contactsOptions.map((contact) => ({
-                            label: contact.label,
-                            value: contact.value,
-                            contact
-                          }))}
-                          optionRender={(option) => <ContactOptionsRender option={option} />}
-                          onChange={(value) =>
-                            setFieldValue("contactPersons", value)
-                          }
-                          maxResponsive
-                          popupRender={(contact) => (
-                            <>
-                              {contact}
-                              <div className="flex p-2 gap-2 justify-end border-t border-gray-100 dark:border-gray-700">
-                                <Button
-                                  size="small"
-                                  type="primary"
-                                  onClick={() =>
-                                    setAddNewContactModalOpen(true)
-                                  }
-                                  icon={<Plus size={16} />}
-                                >
-                                  Add New Person
-                                </Button>
-                              </div>
-                            </>
+                              contact,
+                            }))}
+                            hideSelected
+                            optionRender={(option) => (
+                              <ContactOptionsRender option={option} />
+                            )}
+                            onChange={(value) =>
+                              setFieldValue("contactPersons", value)
+                            }
+                            showSearch={{
+                              filterOption: contactDropDownFilter
+                            }}
+                            maxResponsive
+                            popupRender={(contact) => (
+                              <>
+                                {contact}
+                                <div className="flex p-2 gap-2 justify-end border-t border-gray-100 dark:border-gray-700">
+                                  <Button
+                                    size="small"
+                                    type="primary"
+                                    onClick={() =>
+                                      setAddNewContactModalOpen(true)
+                                    }
+                                    icon={<Plus size={16} />}
+                                  >
+                                    Add New Person
+                                  </Button>
+                                </div>
+                              </>
+                            )}
+                          />
+                          {meta.touched && meta.error && (
+                            <span className="field-error">{meta.error}</span>
                           )}
-                        />
-                        {meta.touched && meta.error && (
-                          <span className="field-error">{meta.error}</span>
-                        )}
-                      </div>
-                    )}
-                  </Field>
-                </Col>
+                        </div>
+                      )}
+                    </Field>
+                  </Col>
 
-                <Col xs={12}>
-                  <CustomSelect
-                    required
-                    mode="multiple"
-                    name="products"
-                    label="Products"
-                    allowClear
-                    placeholder="Select products..."
-                    options={products.map((product) => ({
-                      label: product.productName,
-                      value: product.productUUID,
-                    }))}
-                    hideSelected
-                    maxResponsive
-                  />
-                </Col>
-                <Col xs={24}>
-                  <Label text="Summary" htmlFor="summary" />
-                  <TextArea
-                    name="summary"
-                    id="summary"
-                    value={values.summary}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    placeholder="Describe the deal, key discussion points, client's feedback, and any action items..."
-                    maxLength={2000}
-                    rows={8}
-                    showCount
-                    className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                  />
-                </Col>
-              </Row>
-            </Form>
-          )
-          } }
+                  <Col xs={12}>
+                    <CustomSelect
+                      required
+                      mode="multiple"
+                      name="products"
+                      label="Products"
+                      allowClear
+                      placeholder="Select products..."
+                      options={products.map((product) => ({
+                        label: product.productName,
+                        value: product.productUUID,
+                      }))}
+                      hideSelected
+                      maxResponsive
+                    />
+                  </Col>
+                  <Col xs={24}>
+                    <Label text="Summary" htmlFor="summary" />
+                    <TextArea
+                      name="summary"
+                      id="summary"
+                      value={values.summary}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      placeholder="Describe the deal, key discussion points, client's feedback, and any action items..."
+                      maxLength={2000}
+                      rows={8}
+                      showCount
+                      className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    />
+                  </Col>
+                </Row>
+              </Form>
+            );
+          }}
         </Formik>
       </Drawer>
 
       <AddNewContactModal
         hcoUUID={formikRef.current?.values.hcoUUID}
         hcoName={
-          hcoList.find(
-            (h) => h.hcoUUID === formikRef.current?.values.hcoUUID
-          )?.hcoName
+          hcoList.find((h) => h.hcoUUID === formikRef.current?.values.hcoUUID)
+            ?.hcoName
         }
         open={AddNewContactModalOpen}
         onClose={() => setAddNewContactModalOpen(false)}
@@ -341,3 +348,4 @@ export default function DealDrawer() {
     </>
   );
 }
+export default memo(DealDrawer);

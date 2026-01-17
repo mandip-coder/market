@@ -7,7 +7,11 @@ import { QuestionCircleOutlined, WhatsAppOutlined } from '@ant-design/icons';
 import { Checkbox, Col, Row, Tooltip } from "antd";
 import { FormikErrors, FormikHandlers, FormikHelpers, FormikTouched } from "formik";
 import { memo } from "react";
-import { UserFormValues } from "./Add-User-Drawer";
+import { User } from "../services/user.types";
+
+export interface UserFormValues extends Omit<Partial<User>, 'countryAccess'> {
+  countryAccess?: string[]; // Override to accept UUID strings for form
+}
 
 interface BasicDetailsFormProps {
   values: UserFormValues;
@@ -127,6 +131,7 @@ function BasicDetailsForm({
 
         <Col xs={24} sm={12}>
           <Input
+            required
             name="officePhone"
             label="Office Phone"
           />

@@ -3,7 +3,7 @@ import { Avatar, Button, Col, Modal, Row, Slider } from "antd";
 import { Edit2, RotateCw, User, ZoomIn, ZoomOut } from "lucide-react";
 import { memo, useCallback, useEffect, useState } from "react";
 import Cropper, { Area, Point } from 'react-easy-crop';
-import { toast } from "react-toastify";
+import { toast } from '@/components/AppToaster/AppToaster';
 
 // Helper functions for image processing
 const createImage = (url: string): Promise<HTMLImageElement> =>

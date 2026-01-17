@@ -6,11 +6,11 @@ import { useRef } from "react";
 export default function useColumnSearch() {
   const searchInput = useRef(null);
 
-  const handleSearch = (selectedKeys: any, confirm: any) => confirm();
+  const handleSearch = (_: any, confirm: any) => confirm();
 
   const handleReset = (clearFilters: any) => clearFilters();
 
-  return (dataIndex:string, placeholder:string) => ({
+  return (_:string, placeholder:string) => ({
     filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters }:any) => (
       <div style={{ padding: 8 }}>
         <Input

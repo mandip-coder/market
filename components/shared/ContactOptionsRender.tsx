@@ -7,7 +7,7 @@ function ContactOptionsRender({ option }: { option: any }) {
   return (
     <div className="flex items-center justify-between py-1">
       <div>
-        <div className="font-medium">{fullName} - {role}</div>
+        <div className="font-medium">{fullName}{role&&" - "+role}</div>
         <div className="text-xs text-gray-500">{email||"Email Not Provided"}</div>
       </div>
       {rating && <div className="flex items-center gap-2">

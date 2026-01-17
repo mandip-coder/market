@@ -1,9 +1,9 @@
-import { Checkbox, CheckboxProps } from 'antd'
-import React from 'react'
-import Label from '../Label/Label'
+import { Checkbox, CheckboxProps } from 'antd';
 import { useField } from 'formik';
+import React from 'react';
+import Label from '../Label/Label';
 function CustomCheckBox({ children, label, ...props }: { children: React.ReactNode, label?: string } & CheckboxProps) {
-  const [field, meta, helpers] = useField(props.name as string);
+  const [field, _, helpers] = useField(props.name as string);
   return (
     <> {label && <Label
       text={label}

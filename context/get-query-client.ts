@@ -9,6 +9,7 @@ function makeQueryClient() {
         refetchInterval: false,
         refetchIntervalInBackground: false,
         staleTime: 60 * 60000,//1 hour
+        retry: 0,
       },
     },
   })

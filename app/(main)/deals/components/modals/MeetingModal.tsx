@@ -1,53 +1,93 @@
-'use client';
-import CustomDatePicker from '@/components/CustomDatePicker/CustomDatePicker';
-import CustomSelect from '@/components/CustomSelect/CustomSelect';
-import InputBox from '@/components/Input/Input';
-import Label from '@/components/Label/Label';
-import { Button, Card, Col, Dropdown, Input, MenuProps, Modal, Popover, Row, Select, Space, Tag, Tooltip } from 'antd';
-import clsx from 'clsx';
-import dayjs, { Dayjs } from 'dayjs';
-import { Field, Form, Formik } from 'formik';
-import debounce from 'lodash/debounce';
-import { ArrowUpDown, Calendar, Clock, Edit, FileText, MapPin, MoreVertical, Plus, RefreshCw, Search, Trash2, Users, XCircle } from 'lucide-react';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import * as Yup from 'yup';
-import { useDealStore } from '@/context/store/dealsStore';
-import { Meeting } from '@/lib/types';
-import ModalWrapper from '@/components/Modal/Modal';
-import ContactOptionsRender from '@/components/shared/ContactOptionsRender';
-import SuspenseWithBoundary from '@/components/SuspenseWithErrorBoundry/SuspenseWithErrorBoundry';
-import { useApi } from '@/hooks/useAPI';
-import { APIPATH } from '@/shared/constants/url';
-import { toast } from 'react-toastify';
-import { useLoading } from '@/hooks/useLoading';
-import { useDropDowns } from '@/context/store/optimizedSelectors';
+"use client";
+import {
+  useCancelMeeting,
+  useCompleteMeeting,
+  useCreateMeeting,
+  useDeleteMeeting,
+  useRescheduleMeeting,
+  useUpdateMeeting,
+} from "@/app/(main)/deals/services/deals.hooks";
+import AddNewContactModal, {
+  HCOContactPerson,
+} from "@/components/AddNewContactModal/AddNewContactModal";
+import CustomDatePicker from "@/components/CustomDatePicker/CustomDatePicker";
+import CustomSelect from "@/components/CustomSelect/CustomSelect";
+import InputBox from "@/components/Input/Input";
+import Label from "@/components/Label/Label";
+import ModalWrapper from "@/components/Modal/Modal";
+import ContactOptionsRender from "@/components/shared/ContactOptionsRender";
+import SuspenseWithBoundary from "@/components/SuspenseWithErrorBoundry/SuspenseWithErrorBoundry";
+import { Meeting } from "@/lib/types";
+import {
+  useDropdownContactPersons,
+  useOutcomes,
+} from "@/services/dropdowns/dropdowns.hooks";
+import {
+  Button,
+  Card,
+  Col,
+  Divider,
+  Dropdown,
+  Input,
+  MenuProps,
+  Modal,
+  Row,
+  Select,
+  Space,
+  Tooltip,
+} from "antd";
+import clsx from "clsx";
+import dayjs, { Dayjs } from "dayjs";
+
+import { Field, Form, Formik, FormikProps } from "formik";
+
+import debounce from "lodash/debounce";
+import {
+  ArrowUpDown,
+  Calendar,
+  Clock,
+  Edit,
+  MapPin,
+  MoreVertical,
+  Plus,
+  RefreshCw,
+  Search,
+  Trash2,
+  UserPlus,
+  Users,
+  XCircle,
+} from "lucide-react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import * as Yup from "yup";
+import { Deal } from "../../services/deals.types";
+import { formatMeetingDate } from "@/Utils/helpers";
 
 // Constants
 const VENUE_OPTIONS = [
   {
-    label: 'In Office',
-    value: '019b07d7-ae28-7333-a440-1dfa2a98d89e',
-    locationLabel: 'Room/Office',
-    locationPlaceholder: 'room or office details'
+    label: "In Office",
+    value: "019b07d7-ae28-7333-a440-1dfa2a98d89e",
+    locationLabel: "Room/Office",
+    locationPlaceholder: "room or office details",
   },
   {
-    label: 'Client Location',
-    value: '019b07d7-ae28-7ed6-9d48-9d52112ea6ed',
-    locationLabel: 'Client Address',
-    locationPlaceholder: 'client\'s address'
+    label: "Client Location",
+    value: "019b07d7-ae28-7ed6-9d48-9d52112ea6ed",
+    locationLabel: "Client Address",
+    locationPlaceholder: "client's address",
   },
   {
-    label: 'Online',
-    value: '019b07d7-ae28-7010-a122-b74d1efe5f81',
-    locationLabel: 'Meeting Link',
-    locationPlaceholder: 'meeting link (Zoom, Teams, etc.)'
-  }
+    label: "Online",
+    value: "019b07d7-ae28-7010-a122-b74d1efe5f81",
+    locationLabel: "Meeting Link",
+    locationPlaceholder: "meeting link (Zoom, Teams, etc.)",
+  },
 ];
 
 const VENUE_DISPLAY_MAP: Record<string, string> = {
-  '019b07d7-ae28-7333-a440-1dfa2a98d89e': 'In Office',
-  '019b07d7-ae28-7ed6-9d48-9d52112ea6ed': 'Client Location',
-  '019b07d7-ae28-7010-a122-b74d1efe5f81': 'Online'
+  "019b07d7-ae28-7333-a440-1dfa2a98d89e": "In Office",
+  "019b07d7-ae28-7ed6-9d48-9d52112ea6ed": "Client Location",
+  "019b07d7-ae28-7010-a122-b74d1efe5f81": "Online",
 };
 
 // Types
@@ -65,20 +105,20 @@ interface MeetingFormValues {
 // Utility functions
 const STATUS_STYLES = {
   ended: {
-    bg: 'bg-gray-100 dark:bg-gray-800',
-    text: 'text-gray-600 dark:text-gray-400',
-    label: 'Ended'
+    bg: "bg-gray-100 dark:bg-gray-800",
+    text: "text-gray-600 dark:text-gray-400",
+    label: "Ended",
   },
   inProgress: {
-    bg: 'bg-green-100 dark:bg-green-900/30',
-    text: 'text-green-600 dark:text-green-400',
-    label: 'In Progress'
+    bg: "bg-green-100 dark:bg-green-900/30",
+    text: "text-green-600 dark:text-green-400",
+    label: "In Progress",
   },
   upcoming: {
-    bg: 'bg-blue-100 dark:bg-blue-900/30',
-    text: 'text-blue-600 dark:text-blue-400',
-    label: 'Upcoming'
-  }
+    bg: "bg-blue-100 dark:bg-blue-900/30",
+    text: "text-blue-600 dark:text-blue-400",
+    label: "Upcoming",
+  },
 } as const;
 
 const getMeetingStatus = (startDatetime: string, endDatetime?: string) => {
@@ -96,7 +136,10 @@ const getMeetingStatus = (startDatetime: string, endDatetime?: string) => {
 // Helper function to determine if actions can be performed on a meeting
 const canPerformActions = (meeting: Meeting) => {
   // Cannot perform edit/reschedule if meeting is Cancelled or Completed
-  if (meeting.meetingStatus === 'Cancelled' || meeting.meetingStatus === 'Completed') {
+  if (
+    meeting.meetingStatus === "Cancelled" ||
+    meeting.meetingStatus === "Completed"
+  ) {
     return false;
   }
   const now = dayjs();
@@ -105,43 +148,32 @@ const canPerformActions = (meeting: Meeting) => {
 };
 
 // Helper function to format meeting date with custom labels
-const formatMeetingDate = (datetime: string) => {
-  const meetingDate = dayjs(datetime);
-  const today = dayjs();
-  const tomorrow = dayjs().add(1, 'day');
-
-  if (meetingDate.isSame(today, 'day')) {
-    return 'Today';
-  } else if (meetingDate.isSame(tomorrow, 'day')) {
-    return 'Tomorrow';
-  } else {
-    return meetingDate.fromNow();
-  }
-};
 
 // Helper function to calculate meeting duration
 const getMeetingDuration = (startDatetime: string, endDatetime: string) => {
   const start = dayjs(startDatetime);
   const end = dayjs(endDatetime);
-  const durationInMinutes = end.diff(start, 'minute');
-  
+  const durationInMinutes = end.diff(start, "minute");
+
   const hours = Math.floor(durationInMinutes / 60);
   const minutes = durationInMinutes % 60;
-  
+
   if (hours > 0 && minutes > 0) {
-    return `${hours} hour${hours > 1 ? 's' : ''} ${minutes} min${minutes > 1 ? 's' : ''}`;
+    return `${hours} hour${hours > 1 ? "s" : ""} ${minutes} min${
+      minutes > 1 ? "s" : ""
+    }`;
   } else if (hours > 0) {
-    return `${hours} hour${hours > 1 ? 's' : ''}`;
+    return `${hours} hour${hours > 1 ? "s" : ""}`;
   } else {
-    return `${minutes} min${minutes > 1 ? 's' : ''}`;
+    return `${minutes} min${minutes > 1 ? "s" : ""}`;
   }
 };
 
 const getLocationFieldProps = (venueId: string) => {
-  const venue = VENUE_OPTIONS.find(v => v.value === venueId);
+  const venue = VENUE_OPTIONS.find((v) => v.value === venueId);
   return venue
     ? { label: venue.locationLabel, placeholder: venue.locationPlaceholder }
-    : { label: 'Location', placeholder: 'location' };
+    : { label: "Location", placeholder: "location" };
 };
 
 const getDisabledTimeConfig = (
@@ -152,19 +184,19 @@ const getDisabledTimeConfig = (
   isBefore: boolean
 ) => ({
   disabledHours: () =>
-    Array.from({ length: 24 }, (_, i) => i).filter(h =>
+    Array.from({ length: 24 }, (_, i) => i).filter((h) =>
       isBefore ? h < compareHour : h > compareHour
     ),
   disabledMinutes: (hour: number) => {
     if (hour === compareHour) {
-      return Array.from({ length: 60 }, (_, i) => i).filter(m =>
+      return Array.from({ length: 60 }, (_, i) => i).filter((m) =>
         isBefore ? m < compareMinute : m > compareMinute
       );
     }
     return isBefore && hour < compareHour
       ? Array.from({ length: 60 }, (_, i) => i)
       : [];
-  }
+  },
 });
 
 const getDisabledTime = (
@@ -175,8 +207,8 @@ const getDisabledTime = (
 ) => {
   if (!current) return {};
 
-  const isSameDay = current.isSame(baseTime, 'day');
-  const isSameDayAsCompare = compareTime && current.isSame(compareTime, 'day');
+  const isSameDay = current.isSame(baseTime, "day");
+  const isSameDayAsCompare = compareTime && current.isSame(compareTime, "day");
 
   if (!isSameDay && !isSameDayAsCompare) return {};
 
@@ -189,117 +221,153 @@ const getDisabledTime = (
   const effectiveHour = isBefore
     ? Math.max(baseHour, compareHour)
     : Math.min(baseHour, compareHour);
-  const effectiveMinute = effectiveHour === baseHour && effectiveHour === compareHour
-    ? (isBefore ? Math.max(baseMinute, compareMinute) : Math.min(baseMinute, compareMinute))
-    : (effectiveHour === compareHour ? compareMinute : baseMinute);
+  const effectiveMinute =
+    effectiveHour === baseHour && effectiveHour === compareHour
+      ? isBefore
+        ? Math.max(baseMinute, compareMinute)
+        : Math.min(baseMinute, compareMinute)
+      : effectiveHour === compareHour
+      ? compareMinute
+      : baseMinute;
 
-  return getDisabledTimeConfig(baseHour, baseMinute, effectiveHour, effectiveMinute, isBefore);
+  return getDisabledTimeConfig(
+    baseHour,
+    baseMinute,
+    effectiveHour,
+    effectiveMinute,
+    isBefore
+  );
 };
 
 // Validation Schema
-const createValidationSchema = () => Yup.object().shape({
-  meetingTitle: Yup.string().trim().required('Meeting title is required'),
-  startDatetime: Yup.mixed()
-    .required('Start date and time is required')
-    .test('is-valid-date', 'Invalid date', (value) => dayjs(value as any).isValid()),
-  endDatetime: Yup.mixed()
-    .required('End date and time is required')
-    .test('is-valid-date', 'Invalid date', (value) => dayjs(value as any).isValid())
-    .test('is-after-start', 'End time must be after start time', function (value) {
-      const { startDatetime } = this.parent;
-      if (!value || !startDatetime) return true;
-      return dayjs(value as any).isAfter(dayjs(startDatetime as any));
-    }),
-  location: Yup.string().trim().required('Location is required'),
-  venue: Yup.string().required('Venue is required'),
-  attendees: Yup.array().min(1, 'At least one attendee is required'),
-  notes: Yup.string().trim()
-});
+const createValidationSchema = () =>
+  Yup.object().shape({
+    meetingTitle: Yup.string().trim().required("Meeting title is required"),
+    startDatetime: Yup.mixed()
+      .required("Start date and time is required")
+      .test("is-valid-date", "Invalid date", (value) =>
+        dayjs(value as any).isValid()
+      ),
+    endDatetime: Yup.mixed()
+      .required("End date and time is required")
+      .test("is-valid-date", "Invalid date", (value) =>
+        dayjs(value as any).isValid()
+      )
+      .test(
+        "is-after-start",
+        "End time must be after start time",
+        function (value) {
+          const { startDatetime } = this.parent;
+          if (!value || !startDatetime) return true;
+          return dayjs(value as any).isAfter(dayjs(startDatetime as any));
+        }
+      ),
+    location: Yup.string().trim().required("Location is required"),
+    venue: Yup.string().required("Venue is required"),
+    attendees: Yup.array().min(1, "At least one attendee is required"),
+    notes: Yup.string().trim(),
+  });
 
 // EmptyState Component
-const EmptyState = memo(({
-  searchQuery,
-  onClearSearch,
-  onScheduleMeeting
-}: {
-  searchQuery: string;
-  onClearSearch: () => void;
-  onScheduleMeeting: () => void;
-}) => {
-  const isSearchState = Boolean(searchQuery);
+const EmptyState = memo(
+  ({
+    searchQuery,
+    onClearSearch,
+    onScheduleMeeting,
+  }: {
+    searchQuery: string;
+    onClearSearch: () => void;
+    onScheduleMeeting: () => void;
+  }) => {
+    const isSearchState = Boolean(searchQuery);
 
-  return (
-    <div className="text-center py-16 bg-gray-50 dark:bg-gray-900 rounded-xl transition-all duration-300">
-      <div className="flex flex-col items-center justify-center">
-        <div className={`transition-all duration-300 ${isSearchState ? 'scale-90 opacity-70' : 'scale-100 opacity-100'}`}>
-          <div className="relative">
-            {isSearchState ? (
-              <Search className="w-12 h-12 mx-auto text-gray-400" />
-            ) : (
-              <Calendar className="w-12 h-12 mx-auto text-gray-400" />
-            )}
-            <div className={`absolute inset-0 rounded-full blur-xl opacity-30 ${isSearchState ? 'bg-blue-100 dark:bg-blue-900/20' : 'bg-gray-200 dark:bg-gray-700'
-              }`} />
+    return (
+      <div className="text-center py-16 bg-gray-50 dark:bg-gray-900 rounded-xl transition-all duration-300">
+        <div className="flex flex-col items-center justify-center">
+          <div
+            className={`transition-all duration-300 ${
+              isSearchState ? "scale-90 opacity-70" : "scale-100 opacity-100"
+            }`}
+          >
+            <div className="relative">
+              {isSearchState ? (
+                <Search className="w-12 h-12 mx-auto text-gray-400" />
+              ) : (
+                <Calendar className="w-12 h-12 mx-auto text-gray-400" />
+              )}
+              <div
+                className={`absolute inset-0 rounded-full blur-xl opacity-30 ${
+                  isSearchState
+                    ? "bg-blue-100 dark:bg-blue-900/20"
+                    : "bg-gray-200 dark:bg-gray-700"
+                }`}
+              />
+            </div>
           </div>
-        </div>
 
-        <div className="mt-4 mb-6">
-          <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
-            {isSearchState ? 'No Meetings Found' : 'No Meetings Scheduled'}
-          </h3>
-          <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto">
-            {isSearchState
-              ? `We couldn't find any meetings matching "${searchQuery}".`
-              : 'Schedule your first meeting to keep track of important discussions.'
-            }
-          </p>
-        </div>
+          <div className="mt-4 mb-6">
+            <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">
+              {isSearchState ? "No Meetings Found" : "No Meetings Scheduled"}
+            </h3>
+            <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto">
+              {isSearchState
+                ? `We couldn't find any meetings matching "${searchQuery}".`
+                : "Schedule your first meeting to keep track of important discussions."}
+            </p>
+          </div>
 
-        <Button
-          type={isSearchState ? 'default' : 'primary'}
-          icon={!isSearchState && <Plus size={16} />}
-          onClick={isSearchState ? onClearSearch : onScheduleMeeting}
-          className="h-10 px-5 rounded-md shadow-sm hover:shadow-md transition-all duration-200"
-        >
-          {isSearchState ? 'Clear Search' : 'Schedule First Meeting'}
-        </Button>
+          <Button
+            type={isSearchState ? "default" : "primary"}
+            icon={!isSearchState && <Plus size={16} />}
+            onClick={isSearchState ? onClearSearch : onScheduleMeeting}
+            className="h-10 px-5 rounded-md shadow-sm hover:shadow-md transition-all duration-200"
+          >
+            {isSearchState ? "Clear Search" : "Schedule First Meeting"}
+          </Button>
+        </div>
       </div>
-    </div>
-  );
-});
+    );
+  }
+);
 
-EmptyState.displayName = 'EmptyState';
+EmptyState.displayName = "EmptyState";
 
 // MOM Popover Content Component
-const MomPopoverContent = memo(({
-  initialValue,
-  onSave,
-  onCancel
-}: {
-  initialValue: string;
-  onSave: (value: string) => void;
-  onCancel: () => void;
-}) => {
-  const [value, setValue] = useState(initialValue);
+const MomPopoverContent = memo(
+  ({
+    initialValue,
+    onSave,
+    onCancel,
+  }: {
+    initialValue: string;
+    onSave: (value: string) => void;
+    onCancel: () => void;
+  }) => {
+    const [value, setValue] = useState(initialValue);
 
-  return (
-    <div className="w-96">
-      <div className="mb-2 font-medium">Minutes of Meeting</div>
-      <Input.TextArea
-        rows={6}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        placeholder="Enter minutes of meeting"
-      />
-      <div className="mt-3 flex justify-end gap-2">
-        <Button size="small" onClick={onCancel}>Cancel</Button>
-        <Button size="small" type="primary" onClick={() => onSave(value)}>Save</Button>
+    return (
+      <div className="w-96">
+        <div className="mb-2 font-medium">Minutes of Meeting</div>
+        <Input.TextArea
+          rows={6}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="Enter minutes of meeting"
+        />
+        <div className="mt-3 flex justify-end gap-2">
+          <Button size="small" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button size="small" type="primary" onClick={() => onSave(value)}>
+            Save
+          </Button>
+        </div>
       </div>
-    </div>
-  );
-});
+    );
+  }
+);
 
-MomPopoverContent.displayName = 'MomPopoverContent';
+MomPopoverContent.displayName = "MomPopoverContent";
 
 // MeetingCard Component
 const MeetingCard = memo<{
@@ -310,301 +378,379 @@ const MeetingCard = memo<{
   onReschedule: (meeting: Meeting) => void;
   onComplete: (meeting: Meeting) => void;
   onUpdateMom: (id: string, mom: string) => void;
-}>(({ meeting, onEdit, onDelete, onCancel, onReschedule, onComplete, onUpdateMom }) => {
-  const [momPopoverVisible, setMomPopoverVisible] = useState(false);
+}>(
+  ({
+    meeting,
+    onEdit,
+    onDelete,
+    onCancel,
+    onReschedule,
+    onComplete,
+    onUpdateMom,
+  }) => {
+    const [momPopoverVisible, setMomPopoverVisible] = useState(false);
 
-  const statusColor = useMemo(
-    () => getMeetingStatus(meeting.startDatetime, meeting.endDatetime),
-    [meeting.startDatetime, meeting.endDatetime]
-  );
+    const statusColor = useMemo(
+      () => getMeetingStatus(meeting.startDatetime, meeting.endDatetime),
+      [meeting.startDatetime, meeting.endDatetime]
+    );
 
-  const venueName = VENUE_DISPLAY_MAP[meeting.venue] || meeting.venue;
-  const attendeeCount = meeting.attendees?.length || 0;
-  const canEdit = canPerformActions(meeting);
+    const venueName = VENUE_DISPLAY_MAP[meeting.venue] || meeting.venue;
+    const attendeeCount = meeting.attendees?.length || 0;
+    const canEdit = canPerformActions(meeting);
 
-  // Build menu items for dropdown
-  const menuItems: MenuProps['items'] = [];
-  const canComplete = meeting.meetingStatus !== 'Completed' && meeting.meetingStatus !== 'Cancelled';
-  const isOverdue = meeting.meetingStatus === 'Overdue';
+    // Build menu items for dropdown
+    const menuItems: MenuProps["items"] = [];
+    const canComplete =
+      meeting.meetingStatus !== "Completed" &&
+      meeting.meetingStatus !== "Cancelled";
+    const isOverdue = meeting.meetingStatus === "Overdue";
 
-  // For overdue meetings, only allow cancel (complete is shown as button)
-  if (isOverdue) {
-    menuItems.push({
-      key: 'cancel',
-      label: 'Cancel',
-      icon: <XCircle size={14} />,
-      onClick: () => onCancel(meeting),
-    });
-  } else if (canEdit) {
-    // Normal edit/reschedule/delete for upcoming meetings
-    menuItems.push({
-      key: 'edit',
-      label: 'Edit',
-      icon: <Edit size={14} />,
-      onClick: () => onEdit(meeting.meetingUUID),
-    });
-
-    menuItems.push({
-      key: 'reschedule',
-      label: 'Reschedule',
-      icon: <Calendar size={14} />,
-      onClick: () => onReschedule(meeting),
-    });
-
-    menuItems.push({
-      key: 'delete',
-      label: 'Delete',
-      icon: <Trash2 size={14} />,
-      danger: true,
-      onClick: () => onDelete(meeting.meetingUUID),
-    });
-
-    // Add cancel option for upcoming meetings
-    if (meeting.meetingStatus !== 'Cancelled') {
-      menuItems.push({ type: 'divider', key: 'divider' });
+    // For overdue meetings, only allow cancel (complete is shown as button)
+    if (isOverdue) {
       menuItems.push({
-        key: 'cancel',
-        label: 'Cancel',
+        key: "cancel",
+        label: "Cancel",
         icon: <XCircle size={14} />,
         onClick: () => onCancel(meeting),
       });
-    }
-  }
+    } else if (canEdit) {
+      // Normal edit/reschedule/delete for upcoming meetings
+      menuItems.push({
+        key: "edit",
+        label: "Edit",
+        icon: <Edit size={14} />,
+        onClick: () => onEdit(meeting.meetingUUID),
+      });
 
-  // Get status display with tooltips for cancelled/rescheduled/completed
-  const getStatusDisplay = () => {
-    // Use backend status if available
-    if (meeting.meetingStatus === 'Completed') {
-      return (
-        <Tooltip title={meeting.outcome ? `Outcome: ${meeting.outcome}` : 'Completed'}>
-          <div className={clsx(
-            "inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold",
-            "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400"
-          )}>
-            <span className="w-2 h-2 rounded-full bg-current" aria-hidden />
-            <span className="leading-none">Completed</span>
-          </div>
-        </Tooltip>
-      );
-    }
+      menuItems.push({
+        key: "reschedule",
+        label: "Reschedule",
+        icon: <Calendar size={14} />,
+        onClick: () => onReschedule(meeting),
+      });
 
-    if (meeting.meetingStatus === 'Cancelled') {
-      return (
-        <Tooltip title={meeting.cancellationReason ? `Reason: ${meeting.cancellationReason}` : 'Cancelled'}>
-          <div className={clsx(
-            "inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold",
-            "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"
-          )}>
-            <span className="w-2 h-2 rounded-full bg-current" aria-hidden />
-            <span className="leading-none">Cancelled</span>
-          </div>
-        </Tooltip>
-      );
-    }
-    
-    if (meeting.meetingStatus === 'Rescheduled') {
-      return (
-        <Tooltip title={meeting.rescheduleReason ? `Reason: ${meeting.rescheduleReason}` : 'Rescheduled'}>
-          <div className={clsx(
-            "inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold",
-            "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400"
-          )}>
-            <span className="w-2 h-2 rounded-full bg-current" aria-hidden />
-            <span className="leading-none">Rescheduled</span>
-          </div>
-        </Tooltip>
-      );
+      menuItems.push({
+        key: "delete",
+        label: "Delete",
+        icon: <Trash2 size={14} />,
+        danger: true,
+        onClick: () => onDelete(meeting.meetingUUID),
+      });
+
+      // Add cancel option for upcoming meetings
+      if (meeting.meetingStatus !== "Cancelled") {
+        menuItems.push({ type: "divider", key: "divider" });
+        menuItems.push({
+          key: "cancel",
+          label: "Cancel",
+          icon: <XCircle size={14} />,
+          onClick: () => onCancel(meeting),
+        });
+      }
     }
 
-    if (meeting.meetingStatus === 'Overdue') {
-      return (
-        <div className={clsx(
-          "inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold",
-          "bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400"
-        )}>
-          <span className="w-2 h-2 rounded-full bg-current" aria-hidden />
-          <span className="leading-none">Overdue</span>
-        </div>
-      );
-    }
-
-    // Default status based on time (Scheduled, In Progress, Ended)
-    return (
-      <div className={clsx(
-        "inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold",
-        statusColor.bg,
-        statusColor.text
-      )}>
-        <span className="w-2 h-2 rounded-full bg-current" aria-hidden />
-        <span className="leading-none">{meeting.meetingStatus || statusColor.label}</span>
-      </div>
-    );
-  };
-
-  return (
-    <Card
-      hoverable
-      size="small"
-      variant="borderless"
-      className={clsx(
-        "!h-full overflow-hidden rounded-xl transition-all duration-300",
-        "border border-slate-200 dark:border-slate-800",
-        "bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-800"
-      )}
-    >
-      <div className="flex flex-col h-full space-y-3">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          {getStatusDisplay()}
-
-          <div className="flex gap-1">
-            {canComplete ? (
-              <Space.Compact>
-                <Button
-                  type="primary"
-                  color="green"
-                  variant="outlined"
-                  size="small"
-                  onClick={() => onComplete(meeting)}
-                >
-                  Complete
-                </Button>
-                {menuItems.length > 0 && (
-                  <Dropdown
-                    menu={{ items: menuItems }}
-                    trigger={['click']}
-                    placement="bottomRight"
-                  >
-                    <Button
-                      type="primary"
-                      color="green"
-                      variant="outlined"
-                      size="small"
-                      icon={<MoreVertical size={14} />}
-                    />
-                  </Dropdown>
-                )}
-              </Space.Compact>
-            ) : menuItems.length > 0 ? (
-              <Dropdown
-                menu={{ items: menuItems }}
-                trigger={['click']}
-                placement="bottomRight"
-              >
-                <Button
-                  size='small'
-                  type="text"
-                  icon={<MoreVertical size={14} className="text-slate-500" />}
-                  className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
-                />
-              </Dropdown>
-            ) : (
-             null
-            )}
-          </div>
-        </div>
-
-        {/* Title & Location */}
-        <div>
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50 truncate">
-            {meeting.meetingTitle || "Untitled Meeting"}
-          </h3>
-          <div className="flex items-center gap-2 mt-1 text-xs text-slate-500 dark:text-slate-400">
-            <MapPin className="h-3 w-3 flex-shrink-0" />
-            <span className="truncate">
-              {meeting.location || "Not specified"} ({venueName})
-            </span>
-          </div>
-        </div>
-
-        {/* Metadata */}
-        <div className="flex items-center gap-4 text-xs text-slate-600 dark:text-slate-400 flex-wrap">
-          <Tooltip title={`${dayjs(meeting.startDatetime).format('D MMM, YYYY')} • Duration: ${getMeetingDuration(meeting.startDatetime, meeting.endDatetime)}`}>
-            <div className="flex items-center gap-1 cursor-help">
-              <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
-              <span className="truncate">
-                {formatMeetingDate(meeting.startDatetime)}
-              </span>
+    // Get status display with tooltips for cancelled/rescheduled/completed
+    const getStatusDisplay = () => {
+      // Use backend status if available
+      if (meeting.meetingStatus === "Completed") {
+        return (
+          <Tooltip
+            title={
+              meeting.outcome ? `Outcome: ${meeting.outcome}` : "Completed"
+            }
+          >
+            <div
+              className={clsx(
+                "inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold",
+                "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400"
+              )}
+            >
+              <span className="w-2 h-2 rounded-full bg-current" aria-hidden />
+              <span className="leading-none">Completed</span>
             </div>
           </Tooltip>
+        );
+      }
 
-          <div className="flex items-center gap-1">
-            <Clock className="h-3.5 w-3.5 flex-shrink-0" />
-            <span className="truncate">
-              {dayjs(meeting.startDatetime).format("hh:mm A")} - {dayjs(meeting.endDatetime).format("hh:mm A")}
-            </span>
-          </div>
+      if (meeting.meetingStatus === "Cancelled") {
+        return (
+          <Tooltip
+            title={
+              meeting.cancellationReason
+                ? `Reason: ${meeting.cancellationReason}`
+                : "Cancelled"
+            }
+          >
+            <div
+              className={clsx(
+                "inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold",
+                "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"
+              )}
+            >
+              <span className="w-2 h-2 rounded-full bg-current" aria-hidden />
+              <span className="leading-none">Cancelled</span>
+            </div>
+          </Tooltip>
+        );
+      }
 
-          <div className="flex items-center gap-1">
-            <Users className="h-3.5 w-3.5 flex-shrink-0" />
-            <Tooltip title={meeting.attendees.map((attendee) => attendee.fullName).join(", ")}>
-            <span className="truncate">
-              {attendeeCount} {attendeeCount === 1 ? 'attendee' : 'attendees'}
-            </span>
-            </Tooltip>
+      if (meeting.meetingStatus === "Rescheduled") {
+        return (
+          <Tooltip
+            title={
+              meeting.rescheduleReason
+                ? `Reason: ${meeting.rescheduleReason}`
+                : "Rescheduled"
+            }
+          >
+            <div
+              className={clsx(
+                "inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold",
+                "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400"
+              )}
+            >
+              <span className="w-2 h-2 rounded-full bg-current" aria-hidden />
+              <span className="leading-none">Rescheduled</span>
+            </div>
+          </Tooltip>
+        );
+      }
+
+      if (meeting.meetingStatus === "Overdue") {
+        return (
+          <div
+            className={clsx(
+              "inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold",
+              "bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400"
+            )}
+          >
+            <span className="w-2 h-2 rounded-full bg-current" aria-hidden />
+            <span className="leading-none">Overdue</span>
           </div>
+        );
+      }
+
+      // Default status based on time (Scheduled, In Progress, Ended)
+      return (
+        <div
+          className={clsx(
+            "inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-semibold",
+            statusColor.bg,
+            statusColor.text
+          )}
+        >
+          <span className="w-2 h-2 rounded-full bg-current" aria-hidden />
+          <span className="leading-none">
+            {meeting.meetingStatus || statusColor.label}
+          </span>
         </div>
+      );
+    };
 
-        {meeting.notes && (
-          <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-700">
-            <div className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">Notes:</div>
-            <div className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2">{meeting.notes}</div>
-          </div>
+    return (
+      <Card
+        hoverable
+        size="small"
+        variant="borderless"
+        className={clsx(
+          "!h-full overflow-hidden rounded-xl transition-all duration-300",
+          "border border-slate-200 dark:border-slate-800",
+          "bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-800"
         )}
-      </div>
-    </Card>
-  );
-});
+      >
+        <div className="flex flex-col h-full space-y-3">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            {getStatusDisplay()}
 
-MeetingCard.displayName = 'MeetingCard';
+            <div className="flex gap-1">
+              {canComplete ? (
+                <Space.Compact>
+                  <Button
+                    type="primary"
+                    color="green"
+                    variant="outlined"
+                    size="small"
+                    onClick={() => onComplete(meeting)}
+                  >
+                    Complete
+                  </Button>
+                  {menuItems.length > 0 && (
+                    <Dropdown
+                      menu={{ items: menuItems }}
+                      trigger={["click"]}
+                      placement="bottomRight"
+                    >
+                      <Button
+                        type="primary"
+                        color="green"
+                        variant="outlined"
+                        size="small"
+                        icon={<MoreVertical size={14} />}
+                      />
+                    </Dropdown>
+                  )}
+                </Space.Compact>
+              ) : menuItems.length > 0 ? (
+                <Dropdown
+                  menu={{ items: menuItems }}
+                  trigger={["click"]}
+                  placement="bottomRight"
+                >
+                  <Button
+                    size="small"
+                    type="text"
+                    icon={<MoreVertical size={14} className="text-slate-500" />}
+                    className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+                  />
+                </Dropdown>
+              ) : null}
+            </div>
+          </div>
+
+          {/* Title & Location */}
+          <div>
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-50 truncate">
+              {meeting.meetingTitle || "Untitled Meeting"}
+            </h3>
+            <div className="flex items-center gap-2 mt-1 text-xs text-slate-500 dark:text-slate-400">
+              <MapPin className="h-3 w-3 flex-shrink-0" />
+              <span className="truncate">
+                {meeting.location || "Not specified"} ({venueName})
+              </span>
+            </div>
+          </div>
+
+          {/* Metadata */}
+          <div className="flex items-center gap-4 text-xs text-slate-600 dark:text-slate-400 flex-wrap">
+            <Tooltip
+              title={`${dayjs(meeting.startDatetime).format(
+                "D MMM, YYYY"
+              )} • Duration: ${getMeetingDuration(
+                meeting.startDatetime,
+                meeting.endDatetime
+              )}`}
+            >
+              <div className="flex items-center gap-1 cursor-help">
+                <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
+                <span className="truncate">
+                  {formatMeetingDate(meeting.startDatetime)}
+                </span>
+              </div>
+            </Tooltip>
+
+            <div className="flex items-center gap-1">
+              <Clock className="h-3.5 w-3.5 flex-shrink-0" />
+              <span className="truncate">
+                {dayjs(meeting.startDatetime).format("hh:mm A")} -{" "}
+                {dayjs(meeting.endDatetime).format("hh:mm A")}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1">
+              <Users className="h-3.5 w-3.5 flex-shrink-0" />
+              <Tooltip
+                title={meeting.attendees
+                  .map((attendee) => attendee.fullName)
+                  .join(", ")}
+              >
+                <span className="truncate">
+                  {attendeeCount}{" "}
+                  {attendeeCount === 1 ? "attendee" : "attendees"}
+                </span>
+              </Tooltip>
+            </div>
+          </div>
+
+          {meeting.notes && (
+            <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-700">
+              <div className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                Notes:
+              </div>
+              <div className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2">
+                {meeting.notes}
+              </div>
+            </div>
+          )}
+        </div>
+      </Card>
+    );
+  }
+);
+
+MeetingCard.displayName = "MeetingCard";
 
 // Main Component
-const MeetingManager = () => {
+const MeetingManager = ({
+  deal,
+  meetings,
+  refetching,
+  refetch,
+}: {
+  deal: Deal;
+  meetings: Meeting[];
+  refetching: boolean;
+  refetch: () => void;
+}) => {
   const [open, setOpen] = useState(false);
   const [editingMeeting, setEditingMeeting] = useState<Meeting | null>(null);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [meetingToDelete, setMeetingToDelete] = useState<string | null>(null);
-  const [query, setQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [statusFilters, setStatusFilters] = useState<string[]>(['Scheduled', 'Overdue', 'Rescheduled', 'Cancelled', 'Completed']);
-  const [dateSortOrder, setDateSortOrder] = useState<'asc' | 'desc' | null>('desc'); // Default: newest first
-  
+  const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [statusFilters, setStatusFilters] = useState<string[]>([
+    "Scheduled",
+    "Overdue",
+    "Rescheduled",
+    "Cancelled",
+    "Completed",
+  ]);
+  const [dateSortOrder, setDateSortOrder] = useState<"asc" | "desc" | null>(
+    "desc"
+  ); // Default: newest first
+
   // Action modals state
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
   const [completeModalOpen, setCompleteModalOpen] = useState(false);
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
-  const [loading, setLoading] = useLoading();
-  const { outcomes } = useDropDowns();
-
+  const { data: outcomes = [] } = useOutcomes();
+  const formikRef = useRef<FormikProps<any>>(null);
   const debouncedSetQuery = useRef(
     debounce((value: string) => setDebouncedQuery(value), 300)
   ).current;
 
-  const { meetings, addMeeting, updateMeeting, deleteMeeting, contactPersons, dealUUID } = useDealStore();
-  
-  // API instance
-  const API = useApi();
+  // Query hooks
+  const createMeetingMutation = useCreateMeeting(deal.dealUUID);
+  const updateMeetingMutation = useUpdateMeeting(deal.dealUUID);
+  const deleteMeetingMutation = useDeleteMeeting(deal.dealUUID);
+  const cancelMeetingMutation = useCancelMeeting(deal.dealUUID);
+  const rescheduleMeetingMutation = useRescheduleMeeting(deal.dealUUID);
+  const completeMeetingMutation = useCompleteMeeting(deal.dealUUID);
+
+  const { data: contactPersons = [] } = useDropdownContactPersons(deal.hcoUUID);
 
   useEffect(() => {
     return () => debouncedSetQuery.cancel();
   }, [debouncedSetQuery]);
 
   // Memoize contact options to prevent recreation
-  const contactOptions = useMemo(() =>
-    contactPersons.map((contact) => ({
-      label: contact.fullName,
-      value: contact.hcoContactUUID,
-      contact
-    })),
+  const contactOptions = useMemo(
+    () =>
+      contactPersons.map((contact) => ({
+        label: contact.fullName,
+        value: contact.hcoContactUUID,
+        contact,
+      })),
     [contactPersons]
   );
 
   const filteredMeetings = useMemo(() => {
     const q = debouncedQuery.trim().toLowerCase();
-    
+
     let filtered = meetings;
-    
+
     // Apply search filter
     if (q) {
       filtered = filtered.filter((meeting: Meeting) => {
@@ -613,148 +759,167 @@ const MeetingManager = () => {
           meeting.createdBy,
           meeting.location,
           VENUE_DISPLAY_MAP[meeting.venue],
-          dayjs(meeting.startDatetime).format('D MMM, YYYY hh:mm A')
-        ].filter(Boolean).join(' ').toLowerCase();
+          dayjs(meeting.startDatetime).format("D MMM, YYYY hh:mm A"),
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
 
         return searchStr.includes(q);
       });
     }
-    
+
     // Apply status filter
     if (statusFilters.length > 0) {
       filtered = filtered.filter((meeting: Meeting) => {
-        const status = meeting.meetingStatus || getMeetingStatus(meeting.startDatetime, meeting.endDatetime).label;
+        const status =
+          meeting.meetingStatus ||
+          getMeetingStatus(meeting.startDatetime, meeting.endDatetime).label;
         return statusFilters.includes(status);
       });
     }
-    
+
     // Apply date sorting
     if (dateSortOrder) {
       filtered = [...filtered].sort((a, b) => {
         const dateA = dayjs(a.startDatetime);
         const dateB = dayjs(b.startDatetime);
-        
-        if (dateSortOrder === 'asc') {
+
+        if (dateSortOrder === "asc") {
           return dateA.isBefore(dateB) ? -1 : dateA.isAfter(dateB) ? 1 : 0;
         } else {
           return dateB.isBefore(dateA) ? -1 : dateB.isAfter(dateA) ? 1 : 0;
         }
       });
     }
-    
+
     return filtered;
   }, [meetings, debouncedQuery, statusFilters, dateSortOrder]);
 
-  const initialFormValues: MeetingFormValues = useMemo(() =>
-    editingMeeting ? {
-      meetingTitle: editingMeeting.meetingTitle,
-      startDatetime: dayjs(editingMeeting.startDatetime),
-      endDatetime: dayjs(editingMeeting.endDatetime),
-      location: editingMeeting.location,
-      venue: editingMeeting.venue,
-      attendees: editingMeeting.attendees.map(contact => contact.hcoContactUUID),
-      notes: editingMeeting.notes,
-      dealUUID: editingMeeting.dealUUID
-    } : {
-      meetingTitle: '',
-      startDatetime: dayjs(),
-      endDatetime: dayjs(),
-      location: '',
-      venue: '',
-      attendees: [],
-      notes: '',
-      dealUUID: dealUUID
-    },
-    [editingMeeting, dealUUID]
+  const initialFormValues: MeetingFormValues = useMemo(
+    () =>
+      editingMeeting
+        ? {
+            meetingTitle: editingMeeting.meetingTitle,
+            startDatetime: dayjs(editingMeeting.startDatetime),
+            endDatetime: dayjs(editingMeeting.endDatetime),
+            location: editingMeeting.location,
+            venue: editingMeeting.venue,
+            attendees: editingMeeting.attendees.map(
+              (contact) => contact.hcoContactUUID
+            ),
+            notes: editingMeeting.notes,
+            dealUUID: editingMeeting.dealUUID,
+          }
+        : {
+            meetingTitle: "",
+            startDatetime: dayjs(),
+            endDatetime: dayjs(),
+            location: "",
+            venue: "",
+            attendees: [],
+            notes: "",
+            dealUUID: deal.dealUUID,
+          },
+    [editingMeeting, deal.dealUUID]
   );
 
-  const handleSubmit = useCallback(async (values: MeetingFormValues, { setSubmitting }: any) => {
-    try {
-      setLoading(true);
-      
-      // Format the values for API
-      const formattedValues = {
-        meetingTitle: values.meetingTitle,
-        startDatetime: dayjs(values.startDatetime).format("YYYY-MM-DD HH:mm:ss"),
-        endDatetime: dayjs(values.endDatetime).format("YYYY-MM-DD HH:mm:ss"),
-        location: values.location,
-        venue: values.venue,
-        attendees: values.attendees,
-        notes: values.notes || "",
-        dealUUID: dealUUID,
-      };
+  const handleSubmit = useCallback(
+    async (values: MeetingFormValues, { setSubmitting }: any) => {
+        const formattedValues = {
+          meetingTitle: values.meetingTitle,
+          startDatetime: dayjs(values.startDatetime).format(
+            "YYYY-MM-DD HH:mm:ss"
+          ),
+          endDatetime: dayjs(values.endDatetime).format("YYYY-MM-DD HH:mm:ss"),
+          location: values.location,
+          venue: values.venue,
+          venueUUID: values.venue,
+          attendees: values.attendees,
+          notes: values.notes || "",
+          dealUUID: deal.dealUUID,
+        };
 
-      if (editingMeeting) {
-        // Update existing meeting
-        const response = await API.put(
-          `${APIPATH.DEAL.TABS.MEETING.UPDATEMEETING}${editingMeeting.meetingUUID}`,
-          formattedValues
-        );
-        
-        if (response) {
-          updateMeeting(editingMeeting.meetingUUID, response.data);
-          toast.success("Meeting updated successfully");
-          setOpen(false);
-          setEditingMeeting(null);
+        if (editingMeeting) {
+          // Update existing meeting
+          await updateMeetingMutation.mutateAsync({
+            meetingUUID: editingMeeting.meetingUUID,
+            data: formattedValues,
+          },{
+            onSuccess: () => {
+              setOpen(false);
+              setEditingMeeting(null);
+            },
+          });
+        } else {
+          // Create new meeting
+          await createMeetingMutation.mutateAsync(formattedValues,{
+            onSuccess: () => {
+              setOpen(false);
+            },
+          });
         }
-      } else {
-        // Create new meeting
-        const response = await API.post(
-          APIPATH.DEAL.TABS.MEETING.CREATEMEETING,
-          formattedValues
-        );
-        
-        if (response) {
-          addMeeting(response.data);
-          toast.success("Meeting scheduled successfully");
-          setOpen(false);
-        }
-      }
-    } catch (error) {
-      console.error("Error saving meeting:", error);
-      toast.error(editingMeeting ? "Failed to update meeting" : "Failed to schedule meeting");
-    } finally {
-      setLoading(false);
       setSubmitting(false);
-    }
-  }, [editingMeeting, updateMeeting, addMeeting, dealUUID, API, setLoading]);
+    },
+    [
+      editingMeeting,
+      deal.dealUUID,
+      createMeetingMutation,
+      updateMeetingMutation,
+    ]
+  );
 
-  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setQuery(value);
-    debouncedSetQuery(value);
-  }, [debouncedSetQuery]);
+  const handleSearchChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
+      setQuery(value);
+      debouncedSetQuery(value);
+    },
+    [debouncedSetQuery]
+  );
 
   const handleClearSearch = useCallback(() => {
-    setQuery('');
-    setDebouncedQuery('');
+    setQuery("");
+    setDebouncedQuery("");
     debouncedSetQuery.cancel();
   }, [debouncedSetQuery]);
 
-  const handleEdit = useCallback((meetingUUID: string) => {
-    const meeting = meetings.find(m => m.meetingUUID === meetingUUID);
-    if (meeting) {
-      setEditingMeeting(meeting);
-      setOpen(true);
-    }
-  }, [meetings]);
+  const handleEdit = useCallback(
+    (meetingUUID: string) => {
+      const meeting = meetings.find((m) => m.meetingUUID === meetingUUID);
+      if (meeting) {
+        setEditingMeeting(meeting);
+        setOpen(true);
+      }
+    },
+    [meetings]
+  );
 
   const handleDeleteClick = useCallback((id: string) => {
     setMeetingToDelete(id);
     setDeleteModalOpen(true);
   }, []);
 
-  const confirmDelete = useCallback(() => {
+  const confirmDelete = useCallback(async () => {
     if (meetingToDelete) {
-      deleteMeeting(meetingToDelete);
-      setDeleteModalOpen(false);
-      setMeetingToDelete(null);
+      await deleteMeetingMutation.mutateAsync(meetingToDelete, {
+        onSuccess: () => {
+          setDeleteModalOpen(false);
+          setMeetingToDelete(null);
+        },
+      });
     }
-  }, [meetingToDelete, deleteMeeting]);
+  }, [meetingToDelete, deleteMeetingMutation]);
 
-  const handleUpdateMom = useCallback((id: string, mom: string) => {
-    updateMeeting(id, { minutes: mom } as any);
-  }, [updateMeeting]);
+  const handleUpdateMom = useCallback(
+    async (id: string, mom: string) => {
+      await updateMeetingMutation.mutateAsync({
+          meetingUUID: id,
+          data: { notes: mom },
+        });
+    },
+    [updateMeetingMutation]
+  );
 
   const handleCancelClick = useCallback((meeting: Meeting) => {
     setSelectedMeeting(meeting);
@@ -785,25 +950,59 @@ const MeetingManager = () => {
 
   // Toggle date sort order
   const toggleDateSort = useCallback(() => {
-    setDateSortOrder(prev => {
-      if (prev === 'desc') return 'asc';
-      if (prev === 'asc') return null;
-      return 'desc';
+    setDateSortOrder((prev) => {
+      if (prev === "desc") return "asc";
+      if (prev === "asc") return null;
+      return "desc";
     });
   }, []);
 
   // Get sort icon rotation
   const getSortIconClass = () => {
-    if (dateSortOrder === 'asc') return 'rotate-180';
-    if (dateSortOrder === 'desc') return '';
-    return 'opacity-50';
+    if (dateSortOrder === "asc") return "rotate-180";
+    if (dateSortOrder === "desc") return "";
+    return "opacity-50";
+  };
+  const [addContactModalOpen, setAddContactModalOpen] = useState(false);
+  const contactPersonsDropdownRender = useCallback(
+    (menu: React.ReactNode) => (
+      <>
+        {menu}
+        <Divider style={{ margin: "8px 0" }} />
+        <div className="flex items-center justify-end p-2">
+          <Button
+            type="primary"
+            icon={<UserPlus size={16} />}
+            onClick={() => setAddContactModalOpen(true)}
+          >
+            Add New Contact
+          </Button>
+        </div>
+      </>
+    ),
+    [setAddContactModalOpen]
+  );
+  const handleAddNewContact = (contactData: HCOContactPerson) => {
+    setTimeout(() => {
+      if (contactData) {
+        const currentContacts = formikRef.current?.values.attendees || [];
+        formikRef.current?.setFieldValue("attendees", [
+          ...currentContacts,
+          contactData.hcoContactUUID,
+        ]);
+        formikRef.current?.setFieldTouched("attendees", true);
+        setAddContactModalOpen(false);
+      }
+    }, 100);
   };
 
   return (
     <>
       <div className="p-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-0">Meeting History</h3>
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-0">
+            Meeting History
+          </h3>
           <Button
             type="primary"
             icon={<Plus size={16} />}
@@ -814,28 +1013,44 @@ const MeetingManager = () => {
           </Button>
         </div>
 
-        {meetings.length > 0 && (
-          <div className="mb-6 space-y-4">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <Input
-                placeholder="Search meetings..."
-                prefix={<Search size={16} className="text-gray-400" />}
-                onChange={handleSearchChange}
-                value={query}
-                className="w-full max-w-md"
-                allowClear
-                onClear={handleClearSearch}
-              />
+        <div className="mb-6 space-y-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <Input
+              placeholder="Search meetings..."
+              prefix={<Search size={16} className="text-gray-400" />}
+              onChange={handleSearchChange}
+              value={query}
+              className="w-full max-w-md"
+              allowClear
+              onClear={handleClearSearch}
+            />
 
-              <div className='flex items-center gap-3'>
+            <div className="flex items-center gap-3">
               {/* Date Sort Button */}
-              <Tooltip title={dateSortOrder === 'desc' ? 'Sorted: Newest First' : dateSortOrder === 'asc' ? 'Sorted: Oldest First' : 'Click to Sort by Date'}>
+              <Tooltip
+                title={
+                  dateSortOrder === "desc"
+                    ? "Sorted: Newest First"
+                    : dateSortOrder === "asc"
+                    ? "Sorted: Oldest First"
+                    : "Click to Sort by Date"
+                }
+              >
                 <Button
-                  icon={<ArrowUpDown size={16} className={`transition-transform ${getSortIconClass()}`} />}
+                  icon={
+                    <ArrowUpDown
+                      size={16}
+                      className={`transition-transform ${getSortIconClass()}`}
+                    />
+                  }
                   onClick={toggleDateSort}
-                  type={dateSortOrder ? 'primary' : 'default'}
+                  type={dateSortOrder ? "primary" : "default"}
                 >
-                  {dateSortOrder === 'desc' ? 'Newest First' : dateSortOrder === 'asc' ? 'Oldest First' : 'Sort by Date'}
+                  {dateSortOrder === "desc"
+                    ? "Newest First"
+                    : dateSortOrder === "asc"
+                    ? "Oldest First"
+                    : "Sort by Date"}
                 </Button>
               </Tooltip>
 
@@ -846,20 +1061,32 @@ const MeetingManager = () => {
                 value={statusFilters}
                 onChange={setStatusFilters}
                 maxTagCount="responsive"
-                className='w-100'
+                className="w-100"
                 options={[
-                  { value: 'Scheduled', label: 'Scheduled' },
-                  { value: 'Overdue', label: 'Overdue' },
-                  { value: 'Completed', label: 'Completed' },
-                  { value: 'Cancelled', label: 'Cancelled' },
-                  { value: 'Rescheduled', label: 'Rescheduled' },
+                  { value: "Scheduled", label: "Scheduled" },
+                  { value: "Overdue", label: "Overdue" },
+                  { value: "Completed", label: "Completed" },
+                  { value: "Cancelled", label: "Cancelled" },
+                  { value: "Rescheduled", label: "Rescheduled" },
                 ]}
                 allowClear
               />
-            </div>
+                      <Button
+              size="small"
+              icon={
+                <RefreshCw
+                  size={16}
+                  className={refetching ? "animate-spin" : ""}
+                />
+              }
+              onClick={refetch}
+              title="Refresh calls"
+            >
+              Refresh
+            </Button>
             </div>
           </div>
-        )}
+        </div>
 
         {filteredMeetings.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -889,7 +1116,10 @@ const MeetingManager = () => {
       <ModalWrapper
         title={
           <div className="flex items-center">
-            <Calendar size={20} className="mr-2 text-blue-600 dark:text-blue-400" />
+            <Calendar
+              size={20}
+              className="mr-2 text-blue-600 dark:text-blue-400"
+            />
             <span>{editingMeeting ? "Edit Meeting" : "Schedule Meeting"}</span>
           </div>
         }
@@ -901,6 +1131,7 @@ const MeetingManager = () => {
         destroyOnHidden
       >
         <Formik
+          innerRef={formikRef}
           initialValues={initialFormValues}
           validationSchema={validationSchema}
           onSubmit={handleSubmit}
@@ -909,7 +1140,9 @@ const MeetingManager = () => {
           {({ setFieldValue, values, isSubmitting }) => {
             const locationProps = getLocationFieldProps(values.venue);
             const now = dayjs();
-            const startDate = values.startDatetime ? dayjs(values.startDatetime) : null;
+            const startDate = values.startDatetime
+              ? dayjs(values.startDatetime)
+              : null;
 
             return (
               <Form>
@@ -917,28 +1150,28 @@ const MeetingManager = () => {
                   <Col span={24}>
                     <InputBox
                       required
-                      name='meetingTitle'
-                      label='Meeting Title'
-                      placeholder='Enter meeting title'
+                      name="meetingTitle"
+                      label="Meeting Title"
+                      placeholder="Enter meeting title"
                     />
                   </Col>
 
                   <Col span={12}>
                     <CustomDatePicker
                       required
-                      label='Start Date & Time'
-                      name='startDatetime'
+                      label="Start Date & Time"
+                      name="startDatetime"
                       showTime
                       disabledDate={(current) =>
-                        current && current < dayjs().startOf('day')
+                        current && current < dayjs().startOf("day")
                       }
                       disabledTime={(current) =>
-                        current?.isSame(now, 'day')
+                        current?.isSame(now, "day")
                           ? getDisabledTime(current, now, null, true)
                           : {}
                       }
                       format="YYYY-MM-DD hh:mm A"
-                      placeholder='YYYY-MM-DD hh:mm A'
+                      placeholder="YYYY-MM-DD hh:mm A"
                       needConfirm={false}
                     />
                   </Col>
@@ -946,13 +1179,14 @@ const MeetingManager = () => {
                   <Col span={12}>
                     <CustomDatePicker
                       required
-                      label='End Date & Time'
-                      name='endDatetime'
+                      label="End Date & Time"
+                      name="endDatetime"
                       showTime
                       disabledDate={(current) => {
-                        if (current && current < dayjs().startOf('day')) return true;
+                        if (current && current < dayjs().startOf("day"))
+                          return true;
                         if (startDate && current) {
-                          return current.isBefore(startDate, 'day');
+                          return current.isBefore(startDate, "day");
                         }
                         return false;
                       }}
@@ -960,7 +1194,7 @@ const MeetingManager = () => {
                         getDisabledTime(current, now, startDate, true)
                       }
                       format="YYYY-MM-DD hh:mm A"
-                      placeholder='YYYY-MM-DD hh:mm A'
+                      placeholder="YYYY-MM-DD hh:mm A"
                       needConfirm={false}
                     />
                   </Col>
@@ -968,16 +1202,19 @@ const MeetingManager = () => {
                   <Col span={12}>
                     <CustomSelect
                       required
-                      name='venue'
-                      label='Venue'
+                      name="venue"
+                      label="Venue"
                       allowClear
-                      options={VENUE_OPTIONS.map(v => ({ label: v.label, value: v.value }))}
+                      options={VENUE_OPTIONS.map((v) => ({
+                        label: v.label,
+                        value: v.value,
+                      }))}
                     />
                   </Col>
 
                   <Col span={12}>
                     <InputBox
-                      name='location'
+                      name="location"
                       label={locationProps.label}
                       required
                       placeholder={`Enter ${locationProps.placeholder}`}
@@ -987,10 +1224,11 @@ const MeetingManager = () => {
                   <Col span={24}>
                     <CustomSelect
                       required
-                      name='attendees'
-                      label='Attendees'
+                      name="attendees"
+                      label="Attendees"
                       mode="multiple"
                       placeholder="Select attendees"
+                      popupRender={contactPersonsDropdownRender}
                       options={contactOptions}
                       showSearch={{ optionFilterProp: "label" }}
                       hideSelected
@@ -1008,14 +1246,18 @@ const MeetingManager = () => {
                       rows={3}
                       placeholder="Add any additional notes about the meeting"
                       value={values.notes}
-                      onChange={(e) => setFieldValue('notes', e.target.value)}
+                      onChange={(e) => setFieldValue("notes", e.target.value)}
                     />
                   </Col>
                 </Row>
 
                 <div className="mt-6 flex justify-end gap-2">
                   <Button onClick={closeModal}>Cancel</Button>
-                  <Button type="primary" htmlType="submit" loading={isSubmitting || loading}>
+                  <Button
+                    type="primary"
+                    htmlType="submit"
+                    loading={isSubmitting}
+                  >
                     {editingMeeting ? "Update Meeting" : "Schedule Meeting"}
                   </Button>
                 </div>
@@ -1033,17 +1275,26 @@ const MeetingManager = () => {
         onCancel={() => setDeleteModalOpen(false)}
         okText="Delete"
         cancelText="Cancel"
-        okButtonProps={{ danger: true }}
+        okButtonProps={{
+          danger: true,
+          loading: deleteMeetingMutation.isPending,
+        }}
         width={400}
         destroyOnHidden
         centered
       >
         <p>Are you sure you want to delete this meeting?</p>
-        {meetingToDelete && meetings.find(m => m.meetingUUID === meetingToDelete) && (
-          <p className="font-medium mt-2">
-            "{meetings.find(m => m.meetingUUID === meetingToDelete)?.meetingTitle}"
-          </p>
-        )}
+        {meetingToDelete &&
+          meetings.find((m) => m.meetingUUID === meetingToDelete) && (
+            <p className="font-medium mt-2">
+              "
+              {
+                meetings.find((m) => m.meetingUUID === meetingToDelete)
+                  ?.meetingTitle
+              }
+              "
+            </p>
+          )}
       </Modal>
 
       {/* Cancel Meeting Modal */}
@@ -1058,27 +1309,24 @@ const MeetingManager = () => {
         <Formik
           initialValues={{ cancellationReason: "" }}
           validationSchema={Yup.object({
-            cancellationReason: Yup.string().required("Cancel reason is required"),
+            cancellationReason: Yup.string().required(
+              "Cancel reason is required"
+            ),
           })}
           onSubmit={async (values) => {
             if (selectedMeeting) {
-              try {
-                setLoading(true);
-                const response = await API.patch(
-                  `${APIPATH.DEAL.TABS.MEETING.CANCELMEETING}${selectedMeeting.meetingUUID}?reason=${values.cancellationReason}`
-                );
-                if (response) {
-                  updateMeeting(selectedMeeting.meetingUUID, response.data);
-                  toast.success("Meeting cancelled successfully");
-                  setCancelModalOpen(false);
-                  setSelectedMeeting(null);
+              await cancelMeetingMutation.mutateAsync(
+                {
+                  meetingUUID: selectedMeeting.meetingUUID,
+                  reason: values.cancellationReason,
+                },
+                {
+                  onSuccess: () => {
+                    setCancelModalOpen(false);
+                    setSelectedMeeting(null);
+                  },
                 }
-              } catch (error) {
-                console.error("Error cancelling meeting:", error);
-                toast.error("Failed to cancel meeting");
-              } finally {
-                setLoading(false);
-              }
+              );
             }
           }}
         >
@@ -1108,7 +1356,7 @@ const MeetingManager = () => {
                   type="primary"
                   danger
                   htmlType="submit"
-                  loading={loading}
+                  loading={cancelMeetingMutation.isPending}
                   disabled={!isValid || !dirty}
                 >
                   Cancel Meeting
@@ -1130,56 +1378,77 @@ const MeetingManager = () => {
       >
         <Formik
           initialValues={{
-            startDatetime: selectedMeeting ? dayjs(selectedMeeting.startDatetime) : dayjs(),
-            endDatetime: selectedMeeting ? dayjs(selectedMeeting.endDatetime) : dayjs(),
+            startDatetime: selectedMeeting
+              ? dayjs(selectedMeeting.startDatetime)
+              : dayjs(),
+            endDatetime: selectedMeeting
+              ? dayjs(selectedMeeting.endDatetime)
+              : dayjs(),
             rescheduleReason: "",
           }}
           validationSchema={Yup.object({
             startDatetime: Yup.mixed()
               .required("New start date & time is required")
-              .test("is-future", "Date & time must be in the future", function (value) {
-                if (!value) return false;
-                const selectedDateTime = dayjs(value as string | Date | dayjs.Dayjs);
-                const now = dayjs();
-                return selectedDateTime.isAfter(now);
-              }),
+              .test(
+                "is-future",
+                "Date & time must be in the future",
+                function (value) {
+                  if (!value) return false;
+                  const selectedDateTime = dayjs(
+                    value as string | Date | dayjs.Dayjs
+                  );
+                  const now = dayjs();
+                  return selectedDateTime.isAfter(now);
+                }
+              ),
             endDatetime: Yup.mixed()
               .required("New end date & time is required")
-              .test("is-after-start", "End time must be after start time", function (value) {
-                const { startDatetime } = this.parent;
-                if (!value || !startDatetime) return true;
-                return dayjs(value as any).isAfter(dayjs(startDatetime as any));
-              }),
-            rescheduleReason: Yup.string().required("Reschedule reason is required"),
+              .test(
+                "is-after-start",
+                "End time must be after start time",
+                function (value) {
+                  const { startDatetime } = this.parent;
+                  if (!value || !startDatetime) return true;
+                  return dayjs(value as any).isAfter(
+                    dayjs(startDatetime as any)
+                  );
+                }
+              ),
+            rescheduleReason: Yup.string().required(
+              "Reschedule reason is required"
+            ),
           })}
           onSubmit={async (values) => {
             if (selectedMeeting) {
-              try {
-                setLoading(true);
-                const response = await API.post(
-                  `${APIPATH.DEAL.TABS.MEETING.RESCHEDULEMEETING}${selectedMeeting.meetingUUID}`,
-                  {
-                    startDatetime: dayjs(values.startDatetime).format("YYYY-MM-DD HH:mm:ss"),
-                    endDatetime: dayjs(values.endDatetime).format("YYYY-MM-DD HH:mm:ss"),
+              await rescheduleMeetingMutation.mutateAsync(
+                {
+                  meetingUUID: selectedMeeting.meetingUUID,
+                  data: {
+                    startDatetime: dayjs(values.startDatetime).format(
+                      "YYYY-MM-DD HH:mm:ss"
+                    ),
+                    endDatetime: dayjs(values.endDatetime).format(
+                      "YYYY-MM-DD HH:mm:ss"
+                    ),
                     rescheduleReason: values.rescheduleReason,
-                  }
-                );
-                if (response) {
-                  updateMeeting(selectedMeeting.meetingUUID, response.data);
-                  toast.success("Meeting rescheduled successfully");
-                  setRescheduleModalOpen(false);
-                  setSelectedMeeting(null);
+                  },
+                },
+                {
+                  onSuccess: () => {
+                    setRescheduleModalOpen(false);
+                    setSelectedMeeting(null);
+                  },
                 }
-              } finally {
-                setLoading(false);
-              }
+              );
             }
           }}
           enableReinitialize
         >
           {({ isValid, values }) => {
             const now = dayjs();
-            const startDate = values.startDatetime ? dayjs(values.startDatetime) : null;
+            const startDate = values.startDatetime
+              ? dayjs(values.startDatetime)
+              : null;
 
             return (
               <Form className="space-y-4">
@@ -1191,10 +1460,10 @@ const MeetingManager = () => {
                       name="startDatetime"
                       showTime
                       disabledDate={(current) =>
-                        current && current < dayjs().startOf('day')
+                        current && current < dayjs().startOf("day")
                       }
                       disabledTime={(current) =>
-                        current?.isSame(now, 'day')
+                        current?.isSame(now, "day")
                           ? getDisabledTime(current, now, null, true)
                           : {}
                       }
@@ -1211,9 +1480,10 @@ const MeetingManager = () => {
                       name="endDatetime"
                       showTime
                       disabledDate={(current) => {
-                        if (current && current < dayjs().startOf('day')) return true;
+                        if (current && current < dayjs().startOf("day"))
+                          return true;
                         if (startDate && current) {
-                          return current.isBefore(startDate, 'day');
+                          return current.isBefore(startDate, "day");
                         }
                         return false;
                       }}
@@ -1239,9 +1509,7 @@ const MeetingManager = () => {
                           status={meta.touched && meta.error ? "error" : ""}
                         />
                         {meta.touched && meta.error && (
-                          <div className="field-error">
-                            {meta.error}
-                          </div>
+                          <div className="field-error">{meta.error}</div>
                         )}
                       </>
                     )}
@@ -1255,7 +1523,7 @@ const MeetingManager = () => {
                   <Button
                     type="primary"
                     htmlType="submit"
-                    loading={loading}
+                    loading={rescheduleMeetingMutation.isPending}
                     disabled={!isValid}
                   >
                     Reschedule
@@ -1283,23 +1551,12 @@ const MeetingManager = () => {
           })}
           onSubmit={async (values) => {
             if (selectedMeeting) {
-              try {
-                setLoading(true);
-                const response = await API.patch(
-                  `${APIPATH.DEAL.TABS.MEETING.COMPLETEMEETING}${selectedMeeting.meetingUUID}/${values.outcome}`
-                );
-                if (response) {
-                  updateMeeting(selectedMeeting.meetingUUID, response.data);
-                  toast.success("Meeting completed successfully");
-                  setCompleteModalOpen(false);
-                  setSelectedMeeting(null);
-                }
-              } catch (error) {
-                console.error("Error completing meeting:", error);
-                toast.error("Failed to complete meeting");
-              } finally {
-                setLoading(false);
-              }
+              await completeMeetingMutation.mutateAsync({
+                meetingUUID: selectedMeeting.meetingUUID,
+                data: { outcome: values.outcome },
+              });
+              setCompleteModalOpen(false);
+              setSelectedMeeting(null);
             }
           }}
         >
@@ -1321,7 +1578,7 @@ const MeetingManager = () => {
                 <Button
                   type="primary"
                   htmlType="submit"
-                  loading={loading}
+                  loading={completeMeetingMutation.isPending}
                   disabled={!isValid || !dirty}
                 >
                   Complete
@@ -1331,6 +1588,15 @@ const MeetingManager = () => {
           )}
         </Formik>
       </Modal>
+      <AddNewContactModal
+        open={addContactModalOpen}
+        onClose={() => setAddContactModalOpen(false)}
+        onSave={(values) => handleAddNewContact(values)}
+        showExtraFields={false}
+        requireHelthcareId={true}
+        hcoUUID={deal.hcoUUID}
+        hcoName={deal.hcoName}
+      />
     </>
   );
 };

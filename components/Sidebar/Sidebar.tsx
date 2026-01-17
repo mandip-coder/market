@@ -2,18 +2,16 @@
 import { useSidebar } from "@/context/SidebarContextProvider";
 import { useThemeContext } from "@/context/ThemeContextProvider";
 import useMenu from "@/hooks/useMenu";
-import { Menu, Layout, Tooltip } from "antd";
-import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState, memo, Suspense } from "react";
-import AppScrollbar from "../AppScrollBar";
-import Link from "next/link";
-import { Bell, ChevronLeft, MoonIcon, SunIcon } from "lucide-react";
-import Image from "next/image";
-import NotificationDrawer from "../NotificationDrawer/NotificationDrawer";
-import AccountSwitcher from "../AccountSwitcher/AccountSwithcer";
+import { Layout, Menu } from "antd";
 import { MenuProps } from "antd/lib";
+import { Bell, ChevronLeft, MoonIcon, SunIcon } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import AccountSwitcher from "../AccountSwitcher/AccountSwithcer";
+import AppScrollbar from "../AppScrollBar";
+import NotificationDrawer from "../NotificationDrawer/NotificationDrawer";
 import ShinyText from "../ShinyText/ShinyText";
-import SuspenseWithBoundary from "../SuspenseWithErrorBoundry/SuspenseWithErrorBoundry";
 
 const { Sider } = Layout;
 
@@ -25,6 +23,7 @@ function Sidebar() {
   const [openKeys, setOpenKeys] = useState(routePath.split("/"));
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [openNotification, setOpenNotification] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Memoize the link wrapper function
   const wrapLabelWithLink = useCallback((item: any) => {
@@ -51,13 +50,35 @@ function Sidebar() {
       setSelectedKeys(["/healthcares"]);
     } else if (routePath.includes("products")) {
       setSelectedKeys(["/products"]);
-    } else {
+    }
+    else if (routePath.includes("user-management")) {
+      setSelectedKeys(["/master/user-management"]);
+    }
+    else {
       setSelectedKeys([routePath]);
     }
     if (routePath.includes('master')) {
       setOpenKeys(["/master"]);
     }
   }, [routePath]);
+
+  // Auto-scroll selected item to center of sidebar
+  useEffect(() => {
+    if (selectedKeys.length > 0 && scrollContainerRef.current) {
+      // Small delay to ensure DOM is updated after menu selection
+      const timer = setTimeout(() => {
+        const selectedElement = scrollContainerRef.current?.querySelector('.ant-menu-item-selected');
+        if (selectedElement) {
+          selectedElement.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+          });
+        }
+      }, 10);
+
+      return () => clearTimeout(timer);
+    }
+  }, [selectedKeys]);
 
   // Memoize event handlers
   const handleThemeToggle = useCallback(() => {
@@ -85,17 +106,17 @@ function Sidebar() {
       type: "group",
       label: "System",
       children: [
-        {
-          key: "notifications",
-          icon: <Bell size={20} />,
-          label: (
-            <NotificationDrawer
-              open={openNotification}
-              close={handleNotificationClose}
-            />
-          ),
-          onClick: handleNotificationOpen
-        },
+        // {
+        //   key: "notifications",
+        //   icon: <Bell size={20} />,
+        //   label: (
+        //     <NotificationDrawer
+        //       open={openNotification}
+        //       close={handleNotificationClose}
+        //     />
+        //   ),
+        //   onClick: handleNotificationOpen
+        // },
         {
           key: 'theme',
           icon: themeMode === "light" ? <MoonIcon size={20} /> : <SunIcon size={20} />,
@@ -151,7 +172,7 @@ function Sidebar() {
           />
         </div>
       </div>
-      <div>
+      <div ref={scrollContainerRef}>
         <AppScrollbar className="h-[calc(100vh-280px)]">
           <Menu
             rootClassName="!border-0"

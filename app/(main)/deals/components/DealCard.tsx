@@ -1,11 +1,14 @@
 import { Badge, Card, Tooltip, Typography } from "antd";
-import { formatUserDisplay, GlobalDate } from "@/Utils/helpers";
+import { formatUserDisplay, getStageColor, GlobalDate } from "@/Utils/helpers";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { Building, Calendar, Clock, User } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
-import { Deal, Stage, STAGE_LABELS } from "../../../../lib/types";
+import { Deal } from "../services/deals.types";
+import { useDropdownDealStages } from "@/services/dropdowns/dropdowns.hooks";
+import { useLoginUser } from "@/hooks/useToken";
+
 
 dayjs.extend(relativeTime);
 
@@ -40,17 +43,10 @@ export const cardVariants = {
 
 
 
-export const DealCard = ({ deal, page }: { deal: Deal; page: number }) => {
-  const dealKey = `${deal.dealUUID}-${page}`;
-  const stage = deal.dealStage;
-  /* Ribbon Colors for valid AntD Badge colors */
-  const ribbonColors: Record<Deal["dealStage"], string> = {
-    [Stage.CLOSED_LOST]: "red",
-    [Stage.CLOSED_WON]: "green",
-    [Stage.DISCUSSION]: "blue",
-    [Stage.NEGOTIATION]: "gold",
-  };
-
+export const DealCard = ({ deal }: { deal: Deal }) => {
+  const stageName = deal.dealStageName;
+  const color = getStageColor(stageName);
+  const user=useLoginUser()
   return (
     <motion.div
       className="h-full"
@@ -60,8 +56,8 @@ export const DealCard = ({ deal, page }: { deal: Deal; page: number }) => {
       variants={cardVariants}
     >
       <Badge.Ribbon
-        text={STAGE_LABELS[stage]}
-        color={ribbonColors[stage] || "blue"}
+        text={stageName}
+        color={color}
         style={{
           fontSize: "11px",
         }}
@@ -127,10 +123,10 @@ export const DealCard = ({ deal, page }: { deal: Deal; page: number }) => {
                   <div className="flex items-center gap-1.5 min-w-0">
                     <User className="h-3 w-3 text-blue-500 dark:text-blue-400 flex-shrink-0" />
                     <span className="text-slate-600 dark:text-slate-400 truncate">
-                      {formatUserDisplay(deal.createdBy, deal.userUUID, deal.createdByUUID)}
+                     Created by <strong>{formatUserDisplay(deal.createdBy, deal.createdUUID, user?.userUUID)}</strong>
                     </span>
                   </div>
-                </Tooltip>
+                </Tooltip>  
 
                 {/* Updated */}
                 <Tooltip title="Last updated time for this deal">
@@ -151,3 +147,4 @@ export const DealCard = ({ deal, page }: { deal: Deal; page: number }) => {
     </motion.div>
   );
 };
+

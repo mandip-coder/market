@@ -1,6 +1,6 @@
 import { apiClient } from '@/lib/apiClient/apiClient'
 import { APIPATH } from '@/shared/constants/url'
-import type { KPIStats, TopProduct, DealStage } from '../types/dashboard.types'
+import type { KPIStats, TopProduct, DealStage, DashboardFollowUpsResponse, DashboardFollowUp } from './dashboard.types'
 
 
 export const dashboardService = {
@@ -20,6 +20,19 @@ export const dashboardService = {
   getDealStages: async (): Promise<DealStage[]> => {
     const response = await apiClient.get<{ data: DealStage[] }>(
       APIPATH.DASHBOARD.STAGECOUNTS
+    )
+    return response.data
+  },
+  fetchDashboardLeadFollowUps: async (): Promise<DashboardFollowUp[]> => {
+    const response = await apiClient.get<{data:DashboardFollowUp[]}>(
+      APIPATH.DASHBOARD.LEADFOLLOWUP
+    )
+    return response.data
+  },
+
+  fetchDashboardDealFollowUps: async (): Promise<DashboardFollowUp[]> => {
+    const response = await apiClient.get<{data:DashboardFollowUp[]}>(
+      APIPATH.DASHBOARD.DEALFOLLOWUP
     )
     return response.data
   },

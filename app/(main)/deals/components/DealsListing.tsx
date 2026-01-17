@@ -1,320 +1,115 @@
 "use client";
 
-import AsyncSearchSelect from "@/components/AsyncSearchSelect/AsyncSearchSelect";
-import { useDealStore } from "@/context/store/dealsStore";
-import { useApi } from "@/hooks/useAPI";
-import { useTableScroll } from "@/hooks/useTableScroll";
-import { APIPATH } from "@/shared/constants/url";
-import { GlobalDate } from "@/Utils/helpers";
-import type { ProColumns } from "@ant-design/pro-table";
-import ProTable from "@ant-design/pro-table";
-import { Button, Input, Pagination, PaginationProps, Tag } from "antd";
-import { SelectProps } from "antd/lib";
-import { motion } from "framer-motion";
-import { Activity, Building2, Eye, Plus, Search, User } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { use, useCallback, useMemo, useRef, useState, memo, useEffect } from "react";
-
-import { Deal, Stage, STAGE_LABELS, stages } from "../../../../lib/types";
-import { DealCard } from "./DealCard";
-import debounce from "lodash.debounce";
-import { useLoading } from "@/hooks/useLoading";
 import { ProductSkeleton } from "@/components/Skeletons/ProductCardSkelton";
-import { Healthcare } from "../../healthcares/lib/types";
+import { useDealStore } from "@/context/store/dealsStore";
 import { useDealViewState } from "@/context/store/optimizedSelectors";
+import { useDropdownDealStages, useHCOList } from "@/services/dropdowns/dropdowns.hooks";
+import { Button, Input, Pagination, PaginationProps, Select } from "antd";
+import { SelectProps } from "antd/lib";
+import { AnimatePresence, motion } from "framer-motion";
+import debounce from "lodash.debounce";
+import { Activity, Plus, Search } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { memo, useCallback, useRef, useState } from "react";
+import { useDeals } from "../services/deals.hooks";
+import { Deal } from "../services/deals.types";
+import { DealCard } from "./DealCard";
+import { DealsTable } from "./DealsTable";
+import AppErrorUI from "@/components/AppErrorUI/AppErrorUI";
+import { ApiError } from "@/lib/apiClient/ApiError";
 
-// Constants
-const STAGES: stages[] = [Stage.DISCUSSION, Stage.NEGOTIATION, Stage.CLOSED_WON, Stage.CLOSED_LOST];
-const STAGE_COLORS: Record<stages, string> = {
-  [Stage.DISCUSSION]: "gold",
-  [Stage.NEGOTIATION]: "green",
-  [Stage.CLOSED_LOST]: "red",
-  [Stage.CLOSED_WON]: "green",
-} as const;
-
-const getStageColor = (stage: string): string => STAGE_COLORS[stage as stages] || "default";
-
-export const useViewMode = () => {
-  const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
-  return { viewMode, setViewMode };
-};
 
 // Memoized Filter Controls Component
-const FilterControls = memo(({
-  searchQuery,
-  onSearchChange,
-  stageFilter,
-  setStageFilter,
-  stageCounts,
-  onClearFilters,
-  healthcareFilter,
-  onHealthcareChange,
-  onHealthcareClear,
-}: {
-  searchQuery: string;
-  onSearchChange: (query: string) => void;
-  stageFilter: string;
-  setStageFilter: (stage: string) => void;
-  stageCounts: Record<string, number>;
-  onClearFilters: () => void;
-  healthcareFilter: string;
-  onHealthcareChange: SelectProps["onSelect"];
-  onHealthcareClear: () => void;
-}) => {
-  const handleClear = useCallback(() => {
-    onClearFilters();
-  }, [onClearFilters]);
-  const { hcoList } = useDealViewState();
+const FilterControls = memo(
+  ({
+    searchQuery,
+    onSearchChange,
+    stageFilter,
+    setStageFilter,
+    onClearFilters,
+    healthcareFilter,
+    onHealthcareChange,
+    onHealthcareClear,
+  }: {
+    searchQuery: string;
+    onSearchChange: (query: string) => void;
+    stageFilter: string;
+    setStageFilter: (stage: string) => void;
+    onClearFilters: () => void;
+    healthcareFilter: string;
+    onHealthcareChange: SelectProps["onSelect"];
+    onHealthcareClear: () => void;
+  }) => {
+    const { data: hcoList = [] } = useHCOList();
+    const { data: dealStages = [] } = useDropdownDealStages();
 
-  return (
-    <div className="flex flex-col sm:flex-row gap-4 flex-wrap mb-4">
-      <Input
-        type="text"
-        placeholder="Search deals..."
-        value={searchQuery}
-        className="max-w-85"
-        allowClear
-        prefix={<Search className="h-4 w-4 text-slate-400" />}
-        onChange={(e) => onSearchChange(e.target.value)}
-      />
-      <AsyncSearchSelect
-        allowClear
-        placeholder="Select Healthcare"
-        className="w-80"
-        fetchUrl=""
-        options={hcoList.map((org: Healthcare) => ({
-          label: org.hcoName,
-          value: org.hcoUUID,
-        }))}
-        loading={hcoList.length === 0}
-        showSearch={{
-          optionFilterProp: "label",
-        }}
-        value={healthcareFilter || undefined}
-        onSelect={onHealthcareChange}
-        onClear={onHealthcareClear}
-      />
+    const handleClear = useCallback(() => {
+      onClearFilters();
+    }, [onClearFilters]);
 
-      <div className="flex flex-wrap gap-2">
-        <Button
-          onClick={() => setStageFilter("")}
-          type={stageFilter === "" ? "primary" : "default"}
-        >
-          All
-        </Button>
-        {STAGES.map((stage) => (
+    return (
+      <div className="flex flex-col sm:flex-row gap-4 flex-wrap mb-4">
+        <Input
+          type="text"
+          placeholder="Search deals..."
+          value={searchQuery}
+          className="max-w-85"
+          allowClear
+          prefix={<Search className="h-4 w-4 text-slate-400" />}
+          onChange={(e) => onSearchChange(e.target.value)}
+        />
+        <Select
+          allowClear
+          placeholder={hcoList.length === 0 ? "Loading..." : "Select Healthcare"}
+          className="w-80"
+          options={hcoList.map((hco) => ({
+            label: hco.hcoName,
+            value: hco.hcoUUID,
+          }))}
+          disabled={hcoList.length === 0}
+          loading={hcoList.length === 0}
+          showSearch={{
+            optionFilterProp: "label",
+          }}
+          value={healthcareFilter || undefined}
+          onSelect={onHealthcareChange}
+          onClear={onHealthcareClear}
+        />
+
+        <div className="flex flex-wrap gap-2">
           <Button
-            key={stage}
-            onClick={() => setStageFilter(stage)}
-            type={stageFilter === stage ? "primary" : "default"}
+            onClick={() => setStageFilter("")}
+            type={stageFilter === "" ? "primary" : "default"}
           >
-            <span className="font-medium">{STAGE_LABELS[stage]}</span>
+            All
           </Button>
-        ))}
-        <Button onClick={handleClear} type="default" disabled={searchQuery === "" && stageFilter === "" && healthcareFilter === ""}>
-          Clear
-        </Button>
+          {dealStages.map((stage) => (
+            <Button
+              key={stage.dealStageUUID}
+              onClick={() => setStageFilter(stage.dealStageUUID)}
+              type={stageFilter === stage.dealStageUUID ? "primary" : "default"}
+            >
+              <span className="font-medium">{stage.dealStageName}</span>
+            </Button>
+          ))}
+          <Button
+            onClick={handleClear}
+            type="default"
+            disabled={
+              searchQuery === "" &&
+              stageFilter === "" &&
+              healthcareFilter === ""
+            }
+          >
+            Clear
+          </Button>
+        </div>
       </div>
-    </div>
-  );
-});
+    );
+  }
+);
 
 FilterControls.displayName = "FilterControls";
-
-// Memoized Grid View Component
-const GridView = memo(({
-  currentDeals,
-  page,
-  totalDeals,
-  pageSize,
-  handlePageChange,
-  loading,
-}: {
-  currentDeals: Deal[];
-  page: number;
-  totalDeals: number;
-  pageSize: number;
-  handlePageChange: (page: number, pageSize: number) => void;
-  loading: boolean;
-}) => {
-  return (
-    <>
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
-          Showing {currentDeals.length} of {totalDeals} deals
-        </p>
-
-        <Pagination
-          defaultCurrent={1}
-          current={page}
-          total={totalDeals}
-          pageSize={pageSize}
-          onChange={handlePageChange}
-          pageSizeOptions={["10", "20", "50", "100"]}
-        />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-        {currentDeals.map((deal) => (
-          !loading ?
-            <DealCard key={deal.dealUUID} deal={deal} page={page} /> :
-            <ProductSkeleton key={deal.dealUUID} />
-        ))}
-      </div>
-    </>
-  );
-});
-
-GridView.displayName = "GridView";
-
-// Memoized Table View Component
-const TableView = memo(({
-  deals,
-  tableParams,
-  handlePageChange,
-  onTableChange,
-}: {
-  deals: Deal[];
-  tableParams: any;
-  handlePageChange: (page: number, pageSize: number) => void;
-  onTableChange: (pagination: any, filters: any, sorter: any) => void;
-}) => {
-  const { tableWrapperRef, scrollY } = useTableScroll();
-  const router = useRouter();
-
-  const columns: ProColumns<Deal>[] = useMemo(
-    () => [
-      {
-        title: "Name",
-        dataIndex: "dealName",
-        key: "dealName",
-        width: 150,
-        sorter: true,
-
-        render: (text) => (
-          <div className="flex items-center gap-2">
-            <div className="p-1 bg-indigo-100 dark:bg-indigo-900/30 rounded-md">
-              <Activity className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-            </div>
-            <span className="font-medium text-sm truncate max-w-60">{text}</span>
-          </div>
-        ),
-      },
-      {
-        title: "Created Date",
-        dataIndex: "createdAt",
-        key: "createdAt",
-        width: 120,
-        sorter: true,
-        render: (text) => (
-          <div>
-            <div className="text-sm">{GlobalDate(text as string)}</div>
-          </div>
-        ),
-      },
-      {
-        title: "Healthcare",
-        dataIndex: "hcoUUID",
-        key: "hcoUUID",
-        width: 120,
-        sorter: true,
-        render: (text, record) => (
-          <div className="flex items-center gap-1">
-            <Building2 className="h-3.5 w-3.5 text-slate-400" />
-            <span>{record.hcoName || `#${text}`}</span>
-          </div>
-        ),
-      },
-      {
-        title: "User",
-        dataIndex: "createdBy",
-        key: "createdAt",
-        width: 100,
-        sorter: true,
-        render: (text, record) => (
-          <div className="flex items-center gap-1">
-            <User className="h-3.5 w-3.5 text-slate-400" />
-            <span>{record.createdBy || `#${text}`}</span>
-          </div>
-        ),
-      },
-      {
-        title: "Stage",
-        dataIndex: "dealStage",
-        key: "dealStage",
-        width: 120,
-        render: (text) =>
-          text ? (
-            <Tag color={getStageColor(text as string)}>
-              {STAGE_LABELS[text as stages]}
-            </Tag>
-          ) : (
-            <span className="text-xs text-slate-400">Not set</span>
-          ),
-      },
-      {
-        title: "Actions",
-        key: "actions",
-        width: 80,
-        render: (_, record) => (
-          <Button
-            type="text"
-            icon={<Eye className="h-3.5 w-3.5" />}
-            onClick={() => router.push(`/deals/${record.dealUUID}`)}
-          />
-        ),
-      },
-    ],
-    [router]
-  );
-
-  return (
-    <div ref={tableWrapperRef}>
-      <ProTable<Deal>
-        columns={columns}
-        locale={{
-          triggerDesc: "Sort descending",
-          triggerAsc: "Sort ascending",
-          cancelSort: "Clear sorting",
-          emptyText: (
-            <div className="py-10 text-center text-gray-500">
-              <p className="text-lg font-medium">No deals found</p>
-              <p className="text-sm">
-                Try adjusting your filters or search query.
-              </p>
-            </div>
-          ),
-        }}
-        dataSource={deals}
-        rowKey="dealUUID"
-        tableStyle={{
-          paddingTop: 20,
-        }}
-        pagination={{
-          current: tableParams.pagination.current,
-          pageSize: tableParams.pagination.pageSize,
-          showSizeChanger: true,
-          pageSizeOptions: ["10", "20", "50", "100"],
-          showQuickJumper: true,
-          total: tableParams.pagination.total,
-          onChange: (page, pageSize) => handlePageChange(page, pageSize),
-        }}
-        onChange={onTableChange}
-        search={false}
-        options={{
-          density: false,
-          fullScreen: false,
-          reload: false,
-          setting: false,
-        }}
-        scroll={{ x: 800, y: scrollY }}
-        dateFormatter="string"
-      />
-    </div>
-  );
-});
-
-TableView.displayName = "TableView";
 
 // Memoized Empty State Component
 const EmptyState = memo(() => {
@@ -349,89 +144,32 @@ const EmptyState = memo(() => {
 
 EmptyState.displayName = "EmptyState";
 
-// Main Component
-interface DealsListingProps {
-  dealPromise: Promise<{
-    data: {
-      list: Deal[];
-      filterCount: number;
-      totalCount: number;
-      stageCounts: Record<string, number>;
-    };
-  }>;
-  hcoListPromise: Promise<{
-    data: Healthcare[];
-  }>;
-}
+// ==================== MAIN COMPONENT ====================
 
-export default function DealsListing({ dealPromise, hcoListPromise }: DealsListingProps) {
-  const dealsData = use(dealPromise);
-  const hcoListData = use(hcoListPromise);
-  const API = useApi();
-  const [deals, setDeals] = useState<Deal[]>(dealsData.data.list);
+export default function DealsListing() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [stageFilter, setStageFilter] = useState("");
   const [healthcareFilter, setHealthcareFilter] = useState("");
-  const { viewMode, page, setPage, setHcoList, pageSize, setPageSize } = useDealViewState();
-  const [loading, setLoading] = useLoading();
-  const [tableParams, setTableParams] = useState({
-    pagination: {
-      current: 1,
-      pageSize: 10,
-      total: dealsData.data.totalCount,
-    },
-    filters: {},
-    sorter: {},
+  const { page, setPage, pageSize, setPageSize, viewMode } = useDealViewState();
+
+  // Fetch deals using React Query
+  const { data: dealsData, isLoading: loading,error } = useDeals({
+    page,
+    pageSize,
+    searchQuery: debouncedSearchQuery,
+    stageFilter,
+    healthcareFilter,
   });
 
-  // Initialize store with initial data
-  useEffect(() => {
-    if (hcoListData?.data) {
-      setHcoList(hcoListData.data);
-    }
-    // Set initial page size if not already set
-    if (pageSize === 10) {
-      setPageSize(10);
-    }
-  }, [hcoListData, setHcoList, pageSize, setPageSize]);
-
-  // Fetch deals function
-  const fetchDeals = useCallback(
-    async (newPage: number, newPageSize: number, search: string, stage: string, hcoUUID: string = "") => {
-      setLoading(true);
-      const response = await API.get(
-        APIPATH.DEAL.GETDEAL +
-        `?page=${newPage}&limit=${newPageSize}${search ? `&searchDeal=${search}` : ""
-        }${stage ? `&searchDealStage=${stage}` : ""}${hcoUUID ? `&searchHcoUUID=${hcoUUID}` : ""
-        }`
-      );
-      if (response) {
-        setDeals(response.data.list);
-        setPage(newPage);
-        setPageSize(newPageSize);
-        setTableParams((prev) => ({
-          ...prev,
-          pagination: {
-            ...prev.pagination,
-            current: newPage,
-            pageSize: newPageSize,
-            total: response.data.totalCount,
-          },
-        }));
-
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      }
-      setLoading(false);
-    },
-    [API, setPage, setPageSize, setLoading]
-  );
-
+  const deals = dealsData?.data?.list || [];
+  const totalCount = dealsData?.data?.totalCount || 0;
 
   const debouncedFetch = useRef(
-    debounce((search: string, stage: string, hcoUUID: string) => {
+    debounce((search: string) => {
       setDebouncedSearchQuery(search);
-      fetchDeals(1, pageSize, search, stage, hcoUUID);
+      setPage(1); // Reset to first page on search
     }, 500)
   ).current;
 
@@ -439,75 +177,76 @@ export default function DealsListing({ dealPromise, hcoListPromise }: DealsListi
   const handleSearchChange = useCallback(
     (value: string) => {
       setSearchQuery(value);
-      debouncedFetch(value, stageFilter, healthcareFilter);
+      debouncedFetch(value);
     },
-    [debouncedFetch, stageFilter, healthcareFilter]
+    [debouncedFetch]
   );
 
   // Handle stage filter change
   const handleStageFilterChange = useCallback(
     (stage: string) => {
       setStageFilter(stage);
-      // Cancel pending debounced search
+      setPage(1); // Reset to first page on filter change
       debouncedFetch.cancel();
-      // Immediately fetch with new stage filter
-      fetchDeals(1, pageSize, searchQuery, stage, healthcareFilter);
     },
-    [fetchDeals, searchQuery, debouncedFetch, healthcareFilter, pageSize]
+    [debouncedFetch, setPage]
   );
 
   // Handle healthcare filter change
   const handleHealthCareChange: SelectProps["onSelect"] = useCallback(
-    (value: string, option: any) => {
+    (value: string) => {
       setHealthcareFilter(value);
+      setPage(1); // Reset to first page on filter change
       debouncedFetch.cancel();
-      fetchDeals(1, pageSize, searchQuery, stageFilter, value);
     },
-    [fetchDeals, searchQuery, stageFilter, debouncedFetch, pageSize]
+    [debouncedFetch, setPage]
   );
 
   // Handle healthcare clear
   const handleHealthCareClear = useCallback(() => {
     setHealthcareFilter("");
+    setPage(1);
     debouncedFetch.cancel();
-    fetchDeals(1, pageSize, searchQuery, stageFilter, "");
-  }, [fetchDeals, searchQuery, stageFilter, debouncedFetch, pageSize]);
+  }, [debouncedFetch, setPage]);
 
-  // Handle page change - synchronized for both views
+  // Handle page change
   const handlePageChange: PaginationProps["onChange"] = useCallback(
     (newPage: number, newPageSize: number) => {
-      const finalPageSize = newPageSize || pageSize;
-      fetchDeals(newPage, finalPageSize, debouncedSearchQuery, stageFilter, healthcareFilter);
+      setPage(newPage);
+      if (newPageSize !== pageSize) {
+        setPageSize(newPageSize);
+      }
+      window.scrollTo({ top: 0, behavior: "smooth" });
     },
-    [fetchDeals, debouncedSearchQuery, stageFilter, healthcareFilter, pageSize]
+    [setPage, setPageSize, pageSize]
   );
 
-  // Handle clear filters
+  // Handle table change (for table view pagination)
+  const handleTableChange = useCallback(
+    (pagination: any, filters: any, sorter: any) => {
+      if (pagination.current !== page) {
+        setPage(pagination.current);
+      }
+      if (pagination.pageSize !== pageSize) {
+        setPageSize(pagination.pageSize);
+        setPage(1); // Reset to first page when page size changes
+      }
+    },
+    [page, pageSize, setPage, setPageSize]
+  );
+
   const handleClearFilters = useCallback(() => {
     setSearchQuery("");
     setDebouncedSearchQuery("");
     setStageFilter("");
     setHealthcareFilter("");
+    setPage(1);
     debouncedFetch.cancel();
-    fetchDeals(1, pageSize, "", "", "");
-  }, [fetchDeals, debouncedFetch, pageSize]);
-
-  // Handle table change
-  const handleTableChange = useCallback(
-    (pagination: any, filters: any, sorter: any) => {
-      const newPage = pagination.current;
-      const newPageSize = pagination.pageSize;
-      handlePageChange(newPage, newPageSize);
-      setTableParams((prev) => ({
-        ...prev,
-        pagination,
-        filters,
-        sorter,
-      }));
-    },
-    [handlePageChange]
-  );
-
+  }, [debouncedFetch, setPage]);
+  if(error){
+    const statusCode = error instanceof ApiError ? error.statusCode : 500;
+    return <AppErrorUI code={statusCode} message={error.message}/>
+  }
   return (
     <>
       <FilterControls
@@ -515,33 +254,74 @@ export default function DealsListing({ dealPromise, hcoListPromise }: DealsListi
         onSearchChange={handleSearchChange}
         stageFilter={stageFilter}
         setStageFilter={handleStageFilterChange}
-        stageCounts={dealsData.data.stageCounts}
         onClearFilters={handleClearFilters}
         healthcareFilter={healthcareFilter}
         onHealthcareChange={handleHealthCareChange}
         onHealthcareClear={handleHealthCareClear}
       />
 
-      {viewMode === "grid" ? (
-        deals.length > 0 ? (
-          <GridView
-            currentDeals={deals}
-            page={page}
-            totalDeals={tableParams.pagination.total}
+      {viewMode === 'grid' && deals.length > 0 && (
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+          <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
+            Showing {deals.length} of {totalCount} deals
+          </p>
+
+          <Pagination
+            defaultCurrent={1}
+            current={page}
+            total={totalCount}
             pageSize={pageSize}
-            handlePageChange={handlePageChange}
-            loading={loading}
+            onChange={handlePageChange}
+            pageSizeOptions={["10", "20", "50", "100"]}
           />
+        </div>
+      )}
+   
+      {deals.length > 0 ? (
+        viewMode === 'grid' ? (
+          <AnimatePresence mode="wait">
+            <motion.div
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
+              key={`${viewMode}-${debouncedSearchQuery}-${stageFilter}-${healthcareFilter}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              {deals.map((deal) => (
+                <DealCard key={deal.dealUUID} deal={deal} />
+              ))}
+            </motion.div>
+          </AnimatePresence>
         ) : (
-          <EmptyState />
+          <DealsTable
+            data={deals}
+            loading={loading}
+            onTableChange={handleTableChange}
+            page={page}
+            pageSize={pageSize}
+            totalCount={totalCount}
+          />
+        )
+      ) : loading ? (
+        viewMode === 'grid' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {Array.from({ length: pageSize }).map((_, index) => (
+              <ProductSkeleton key={index} />
+            ))}
+          </div>
+        ) : (
+           <DealsTable
+            data={deals}
+            loading={loading}
+            onTableChange={handleTableChange}
+            page={page}
+            pageSize={pageSize}
+            totalCount={totalCount}
+          />
         )
       ) : (
-        <TableView
-          deals={deals}
-          tableParams={tableParams}
-          handlePageChange={handlePageChange}
-          onTableChange={handleTableChange}
-        />
+        <EmptyState />
       )}
     </>
   );

@@ -1,6 +1,5 @@
 'use client'
-import { Skeleton, Card } from 'antd'
-import React from 'react'
+import { Card, Skeleton } from 'antd'
 
 export default function FormSkeleton() {
   return (

@@ -1,18 +1,18 @@
 "use client";
 
-import { requestNotificationPermission } from "@/Utils/notifications";
+import dayjs from "dayjs";
+import customParseFormat from "dayjs/plugin/customParseFormat";
+import { Loader } from "lucide-react";
+import "nprogress/nprogress.css";
 import React, {
   createContext,
   useContext,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useState,
 } from "react";
-import "nprogress/nprogress.css";
 export type ThemeMode = "light" | "dark";
-import dayjs from "dayjs";
-import customParseFormat from "dayjs/plugin/customParseFormat";
-import { Loader } from "lucide-react";
 
 dayjs.extend(customParseFormat);
 
@@ -48,7 +48,7 @@ const ThemeContextProvider = ({ children }: { children: React.ReactNode }) => {
   const [themeMode, setThemeMode] = useState<ThemeMode>(getInitialTheme());
 
   // Use useLayoutEffect to apply theme synchronously before paint
-  useLayoutEffect(() => {
+  useEffect(() => {
     applyTheme(themeMode);
   }, [themeMode]);
 

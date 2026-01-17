@@ -1,5 +1,6 @@
 'use client'
 
+import { getPath } from "@/lib/path";
 import useMobile from "@/hooks/useMobile";
 import { SessionProvider as MainSession } from "next-auth/react";
 import { ReactNode } from "react";
@@ -41,7 +42,7 @@ export default function SessionProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <MainSession basePath="/market-access/api/authentication" refetchOnWindowFocus={false} refetchInterval={0} >
+    <MainSession basePath={getPath("/api/authentication")} refetchOnWindowFocus={false} refetchInterval={0} >
       <SessionCountdown />
       <AuthProvider>{children}</AuthProvider>
     </MainSession>

@@ -1,18 +1,8 @@
 "use client";
-import { GlobalDate } from "@/Utils/helpers";
+import { formatUserDisplay, GlobalDate } from "@/Utils/helpers";
 import Label from "@/components/Label/Label";
-import { useApi } from "@/hooks/useAPI";
-import { APIPATH } from "@/shared/constants/url";
 import { LoadingOutlined } from "@ant-design/icons";
-import {
-  Badge,
-  Button,
-  Card,
-  Input,
-  Modal,
-  Tooltip,
-  Typography
-} from "antd";
+import { Badge, Button, Card, Input, Modal, Tooltip, Typography } from "antd";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { Field, Form, Formik } from "formik";
@@ -29,8 +19,9 @@ import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import * as Yup from "yup";
-import { Lead } from "../../components/LeadsListing";
-import { toast } from "react-toastify";
+import { useCancelLead, useConvertLead } from "../../services/leads.hooks";
+import { Lead } from "../../services/leads.types";
+import { useLoginUser } from "@/hooks/useToken";
 
 dayjs.extend(relativeTime);
 
@@ -58,8 +49,11 @@ export default function LeadDetailsHeader({
   const router = useRouter();
   const [cancelModalVisible, setCancelModalVisible] = useState(false);
   const [convertModalVisible, setConvertModalVisible] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const API = useApi();
+
+  const userUUID = useLoginUser()?.userUUID
+
+  const cancelLeadMutation = useCancelLead();
+  const convertLeadMutation = useConvertLead();
 
   const handleBack = useCallback(() => {
     router.push("/leads");
@@ -112,35 +106,34 @@ export default function LeadDetailsHeader({
   };
 
   const handleCancelConfirm = async (values: { closeReason: string }) => {
-    setLoading(true);
-    const cancelResponse = await API.post(
-      APIPATH.LEAD.CANCEL + lead.leadUUID,
-      values
-    );
-    if (cancelResponse) {
-      toast.success("Lead cancelled successfully");
-      router.push("/leads");
-    }
-    setCancelModalVisible(false);
-    setLoading(false);
+    cancelLeadMutation
+      .mutateAsync({
+        leadUUID: lead.leadUUID,
+        closeReason: values.closeReason,
+      })
+      .then(() => {
+        setCancelModalVisible(false);
+        // router.push("/leads");
+      });
   };
 
   const handleConvertConfirm = async (values: { summary: string }) => {
-    setLoading(true);
-    const convertResponse = await API.post(
-      APIPATH.LEAD.CONVERT + lead.leadUUID,
-      values
-    );
-    if (convertResponse) {
-      toast.success("Lead converted to deal successfully");
-      router.push(`/deals/${convertResponse.data.dealUUID}`);
-      setConvertModalVisible(false);
-    }
-    setLoading(false);
+    convertLeadMutation
+      .mutateAsync({ leadUUID: lead.leadUUID, summary: values.summary })
+      .then((response) => {
+        setConvertModalVisible(false);
+        if (response?.dealUUID) {
+          router.push(`/deals/${response.dealUUID}`);
+        } else {
+          router.push("/leads");
+        }
+      });
   };
 
   const cancelValidationSchema = Yup.object({
-    closeReason: Yup.string().required("Please provide reason for cancellation"),
+    closeReason: Yup.string().required(
+      "Please provide reason for cancellation"
+    ),
   });
 
   const convertValidationSchema = Yup.object({
@@ -185,7 +178,7 @@ export default function LeadDetailsHeader({
               onClick={handleCancelLead}
               disabled={lead.leadStatus === "cancelled"}
             >
-              Cancel Lead
+              Cancel Prospect
             </Button>
             <Button
               type="primary"
@@ -215,7 +208,7 @@ export default function LeadDetailsHeader({
                 Created On
               </Text>
               <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {GlobalDate(lead.leadDate)} by {lead.createdBy || "—"}
+                {GlobalDate(lead.leadDate)} by {formatUserDisplay(lead.createdBy, lead.createdUUID, userUUID) || "—"}
               </div>
             </div>
           </div>
@@ -228,12 +221,12 @@ export default function LeadDetailsHeader({
                 Last Updated
               </Text>
               <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {GlobalDate(lead.updatedAt)} by {lead.createdBy || "—"}
+                {GlobalDate(lead.updatedAt)} by {formatUserDisplay(lead.updatedBy, lead.updatedUUID, userUUID) || "—"}
               </div>
             </div>
           </div>
 
-          {/* Assigned To */}
+          {/* Assigned To
           <div className="flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-md">
             <User className="w-4 h-4 text-blue-500 dark:text-blue-400" />
             <div>
@@ -241,10 +234,10 @@ export default function LeadDetailsHeader({
                 Assigned To
               </Text>
               <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {lead.createdBy || "Unassigned"}
+                {formatUserDisplay(lead.createdBy,lead.createdUUID,userUUID) || "Unassigned"}
               </div>
             </div>
-          </div>
+          </div> */}
         </div>
 
         {/* Summary section */}
@@ -272,7 +265,7 @@ export default function LeadDetailsHeader({
 
       {/* Cancel Lead Modal */}
       <Modal
-        title="Cancel Lead"
+        title="Cancel prospect"
         open={cancelModalVisible}
         onCancel={() => setCancelModalVisible(false)}
         footer={null}
@@ -311,7 +304,7 @@ export default function LeadDetailsHeader({
                   type="primary"
                   danger
                   htmlType="submit"
-                  loading={loading}
+                  loading={cancelLeadMutation.isPending}
                   disabled={!isValid || !dirty}
                 >
                   Confirm Cancellation
@@ -324,7 +317,7 @@ export default function LeadDetailsHeader({
 
       {/* Convert To Deal Modal */}
       <Modal
-        title="Convert Lead To Deal"
+        title="Convert Prospect To Deal"
         open={convertModalVisible}
         onCancel={() => setConvertModalVisible(false)}
         footer={null}
@@ -335,29 +328,28 @@ export default function LeadDetailsHeader({
           validationSchema={convertValidationSchema}
           onSubmit={handleConvertConfirm}
         >
-          {({isValid,dirty}) => (
+          {({ isValid, dirty }) => (
             <Form className="space-y-4">
               <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md">
                 <Text>
-                  You are about to convert this lead into a deal. This action
+                  You are about to convert this prospect into a deal. This action
                   will create a new deal record.
                 </Text>
               </div>
               <div className="relative">
                 <Label text="Deal Summary" required />
                 <Field name="summary">
-                  {({ field,meta }: any) => (<>
-                    <TextArea
-                      {...field}
-                      rows={4}
-                      placeholder="Add a summary for the new deal..."
+                  {({ field, meta }: any) => (
+                    <>
+                      <TextArea
+                        {...field}
+                        rows={4}
+                        placeholder="Add a summary for the new deal..."
                       />
-                      {
-                        meta.touched && meta.error ? (
-                          <span className="field-error">{meta.error}</span>
-                        ) : null
-                      }
-                      </>
+                      {meta.touched && meta.error ? (
+                        <span className="field-error">{meta.error}</span>
+                      ) : null}
+                    </>
                   )}
                 </Field>
               </div>
@@ -365,7 +357,12 @@ export default function LeadDetailsHeader({
                 <Button onClick={() => setConvertModalVisible(false)}>
                   Back
                 </Button>
-                <Button type="primary" htmlType="submit" loading={loading} disabled={!isValid || !dirty}>
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  loading={convertLeadMutation.isPending}
+                  disabled={!isValid || !dirty}
+                >
                   Convert
                 </Button>
               </div>

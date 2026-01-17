@@ -1,22 +1,40 @@
-'use client';
-import ModalWrapper from '@/components/Modal/Modal';
-import { SearchOutlined } from '@ant-design/icons';
-import type { TableProps } from 'antd';
-import { App, Button, Input, Modal, Table } from 'antd';
-import { Package, Plus, Calendar, Search, ShoppingCart, Trash2, User } from 'lucide-react';
-import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Product } from '@/context/store/productStore';
-import debounce from 'lodash/debounce';
-import { EmptyState } from './EmptyState';
-import { STAGE_LABELS, stages } from '@/lib/types';
-import { Formik, Form } from 'formik';
-import * as Yup from 'yup';
-import InputBox from '@/components/Input/Input';
-import CustomSelect from '@/components/CustomSelect/CustomSelect';
-import { useApi } from '@/hooks/useAPI';
-import { APIPATH } from '@/shared/constants/url';
-import { toast } from 'react-toastify';
-import { GlobalDate } from '@/Utils/helpers';
+"use client";
+import InputBox from "@/components/Input/Input";
+import ModalWrapper from "@/components/Modal/Modal";
+import { Product } from "@/app/(main)/products/services/types";
+import { Product as DropdownProduct } from "@/services/dropdowns/dropdowns.types";
+import { SearchOutlined } from "@ant-design/icons";
+import type { TableProps } from "antd";
+import { Button, Input, Modal, Table } from "antd";
+import { Form, Formik } from "formik";
+import debounce from "lodash/debounce";
+import {
+  Package,
+  Plus,
+  RefreshCw,
+  Search,
+  ShoppingCart,
+  Trash2,
+} from "lucide-react";
+import React, {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import * as Yup from "yup";
+import { EmptyState } from "./EmptyState";
+import { UseMutationResult } from "@tanstack/react-query";
+import {
+  AddDealProductPayload,
+  DeleteDealProductPayload,
+} from "@/app/(main)/deals/services/deals.hooks";
+import {
+  useProducts,
+  useDropdownDealStages,
+} from "@/services/dropdowns/dropdowns.hooks";
 
 export const ProductCard = memo<{
   product: Product;
@@ -31,8 +49,9 @@ export const ProductCard = memo<{
     <div
       role="article"
       aria-label={`Product ${product.productName}`}
-      className={`group relative flex flex-col overflow-hidden rounded-xl bg-white border border-gray-200 shadow-sm transition-all duration-300 hover:shadow-md hover:border-blue-300 dark:bg-gray-800 dark:border-gray-700 dark:hover:border-blue-600 ${isDeleting ? 'opacity-50 pointer-events-none' : ''
-        }`}
+      className={`group relative flex flex-col overflow-hidden rounded-xl bg-white border border-gray-200 shadow-sm transition-all duration-300 hover:shadow-md hover:border-blue-300 dark:bg-gray-800 dark:border-gray-700 dark:hover:border-blue-600 ${
+        isDeleting ? "opacity-50 pointer-events-none" : ""
+      }`}
     >
       {/* Header Section */}
       <div className="flex items-start justify-between p-4 pb-3 border-b border-gray-100 dark:border-gray-700">
@@ -44,9 +63,6 @@ export const ProductCard = memo<{
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white leading-tight mb-1 truncate">
               {product.productName}
             </h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-              {product.productCode}
-            </p>
           </div>
         </div>
         <Button
@@ -60,17 +76,6 @@ export const ProductCard = memo<{
 
       {/* Content Section */}
       <div className="p-4 space-y-3 flex-1">
-        {/* Generic Name */}
-        {product.genericName && (
-          <div className="flex items-start gap-2">
-            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mt-0.5">
-              Generic:
-            </span>
-            <span className="text-sm text-gray-700 dark:text-gray-300 flex-1">
-              {product.genericName}
-            </span>
-          </div>
-        )}
         {/* Generic Name */}
 
         <div className="flex items-start gap-2">
@@ -86,45 +91,60 @@ export const ProductCard = memo<{
   );
 });
 
-ProductCard.displayName = 'ProductCard';
+ProductCard.displayName = "ProductCard";
 
 interface ProductModalProps {
   selectedProducts: Product[];
-  addProduct: (product: Product) => void;
-  removeProduct: (id: string, reason?: string) => void;
-  availableProducts: Product[];
-  stage?: stages;
+  addProductMutation: UseMutationResult<
+    Product,
+    Error,
+    AddDealProductPayload,
+    unknown
+  >;
+  deleteProductMutation: UseMutationResult<
+    void,
+    Error,
+    DeleteDealProductPayload,
+    unknown
+  >;
+  stage?: string; // dealStageUUID
   showReasonModal?: boolean;
   dealUUID?: string;
-  leadUUID?: string
+  leadUUID?: string;
+  refetching?: boolean;
+  refetch?: () => void;
 }
 
 export const ProductModal: React.FC<ProductModalProps> = ({
   selectedProducts,
-  addProduct,
-  removeProduct,
-  availableProducts,
+  addProductMutation,
+  deleteProductMutation,
   stage,
-  dealUUID,
   showReasonModal = false,
+  dealUUID,
+  leadUUID,
+  refetching,
+  refetch,
 }) => {
-  const [selectedQuery, setSelectedQuery] = useState('');
-  const [debouncedSelectedQuery, setDebouncedSelectedQuery] = useState('');
+  const [selectedQuery, setSelectedQuery] = useState("");
+  const [debouncedSelectedQuery, setDebouncedSelectedQuery] = useState("");
   const selectedDebouncedRef = useRef<ReturnType<typeof debounce> | null>(null);
+  const [openModal, setOpenModal] = useState(false);
+  const { data: availableProducts = [], isLoading } = useProducts({
+    enabled: openModal,
+  });
 
-  const [modalQuery, setModalQuery] = useState('');
-  const [debouncedModalQuery, setDebouncedModalQuery] = useState('');
+  const [modalQuery, setModalQuery] = useState("");
+  const [debouncedModalQuery, setDebouncedModalQuery] = useState("");
   const modalDebouncedRef = useRef<ReturnType<typeof debounce> | null>(null);
+  const { data: dealStages = [] } = useDropdownDealStages();
 
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [reasonModalOpen, setReasonModalOpen] = useState(false);
-  const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
+  const [deletingProductId, setDeletingProductId] = useState<string | null>(
+    null
+  );
   const [addingProductId, setAddingProductId] = useState<string | null>(null);
-
-  const [openModal, setOpenModal] = useState(false);
-
-
-  const API = useApi();
 
   // Initialize debounced functions
   useEffect(() => {
@@ -149,12 +169,13 @@ export const ProductModal: React.FC<ProductModalProps> = ({
 
   // Filter products available in modal (exclude already selected)
   const filteredProducts = useMemo(() => {
-    const selectedIds = new Set(selectedProducts.map(p => p.productUUID));
+    const selectedIds = new Set(selectedProducts.map((p) => p.productUUID));
     return availableProducts
-      .filter(product => !selectedIds.has(product.productUUID))
-      .filter(product =>
-        product.productName.toLowerCase().includes(debouncedModalQuery.toLowerCase()) ||
-        product.productCode.toLowerCase().includes(debouncedModalQuery.toLowerCase())
+      .filter((product) => !selectedIds.has(product.productUUID))
+      .filter((product) =>
+        product.productName
+          .toLowerCase()
+          .includes(debouncedModalQuery.toLowerCase())
       );
   }, [debouncedModalQuery, availableProducts, selectedProducts]);
 
@@ -162,16 +183,17 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   const filteredSelectedProducts = useMemo(() => {
     if (!debouncedSelectedQuery) return selectedProducts;
 
-    return selectedProducts.filter(product =>
-      product.productName.toLowerCase().includes(debouncedSelectedQuery.toLowerCase()) ||
-      product.productCode.toLowerCase().includes(debouncedSelectedQuery.toLowerCase())
+    return selectedProducts.filter((product) =>
+      product.productName
+        .toLowerCase()
+        .includes(debouncedSelectedQuery.toLowerCase())
     );
   }, [debouncedSelectedQuery, selectedProducts]);
 
   const onClose = useCallback(() => {
     setOpenModal(false);
-    setModalQuery('');
-    setDebouncedModalQuery('');
+    setModalQuery("");
+    setDebouncedModalQuery("");
   }, []);
 
   const handleOpenModal = useCallback(() => {
@@ -179,28 +201,36 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   }, []);
 
   const handleRemoveProduct = useCallback(
-    async (product: Product, reason?: string, resetForm?: () => void, setSubmitting?: (isSubmitting: boolean) => void) => {
+    (
+      product: Product,
+      reason?: string,
+      resetForm?: () => void,
+      setSubmitting?: (isSubmitting: boolean) => void
+    ) => {
       setDeletingProductId(product.productUUID);
 
-      const req = {
-        productUUID: product.productUUID,
-        dealUUID,
-        reason,
-      };
-      const deleteResponse = await API.post(APIPATH.DEAL.DELETEDEALPRODUCT, req);
-      if (deleteResponse) {
-        toast.success(`Product "${product.productName}" has been removed.`);
-        removeProduct(product.productUUID, reason);
-        setProductToDelete(null);
-        setReasonModalOpen(false);
-        resetForm?.();
-        setSubmitting?.(false);
-      } else {
-        setDeletingProductId(null);
-        setSubmitting?.(false);
-      }
+      deleteProductMutation.mutate(
+        {
+          productUUID: product.productUUID,
+          dealUUID: dealUUID || leadUUID || "",
+          reason,
+        },
+        {
+          onSuccess: () => {
+            setProductToDelete(null);
+            setReasonModalOpen(false);
+            resetForm?.();
+            setSubmitting?.(false);
+            setDeletingProductId(null);
+          },
+          onError: () => {
+            setDeletingProductId(null);
+            setSubmitting?.(false);
+          },
+        }
+      );
     },
-    [removeProduct, dealUUID, API]
+    [dealUUID, leadUUID, deleteProductMutation]
   );
 
   const handleDeleteRequest = useCallback(
@@ -216,26 +246,25 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   );
 
   const handleAddProduct = useCallback(
-    async (product: Product) => {
+    (product: DropdownProduct) => {
       setAddingProductId(product.productUUID);
-      try {
-        const req = {
+
+      addProductMutation.mutate(
+        {
           productUUID: product.productUUID,
-          dealUUID,
-        };
-        const addResponse = await API.post(APIPATH.DEAL.ADDDEALPRODCUT, req);
-        if (addResponse) {
-          toast.success(`Product "${product.productName}" has been added.`);
-          addProduct(product);
+          dealUUID: dealUUID || leadUUID || "",
+        },
+        {
+          onSuccess: () => {
+            setAddingProductId(null);
+          },
+          onError: () => {
+            setAddingProductId(null);
+          },
         }
-      } catch (error) {
-        toast.error(`Failed to add product "${product.productName}".`);
-        console.error('Error adding product:', error);
-      } finally {
-        setAddingProductId(null);
-      }
+      );
     },
-    [addProduct, dealUUID, API]
+    [dealUUID, leadUUID, addProductMutation]
   );
 
   const handleSelectedSearchChange = useCallback(
@@ -257,33 +286,37 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   );
 
   const handleClearSelectedSearch = useCallback(() => {
-    setSelectedQuery('');
-    setDebouncedSelectedQuery('');
+    setSelectedQuery("");
+    setDebouncedSelectedQuery("");
     selectedDebouncedRef.current?.cancel();
   }, []);
 
   const handleClearModalSearch = useCallback(() => {
-    setModalQuery('');
-    setDebouncedModalQuery('');
+    setModalQuery("");
+    setDebouncedModalQuery("");
     modalDebouncedRef.current?.cancel();
   }, []);
 
   // Formik validation schema
   const reasonValidationSchema = Yup.object().shape({
-    reason: Yup.string().required('Please provide a reason for removal').min(5, 'Reason must be at least 5 characters long'),
+    reason: Yup.string()
+      .required("Please provide a reason for removal")
+      .min(5, "Reason must be at least 5 characters long"),
   });
 
   const initialFormValues = {
-    reason: '',
+    reason: "",
   };
 
-  const columns: TableProps<Product>['columns'] = [
+  const columns: TableProps<DropdownProduct>["columns"] = [
     {
-      title: 'Action',
-      key: 'action',
-      fixed: 'left',
+      title: "Action",
+      key: "action",
+      fixed: "left",
       render: (_, record) => {
-        const isSelected = selectedProducts.some(p => p.productUUID === record.productUUID);
+        const isSelected = selectedProducts.some(
+          (p) => p.productUUID === record.productUUID
+        );
         const isAdding = addingProductId === record.productUUID;
 
         return (
@@ -296,31 +329,21 @@ export const ProductModal: React.FC<ProductModalProps> = ({
             className="bg-blue-500 hover:bg-blue-600 border-blue-500 hover:border-blue-600"
           >
             {!isAdding && <Plus size={15} />}
-            {isSelected ? 'Added' : 'Add'}
+            {isSelected ? "Added" : "Add"}
           </Button>
         );
       },
       width: 100,
     },
     {
-      title: 'Product Name',
-      dataIndex: 'productName',
-      key: 'productName',
+      title: "Product Name",
+      dataIndex: "productName",
+      key: "productName",
       render: (text) => (
         <div className="font-medium text-gray-900 dark:text-white">{text}</div>
       ),
       sorter: (a, b) => a.productName.localeCompare(b.productName),
     },
-    {
-      title: 'Product Code',
-      dataIndex: 'productCode',
-      key: 'productCode',
-      render: (text) => (
-        <div className="font-medium text-gray-900 dark:text-white">{text}</div>
-      ),
-      sorter: (a, b) => a.productCode.localeCompare(b.productCode),
-    },
-    
   ];
 
   return (
@@ -339,8 +362,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
         </Button>
       </div>
 
-      {selectedProducts.length > 0 && (
-        <div className="mb-6">
+        <div className="mb-6 flex items-center gap-2 justify-between">
           <Input
             placeholder="Search selected products by name or code..."
             prefix={<Search size={16} className="text-gray-400" />}
@@ -350,12 +372,24 @@ export const ProductModal: React.FC<ProductModalProps> = ({
             allowClear
             onClear={handleClearSelectedSearch}
           />
+          <Button
+            size="small"
+            icon={
+              <RefreshCw
+                size={16}
+                className={refetching ? "animate-spin" : ""}
+              />
+            }
+            onClick={refetch}
+            title="Refresh calls"
+          >
+            Refresh
+          </Button>
         </div>
-      )}
 
       {filteredSelectedProducts?.length ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredSelectedProducts.map(product => (
+          {filteredSelectedProducts.map((product) => (
             <ProductCard
               key={product.productUUID}
               product={product}
@@ -394,21 +428,23 @@ export const ProductModal: React.FC<ProductModalProps> = ({
           />
         </div>
 
-        <Table<Product>
+        <Table<DropdownProduct>
           columns={columns}
           dataSource={filteredProducts}
+          loading={isLoading}
           rowKey="productUUID"
           pagination={{
             pageSize: 5,
             showSizeChanger: true,
             showQuickJumper: true,
-            showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
+            showTotal: (total, range) =>
+              `${range[0]}-${range[1]} of ${total} items`,
           }}
           scroll={{ y: 300 }}
           size="middle"
           className="product-table"
-          rowClassName={(record, index) =>
-            index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-800/50' : ''
+          rowClassName={(_, index) =>
+            index % 2 === 0 ? "bg-gray-50 dark:bg-gray-800/50" : ""
           }
         />
       </ModalWrapper>
@@ -419,7 +455,12 @@ export const ProductModal: React.FC<ProductModalProps> = ({
           validationSchema={reasonValidationSchema}
           onSubmit={(values, { resetForm, setSubmitting }) => {
             if (productToDelete !== null) {
-              handleRemoveProduct(productToDelete, values.reason, resetForm, setSubmitting);
+              handleRemoveProduct(
+                productToDelete,
+                values.reason,
+                resetForm,
+                setSubmitting
+              );
             }
           }}
         >
@@ -437,21 +478,24 @@ export const ProductModal: React.FC<ProductModalProps> = ({
               okType="danger"
               cancelText="Cancel"
               okButtonProps={{
-                type: 'primary',
+                type: "primary",
                 loading: isSubmitting,
-                disabled: isSubmitting || !isValid
+                disabled: isSubmitting || !isValid,
               }}
               cancelButtonProps={{
-                disabled: isSubmitting
+                disabled: isSubmitting,
               }}
               centered
-
             >
               <div>
                 <p className="mb-4">
-                  Please provide a reason for removing{' '}
-                  <strong>{productToDelete?.productName}</strong> from the{' '}
-                  <strong>{STAGE_LABELS[stage]}</strong> stage:
+                  Please provide a reason for removing{" "}
+                  <strong>{productToDelete?.productName}</strong> from the{" "}
+                  <strong>
+                    {dealStages.find((s) => s.dealStageUUID === stage)
+                      ?.dealStageName || "current"}
+                  </strong>{" "}
+                  stage:
                 </p>
                 <Form>
                   <div className="mt-4 mb-6">

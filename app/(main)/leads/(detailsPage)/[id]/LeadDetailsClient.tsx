@@ -1,10 +1,12 @@
 'use client'
 
-import { useLead } from '@/app/(main)/leads/services';
 import FullPageSkeleton from '@/components/Skeletons/FullpageSkeleton';
 import AppErrorUI from '@/components/AppErrorUI/AppErrorUI';
 import LeadDetailsHeader from './LeadDetailsHeader';
-import LeadDetails from './LeadTabs';
+import LeadTabs from './LeadTabs';
+import { ApiError } from '@/lib/apiClient/ApiError';
+import { useLead } from '../../services/leads.hooks';
+import SuspenseWithBoundary from '@/components/SuspenseWithErrorBoundry/SuspenseWithErrorBoundry';
 
 interface LeadDetailsClientProps {
   id: string;
@@ -18,12 +20,13 @@ export default function LeadDetailsClient({ id }: LeadDetailsClientProps) {
   }
 
   if (error) {
+    const statusCode = error instanceof ApiError ? error.statusCode : 500;
     return (
       <AppErrorUI
-        code={500}
-        message="Failed to load lead details"
+        code={statusCode}
+        message={error.message}
         backLink="/leads"
-        buttonName="Back to Leads"
+        buttonName="Back to prospects"
       />
     );
   }
@@ -32,17 +35,17 @@ export default function LeadDetailsClient({ id }: LeadDetailsClientProps) {
     return (
       <AppErrorUI
         code={404}
-        message="Lead not found"
+        message="Prospect not found"
         backLink="/leads"
-        buttonName="Back to Leads"
+        buttonName="Back to prospects"
       />
     );
   }
 
   return (
-    <>
+    <SuspenseWithBoundary>
       <LeadDetailsHeader headerDetails={{ data: lead }} />
-      <LeadDetails lead={{ data: lead }} />
-    </>
+      <LeadTabs lead={{ data: lead }} />
+    </SuspenseWithBoundary>
   );
 }

@@ -1,10 +1,8 @@
 "use client"
-import { useLeads } from '@/app/(main)/leads/services';
-import { HCOContactPerson } from '@/components/AddNewContactModal/AddNewContactModal';
 import { ProductSkeleton } from '@/components/Skeletons/ProductCardSkelton';
 import { useLeadStore } from '@/context/store/leadsStore';
 import { useLeadViewState } from '@/context/store/optimizedSelectors';
-import { useHCOList } from '@/services/dropdowns';
+import { useHCOList } from '@/services/dropdowns/dropdowns.hooks';
 import { Button, Input, Pagination, PaginationProps, Select } from "antd";
 import { SelectProps } from 'antd/lib';
 import { motion } from "framer-motion";
@@ -12,22 +10,12 @@ import debounce from 'lodash.debounce';
 import { Activity, Plus, Search } from 'lucide-react';
 import { memo, useCallback, useRef, useState } from 'react';
 import LeadCardReimagined from './LeadCard';
+import { useLeads } from '../services/leads.hooks';
+import { Lead } from '../services/leads.types';
+import AppErrorUI from '@/components/AppErrorUI/AppErrorUI';
+import { ApiError } from '@/lib/apiClient/ApiError';
 
-export interface Lead {
-  leadUUID: string;
-  hcoUUID: string;
-  leadDate: string;
-  summary: string;
-  createdAt: string;
-  updatedAt: string;
-  createdBy: string;
-  hcoName: string;
-  leadName: string;
-  leadStatus: "new" | "inProgress" | "cancelled";
-  closeReason?: string;
-  createdUUID?: string;
-  contactPersons: HCOContactPerson[];
-}
+
 
 
 // Memoized Filter Controls Component
@@ -66,7 +54,7 @@ const FilterControls = memo(({
     <div className="flex flex-col sm:flex-row gap-4 flex-wrap mb-4">
       <Input
         type="text"
-        placeholder="Search leads..."
+        placeholder="Search prospects..."
         value={searchQuery}
         className="max-w-85"
         allowClear
@@ -134,12 +122,12 @@ const EmptyState = memo(() => {
       <div className="p-4 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-full mb-6">
         <Activity className="h-12 w-12 text-indigo-600 dark:text-indigo-400" />
       </div>
-      <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-2">No leads found</h3>
+      <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-2">No prospects found</h3>
       <p className="text-slate-600 dark:text-slate-400 max-w-md mb-6">
-        Try adjusting your search or filters, or create a new lead to get started
+        Try adjusting your search or filters, or create a new prospect to get started
       </p>
       <Button type="primary" icon={<Plus className="h-4 w-4" />} onClick={() => toggleLeadDrawer()}>
-        Create New Lead
+        Create New Prospect
       </Button>
     </motion.div>
   );
@@ -157,7 +145,7 @@ export default function LeadsLising() {
   const { page, setPage, pageSize, setPageSize } = useLeadViewState();
 
   // Fetch leads using React Query
-  const { data: leadsData, isLoading: loading } = useLeads({
+  const { data: leadsData, isLoading: loading, error } = useLeads({
     page,
     pageSize,
     searchQuery: debouncedSearchQuery,
@@ -232,7 +220,10 @@ export default function LeadsLising() {
     setPage(1);
     debouncedFetch.cancel();
   }, [debouncedFetch, setPage]);
-
+  if (error) {
+    const statusCode = error instanceof ApiError ? error.statusCode : 500;
+    return <AppErrorUI code={statusCode} message={error.message} />
+  }
   return (
     <>
       <FilterControls
@@ -250,7 +241,7 @@ export default function LeadsLising() {
         <>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
             <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
-              Showing {leads.length} of {totalCount} leads
+              Showing {leads.length} of {totalCount} Prospects
             </p>
 
             <Pagination
@@ -265,9 +256,7 @@ export default function LeadsLising() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {leads.map((lead) => (
-              !loading ?
-                <LeadCardReimagined key={lead.leadUUID} lead={lead} page={page} /> :
-                <ProductSkeleton key={lead.leadUUID} />
+              <LeadCardReimagined key={lead.leadUUID} lead={lead} page={page} />
             ))}
           </div>
         </>

@@ -1,8 +1,9 @@
 'use client'
+import { toast } from '@/components/AppToaster/AppToaster';
+import { APIPATH } from "@/shared/constants/url";
 import { Avatar, Button, Upload } from "antd";
 import { Camera, Trash2, User } from "lucide-react";
-import { memo, useCallback, useState } from "react";
-import { toast } from "react-toastify";
+import { memo, useCallback, useRef, useState } from "react";
 import ImageCropper from "./ImageCropper";
 
 interface ProfileImageProps {
@@ -10,28 +11,69 @@ interface ProfileImageProps {
   onImageChange: (file: File, url: string) => void;
   onImageRemove: () => void;
   title?: string
+  moduleName: string
 }
 
- function ProfileImage({ imageUrl, onImageChange, onImageRemove,title }: ProfileImageProps) {
+function ProfileImage({ imageUrl, onImageChange, onImageRemove, title, moduleName }: ProfileImageProps) {
   const [cropModalOpen, setCropModalOpen] = useState(false);
   const [imgSrc, setImgSrc] = useState('');
+  
+  // Store the promise resolvers for the upload process
+  const uploadPromiseRef = useRef<{
+    resolve: (file: File) => void;
+    reject: (reason?: any) => void;
+  } | null>(null);
 
-  const handleImageUpload = useCallback((file: File) => {
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.addEventListener('load', () => {
-      if (typeof reader.result === 'string') {
-        setImgSrc(reader.result);
-        setCropModalOpen(true);
-      }
+  const handleBeforeUpload = useCallback((file: File) => {
+    return new Promise<File>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.addEventListener('load', () => {
+        if (typeof reader.result === 'string') {
+          setImgSrc(reader.result);
+          // Store resolvers to be called later
+          uploadPromiseRef.current = { resolve, reject };
+          setCropModalOpen(true);
+        }
+      });
+      reader.readAsDataURL(file);
     });
-    reader.readAsDataURL(file);
   }, []);
 
-  const handleSaveCrop = useCallback((croppedFile: File, croppedUrl: string) => {
-    onImageChange(croppedFile, croppedUrl);
+  const handleSaveCrop = useCallback((croppedFile: File,) => {
+    // 1. Resolve the upload promise with the new cropped file
+    if (uploadPromiseRef.current) {
+      uploadPromiseRef.current.resolve(croppedFile);
+      uploadPromiseRef.current = null;
+    }
+
+    // 2. We don't call onImageChange here anymore. 
+    // We wait for the upload to complete and get the server URL.
+    
+    // 3. Close modal
+    setCropModalOpen(false);
+  }, []);
+
+  const handleUploadChange = useCallback((info: any) => {
+    if (info.file.status === 'done') {
+      const response = info.file.response;
+      if (response?.success && response?.fileUrl) {
+        onImageChange(info.file.originFileObj, response.fileUrl);
+      } else {
+        toast.error(response?.message || 'Upload failed');
+      }
+    } else if (info.file.status === 'error') {
+      toast.error('Upload failed');
+    }
   }, [onImageChange]);
+
+  const handleCloseCrop = useCallback(() => {
+    setCropModalOpen(false);
+    // If the user cancels cropping, we reject the upload promise to stop the upload
+    if (uploadPromiseRef.current) {
+      uploadPromiseRef.current.reject('Crop cancelled');
+      uploadPromiseRef.current = null;
+    }
+  }, []);
 
   const handleRemoveImage = useCallback(() => {
     onImageRemove();
@@ -54,9 +96,11 @@ interface ProfileImageProps {
               <Upload
                 accept="image/*"
                 showUploadList={false}
-                beforeUpload={(file) => {
-                  handleImageUpload(file);
-                  return false;
+                beforeUpload={handleBeforeUpload}
+                onChange={handleUploadChange}
+                action={APIPATH.FILEUPLOAD}
+                data={{
+                  moduleName: moduleName,
                 }}
               >
                 <Button
@@ -88,7 +132,7 @@ interface ProfileImageProps {
       <ImageCropper
         imageSrc={imgSrc}
         open={cropModalOpen}
-        onClose={() => setCropModalOpen(false)}
+        onClose={handleCloseCrop}
         onSave={handleSaveCrop}
       />
     </>

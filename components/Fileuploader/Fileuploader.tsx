@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { Upload, Image } from 'antd';
-import type { UploadFile, UploadProps, UploadChangeParam } from 'antd/es/upload/interface';
-import { PlusOutlined, UploadOutlined } from '@ant-design/icons';
 import { toast } from '@/components/AppToaster/AppToaster';
-import { fromByte, toByte } from '@/Utils/helpers';
+import { fromByte } from '@/Utils/helpers';
+import { PlusOutlined, UploadOutlined } from '@ant-design/icons';
+import { Image, Upload } from 'antd';
+import type { UploadChangeParam, UploadFile, UploadProps } from 'antd/es/upload/interface';
+import React, { useState } from 'react';
 
 interface FileUploaderProps extends Omit<UploadProps, 'fileList' | 'onChange'> {
   value?: UploadFile[];

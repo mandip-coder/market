@@ -1,15 +1,14 @@
 "use client";
+import SuspenseWithBoundary from "@/components/SuspenseWithErrorBoundry/SuspenseWithErrorBoundry";
+import { useUsersStore } from "@/context/store/usersStore";
 import useColumnSearch from "@/hooks/useColumnSearch";
 import { useLoading } from "@/hooks/useLoading";
 import { useTableScroll } from "@/hooks/useTableScroll";
+import { GlobalDate } from "@/Utils/helpers";
 import {
-  EditOutlined,
-  FlagOutlined,
   PhoneOutlined,
   ReloadOutlined,
   SearchOutlined,
-  UnlockOutlined,
-  UserOutlined,
   WhatsAppOutlined,
 } from "@ant-design/icons";
 import ProTable from "@ant-design/pro-table";
@@ -26,150 +25,51 @@ import {
   Space,
   Tag,
   Tooltip,
-  Typography,
 } from "antd";
+import Paragraph from "antd/es/typography/Paragraph";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import {
-  Edit,
-  Eye,
-  LockIcon,
-  MessageCircle,
-  MoreHorizontal,
-  Phone,
-  Trash,
-} from "lucide-react";
-import React, {
-  memo,
-  Suspense,
-  use,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-import { toast } from "react-toastify";
+import { Edit, MoreHorizontal, RefreshCw, Trash } from "lucide-react";
+import React, { memo, useCallback, useMemo, useState } from "react";
+import { toast } from '@/components/AppToaster/AppToaster';
+import { useFetchUsers, useDeleteUser } from "../services/user.hooks";
+import { CompanyAccess, FetchUsersParams, User } from "../services/user.types";
 import { EditableAccessCell } from "./EditableAccessCell";
 import { LockUserModal } from "./LockUserModal";
 import { StatusSwitch } from "./StatusSwitch";
-import { ExtraThings } from "./TableExtraThings";
-import { useUsersStore } from "@/context/store/usersStore";
 import { UserInfo } from "./UserInfo";
-import { Company } from "../../company-master/components/CompanyDataTable";
-import SuspenseWithBoundary from "@/components/SuspenseWithErrorBoundry/SuspenseWithErrorBoundry";
-import Paragraph from "antd/es/typography/Paragraph";
-import { useApi } from "@/hooks/useAPI";
-import { APIPATH } from "@/shared/constants/url";
-import { GlobalDate } from "@/Utils/helpers";
-import { Role } from "../../roles-master/components/RoleDataTable";
+import { useCompanies } from "@/services/dropdowns/dropdowns.hooks";
 
 dayjs.extend(relativeTime);
 
-export interface Country {
-  countryUUID: string;
-  countryName: string;
-  countryCode: string;
-}
+function UserDataTable() {
+  // Pagination and filter state
+  const [fetchParams, setFetchParams] = useState<FetchUsersParams>({
+    page: 1,
+    limit: 10,
+  });
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const { data: companyList = [], isLoading: companiesLoading,refetch:refetchCompanies } =
+    useCompanies();
+    const {
+      data: usersResponse,
+      isLoading: usersLoading,
+      refetch,
+      isFetching,
+    } = useFetchUsers(fetchParams);
+    const deleteUserMutation = useDeleteUser();
+    const fetchAll = () => {
+      refetch();
+      refetchCompanies();
+    };
 
-export interface User {
-  userUUID: string;
-  fullName: string;
-  empCode: string;
-  firstName: string;
-  lastName: string;
-  loginUsername: string;
-  email: string;
-  phone1: string;
-  phone1HasWhatsapp?: boolean;
-  phone2: string;
-  phone2HasWhatsapp?: boolean;
-  phone3: string;
-  phone3HasWhatsapp?: boolean;
-  createdAt: string;
-  lastLogIn: string;
-  status: "active" | "inactive" | "locked" | "deleted";
-  companies: CompanyAccess[];
-  lockUntil?: string;
-  initial: string;
-  officePhone: string;
-  password: string;
-  countryAccess: Country[];
-  companyAccess: Company[];
-  profileImage: File | null;
-  profileImageUrl: string | null;
-  multiFactorLogin: boolean;
-  loginUserName: string;
-}
+  const usersData = usersResponse?.data?.users || [];
+  const totalRecords = usersResponse?.data?.total || 0;
 
-
-export interface UsersDataResponse {
-  data: {
-    users: User[];
-    total: number;
-    limit: number;
-    page: number;
-  };
-}
-
-interface PaginationParams {
-  current?: number;
-  pageSize?: number;
-  total?: number;
-}
-
-interface FetchParams {
-  pagination?: PaginationParams;
-  sorter?: any;
-  filters?: any;
-}
-
-export interface CompanyAccess {
-  company: {
-    companyUUID: string;
-    displayName: string;
-  };
-  roles: Role[];
-}
-
-export interface CompanyListResponse {
-  data: {
-    companies: Company[];
-    total: number;
-  };
-}
-
-interface CountryListResponse {
-  data: {
-    countries: Country[];
-  };
-}
-
-interface UserDataTableProps {
-  usersData: Promise<UsersDataResponse>;
-  companyList: Promise<CompanyListResponse>;
-  countryList: Promise<CountryListResponse>;
-}
-
-function UserDataTable({
-  usersData,
-  companyList,
-  countryList,
-}: UserDataTableProps) {
-  const usersDataAPI = use(usersData);
-  const fullData = usersDataAPI.data;
-  const API = useApi();
-  const { tableDataState, setTableDataState, setLockModal } = useUsersStore();
-  useEffect(() => {
-    setTableDataState(fullData.users);
-  }, [fullData]);
+  const { setLockModal } = useUsersStore();
   const [selectedUsers, setSelectedUsers] = useState<React.Key[]>([]);
   const { toggleAddUserDrawer, setEditUser } = useUsersStore();
   const getSearchProps = useColumnSearch();
-  const [pagination, setPagination] = useState<PaginationParams>({
-    current: fullData.page || 1,
-    pageSize: fullData.limit,
-    total: fullData.total,
-  });
   const [loading, setLoading] = useLoading();
   const { scrollY, tableWrapperRef } = useTableScroll();
   const [modal, contextHolder] = Modal.useModal();
@@ -182,78 +82,6 @@ function UserDataTable({
 
   const [userToLock, setUserToLock] = useState<User | null>(null);
   const [isEditingLock, setIsEditingLock] = useState(false);
-
-  // Mock data for companies, roles, and products
-
-  // Get current roles and access of selected users
-  const selectedUsersData = useMemo(() => {
-    return tableDataState.filter((user) =>
-      selectedUsers.includes(user.userUUID)
-    );
-  }, [tableDataState, selectedUsers]);
-
-  // Get common roles among selected users
-  const currentRoles = useMemo(() => {
-    if (selectedUsers.length === 0) return [];
-
-    const rolesCount: { [key: string]: number } = {};
-    selectedUsersData.forEach((user) => {
-      user.companies.forEach((company) => {
-        company.roles.forEach((role) => {
-          rolesCount[role.roleUUID] = (rolesCount[role.roleUUID] || 0) + 1;
-        });
-      });
-    });
-
-    return Object.keys(rolesCount).filter(
-      (role) => rolesCount[role] === selectedUsers.length
-    );
-  }, [selectedUsers, selectedUsersData]);
-
-  // Get common company access among selected users
-  const currentCompanyAccess = useMemo(() => {
-    if (selectedUsers.length === 0) return [];
-
-    // Find common company access across all selected users
-    const commonAccess: CompanyAccess[] = [];
-
-    // Start with the first user's access
-    if (selectedUsersData.length > 0) {
-      const firstUserAccess = selectedUsersData[0].companies;
-
-      // For each company in the first user's access, check if it exists in all other users
-      firstUserAccess.forEach((companyAccess) => {
-        const isCommon = selectedUsersData.every((user) =>
-          user.companies.some(
-            (access) =>
-              access.company.companyUUID === companyAccess.company.companyUUID
-          )
-        );
-
-        if (isCommon) {
-          // Get the common roles and products for this company
-          const commonRoles = companyAccess.roles.filter((role) =>
-            selectedUsersData.every((user) =>
-              user.companies
-                .find(
-                  (access) =>
-                    access.company.companyUUID ===
-                    companyAccess.company.companyUUID
-                )
-                ?.roles.includes(role)
-            )
-          );
-
-          commonAccess.push({
-            company: companyAccess.company,
-            roles: commonRoles,
-          });
-        }
-      });
-    }
-
-    return commonAccess;
-  }, [selectedUsers, selectedUsersData]);
 
   // Helper function to clear selection after operation
   const clearSelection = useCallback(() => {
@@ -279,44 +107,44 @@ function UserDataTable({
         {
           type: "divider",
         },
-        {
-          ...(record.status !== "locked"
-            ? {
-                key: "lock",
-                label: "Lock",
-                icon: <LockIcon size={14} />,
-                onClick: () => {
-                  setUserToLock(record);
-                  setIsEditingLock(false);
-                  setLockModal(true);
-                },
-              }
-            : {
-                key: "unlock",
-                label: "Unlock",
-                icon: <UnlockOutlined />,
-                onClick: () => {
-                  handleUnlockUser(record.userUUID);
-                },
-              }),
-        },
-        // Add edit lock option for locked users
-        ...(record.status === "locked"
-          ? [
-              {
-                key: "edit-lock",
-                label: "Edit Lock",
-                icon: <EditOutlined />,
-                onClick: () => {
-                  setUserToLock(record);
-                  setIsEditingLock(true);
-                },
-              },
-            ]
-          : []),
-        {
-          type: "divider",
-        },
+        // {
+        //   ...(record.status !== "locked"
+        //     ? {
+        //         key: "lock",
+        //         label: "Lock",
+        //         icon: <LockIcon size={14} />,
+        //         onClick: () => {
+        //           setUserToLock(record);
+        //           setIsEditingLock(false);
+        //           setLockModal(true);
+        //         },
+        //       }
+        //     : {
+        //         key: "unlock",
+        //         label: "Unlock",
+        //         icon: <UnlockOutlined />,
+        //         onClick: () => {
+        //           handleUnlockUser(record.userUUID);
+        //         },
+        //       }),
+        // },
+        // // Add edit lock option for locked users
+        // ...(record.status === "locked"
+        //   ? [
+        //       {
+        //         key: "edit-lock",
+        //         label: "Edit Lock",
+        //         icon: <EditOutlined />,
+        //         onClick: () => {
+        //           setUserToLock(record);
+        //           setIsEditingLock(true);
+        //         },
+        //       },
+        //     ]
+        //   : []),
+        // {
+        //   type: "divider",
+        // },
         {
           key: "delete",
           label: "Delete",
@@ -339,21 +167,7 @@ function UserDataTable({
               cancelText: "Cancel",
               maskClosable: true,
               onOk: async () => {
-                  const response = await API.delete(
-                    `${APIPATH.USERS.DELETEUSER}/${record.userUUID}`
-                  );
-                  if (response) {
-                    toast.success(
-                      `User ${record.loginUsername} deleted successfully`
-                    );
-                    setTableDataState((prevData) =>
-                      prevData.filter(
-                        (user) => user.userUUID !== record.userUUID
-                      )
-                    );
-                  }else{
-                    throw new Error("Failed to delete user");
-                  } 
+                await deleteUserMutation.mutateAsync(record.userUUID);
               },
             });
           },
@@ -374,7 +188,6 @@ function UserDataTable({
           break;
         case "assign-access":
           setAccessModalVisible(true);
-          setCompanyAccess(currentCompanyAccess);
           break;
         case "lock":
           // For bulk lock, we'll use a simple lock without the modal for now
@@ -392,14 +205,6 @@ function UserDataTable({
             okType: "danger",
             cancelText: "Cancel",
             onOk: () => {
-              // Handle bulk lock
-              setTableDataState((prevData) =>
-                prevData.map((user) =>
-                  selectedUsers.includes(user.userUUID)
-                    ? { ...user, status: "locked" }
-                    : user
-                )
-              );
               toast.success(
                 `${selectedUsers.length} user${
                   selectedUsers.length > 1 ? "s" : ""
@@ -426,13 +231,7 @@ function UserDataTable({
                 </p>
                 <div className="mt-2">
                   <p className="font-semibold">Users to be deleted:</p>
-                  <ul className="list-disc list-inside mt-1">
-                    {selectedUsersData.map((user) => (
-                      <li key={user.userUUID}>
-                        {user.loginUsername} ({user.email})
-                      </li>
-                    ))}
-                  </ul>
+                  <ul className="list-disc list-inside mt-1"></ul>
                 </div>
               </div>
             ),
@@ -442,11 +241,6 @@ function UserDataTable({
             okButtonProps: { type: "primary" },
             width: 700,
             onOk: () => {
-              setTableDataState((prevData) =>
-                prevData.filter(
-                  (user) => !selectedUsers.includes(user.userUUID)
-                )
-              );
               toast.success(
                 `${selectedUsers.length} user${
                   selectedUsers.length > 1 ? "s" : ""
@@ -460,80 +254,17 @@ function UserDataTable({
           break;
       }
     },
-    [
-      selectedUsers,
-      modal,
-      selectedUsersData,
-      clearSelection,
-      currentCompanyAccess,
-    ]
-  );
-
-  // Handle bulk role assignment
-  const handleBulkRoleAssignment = useCallback(
-    (roles: string[]) => {
-      setTableDataState((prevData) =>
-        prevData.map((user) =>
-          selectedUsers.includes(user.userUUID) ? { ...user, roles } : user
-        )
-      );
-
-      toast.success(
-        `Roles updated for ${selectedUsers.length} user${
-          selectedUsers.length > 1 ? "s" : ""
-        }`
-      );
-      clearSelection(); // Clear selection after operation
-    },
-    [selectedUsers, clearSelection]
-  );
-
-  // Handle bulk access assignment
-  const handleBulkAccessAssignment = useCallback(
-    (access: CompanyAccess[]) => {
-      setTableDataState((prevData) =>
-        prevData.map((user) =>
-          selectedUsers.includes(user.userUUID) ? { ...user, access } : user
-        )
-      );
-
-      toast.success(
-        `Access updated for ${selectedUsers.length} user${
-          selectedUsers.length > 1 ? "s" : ""
-        }`
-      );
-      clearSelection(); // Clear selection after operation
-      setAccessModalVisible(false);
-    },
-    [selectedUsers, clearSelection]
+    [selectedUsers, modal, clearSelection]
   );
 
   // Handle user status update
 
   // Handle user roles update
-  const handleUserRolesUpdate = useCallback(
-    (userUUID: string, newRoles: string[]) => {
-      setTableDataState((prevData) =>
-        prevData.map((user) =>
-          user.userUUID === userUUID ? { ...user, roles: newRoles } : user
-        )
-      );
-    },
-    []
-  );
 
   // Handle user access update
 
   const handleUserStatusUpdate = useCallback(
-    (userUUID: string, newStatus: User["status"], lockUntil?: string) => {
-      setTableDataState((prevData) =>
-        prevData.map((user) =>
-          user.userUUID === userUUID
-            ? { ...user, status: newStatus, lockUntil }
-            : user
-        )
-      );
-    },
+    (userUUID: string, newStatus: User["status"], lockUntil?: string) => {},
     []
   );
 
@@ -680,23 +411,44 @@ function UserDataTable({
     );
   }, []);
 
-  const fetchData = useCallback(
-    async (params: FetchParams & { status?: string[] }) => {
-      setLoading(true);
-        const response = (await API.get(
-          `${APIPATH.USERS.GETUSERS}`
-        )) as UsersDataResponse;
-        if(response){
-          setTableDataState(response.data.users);
-          setPagination({
-            ...params.pagination,
-            total: tableDataState.length,
-          });
-        }
-        setLoading(false);
+  // Handle table changes (pagination, filters, sorting)
+  const handleTableChange = useCallback(
+    (pagination: any, filters: any, sorter: any) => {
+      const newParams: FetchUsersParams = {
+        page: pagination.current - 1 || 0,
+        limit: pagination.pageSize || 10,
+      };
+
+      // Add sorting
+      if (sorter.field) {
+        newParams.sortField = sorter.field;
+        newParams.sortOrder = sorter.order;
+      }
+
+      // Add status filter
+      if (filters.status && filters.status.length > 0) {
+        newParams.status = filters.status;
+      }
+
+      // Add search
+      if (searchTerm) {
+        newParams.search = searchTerm;
+      }
+
+      setFetchParams(newParams);
     },
-    [setLoading, setTableDataState, setPagination, tableDataState]
+    [searchTerm]
   );
+
+  // Handle search with debounce
+  const handleSearch = useCallback((value: string) => {
+    setSearchTerm(value);
+    setFetchParams((prev) => ({
+      ...prev,
+      search: value || undefined,
+      page: 0, // Reset to first page on search
+    }));
+  }, []);
 
   // Memoize columns to prevent unnecessary re-renders
   const columns = useMemo(() => {
@@ -712,6 +464,7 @@ function UserDataTable({
             empCode={record.empCode}
             userName={record.loginUsername}
             initial={record.initial}
+            profileImage={record.profileImageUrl}
           />
         ),
       },
@@ -719,8 +472,36 @@ function UserDataTable({
         title: "Email",
         dataIndex: "email",
         key: "email",
-        width: 200,
+        width: 250,
         sorter: true,
+        render: (email: string) => {
+          if (!email) {
+            return (
+              <div className="flex items-center gap-2 text-gray-400 text-sm py-2">
+                <span className="italic">No email</span>
+              </div>
+            );
+          }
+
+          return (
+            <Card size="small" className="w-full">
+              <Paragraph
+                className="!m-0 !p-0"
+                copyable={{
+                  tooltips: ["Copy Email", "Copied!"],
+                  text: email,
+                }}
+              >
+                <a
+                  href={`mailto:${email}`}
+                  className="text-gray-700 font-medium hover:text-blue-600 transition-colors"
+                >
+                  {email}
+                </a>
+              </Paragraph>
+            </Card>
+          );
+        },
       },
       {
         title: "Phone",
@@ -739,13 +520,15 @@ function UserDataTable({
 
           return (
             <div className="flex items-center flex-wrap gap-2">
-              {countryAccess.map((c) => {
-                return (
-                  <Tag variant="outlined" key={`${c.countryUUID}`}>
-                    {c.countryName}
-                  </Tag>
-                );
-              })}
+              {countryAccess
+                .filter((c) => c.countryUUID)
+                .map((c) => {
+                  return (
+                    <Tag variant="outlined" key={`${c.countryUUID}`}>
+                      {c.countryName}
+                    </Tag>
+                  );
+                })}
             </div>
           );
         },
@@ -756,16 +539,17 @@ function UserDataTable({
         key: "companies",
         width: 240,
         render: (companies: CompanyAccess[], record: User) => (
-          <SuspenseWithBoundary
-            key={`${record.userUUID}`}
-            loading={<Skeleton active paragraph={{ rows: 1 }} />}
-          >
-            <EditableAccessCell
-              access={companies}
-              user={record}
-              companiesData={companyList}
-            />
-          </SuspenseWithBoundary>
+          <>
+            {companiesLoading ? (
+              <Skeleton active paragraph={{ rows: 1 }} />
+            ) : (
+              <EditableAccessCell
+                access={companies}
+                user={record}
+                companyList={companyList}
+              />
+            )}
+          </>
         ),
       },
       {
@@ -773,11 +557,10 @@ function UserDataTable({
         dataIndex: "status",
         key: "status",
         width: 100,
-        filters: [
-          { text: "Active", value: "active" },
-          { text: "Inactive", value: "inactive" },
-          { text: "Locked", value: "locked" },
-        ],
+        // filters: [
+        //   { text: "Active", value: "active" },
+        //   { text: "Inactive", value: "inactive" },
+        // ],
         render: (status: string, record: User) => (
           <div key={`status-${record.userUUID}`}>
             <StatusSwitch
@@ -850,8 +633,7 @@ function UserDataTable({
         ),
       },
     ];
-  }, [getSearchProps, actionMenus, handleUserRolesUpdate, handleUnlockUser]);
-
+  }, [getSearchProps, actionMenus, handleUnlockUser,companiesLoading]);
   return (
     <>
       {contextHolder}
@@ -873,22 +655,7 @@ function UserDataTable({
               </div>
             ),
           }}
-          dataSource={tableDataState}
-          request={async (params, sorter, filter) => {
-            const apiParams: FetchParams = {
-              pagination: { ...params },
-              sorter,
-              filters: filter,
-            };
-
-            await fetchData(apiParams);
-            return {
-              data: tableDataState,
-              total: pagination.total,
-              success: true,
-            };
-          }}
-          manualRequest
+          dataSource={usersData}
           className="pro-table-customize"
           // rowSelection={{
           //   type: "checkbox",
@@ -901,18 +668,23 @@ function UserDataTable({
           tableAlertOptionRender={false}
           options={{
             fullScreen: true,
-            reloadIcon: <ReloadOutlined spin={loading} />,
+            reloadIcon: (
+              <RefreshCw
+                className={`${loading || isFetching ? "animate-spin" : ""}`}
+                size={18}
+              />
+            ),
+            reload: () => fetchAll(),
           }}
-          toolbar={{
-            actions: [
-              // Remove the Fragment and add a key to the ExtraThings component
-              <ExtraThings
-                key="extra-things"
-                selectedUsers={selectedUsers}
-                onBulkAction={handleBulkAction}
-              />,
-            ],
-          }}
+          // toolbar={{
+          //   actions: [
+          //     <ExtraThings
+          //       key="extra-things"
+          //       selectedUsers={[]}
+          //       onBulkAction={handleBulkAction}
+          //     />,
+          //   ],
+          // }}
           search={false}
           headerTitle={
             <Input
@@ -920,18 +692,25 @@ function UserDataTable({
               allowClear
               prefix={<SearchOutlined />}
               style={{ width: 300 }}
+              onChange={(e) => handleSearch(e.target.value)}
+              value={searchTerm}
             />
           }
           pagination={{
-            ...pagination,
+            current: (fetchParams.page || 0) + 1,
+            pageSize: fetchParams.limit || 10,
+            total: totalRecords,
             size: "small",
             pageSizeOptions: [5, 10, 20, 50, 100],
             showQuickJumper: true,
             showSizeChanger: true,
+            showTotal: (total, range) =>
+              `${range[0]}-${range[1]} of ${total} users`,
           }}
+          onChange={handleTableChange}
           scroll={{ x: 1200, y: scrollY }}
           sticky
-          loading={loading}
+          loading={usersLoading || isFetching}
           rowKey="userUUID"
         />
       </div>

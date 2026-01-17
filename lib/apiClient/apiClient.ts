@@ -1,3 +1,6 @@
+import { getPath } from '@/lib/path';
+import { ApiError } from './ApiError'
+
 type FetchOptions = Omit<RequestInit, 'body'> & {
   body?: any
 }
@@ -18,7 +21,7 @@ class ApiClient {
     options: FetchOptions = {}
   ): Promise<T> {
     const res = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_PATH}/api/${endpoint}`,
+      getPath(`/api/${endpoint}`),
       {
         method: options.method,
         headers: {
@@ -37,7 +40,7 @@ class ApiClient {
     const data = await res.json()
 
     if (!res.ok) {
-      throw new Error(data.message || 'API Error')
+      throw new ApiError(data.message || 'API Error', res.status)
     }
 
     return data as T

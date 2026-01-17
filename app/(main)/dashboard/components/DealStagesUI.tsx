@@ -1,12 +1,11 @@
-'use client'
+"use client";
 
-import { useDealStagesQuery } from '@/app/(main)/dashboard/api/queries'
-import StageSkeleton from '@/components/Skeletons/StageSkeleton'
-import { Badge } from 'antd'
-import Link from 'next/link'
+import { useDealStagesQuery } from "@/app/(main)/dashboard/services/dashboard.hooks";
+import StageSkeleton from "@/components/Skeletons/StageSkeleton";
+import { Badge } from "antd";
 
 export default function DealStagesUI() {
-  const { data: stages, isLoading, isError, error } = useDealStagesQuery()
+  const { data: stages, isLoading, isError, error } = useDealStagesQuery();
 
   if (isLoading) {
     return (
@@ -15,7 +14,7 @@ export default function DealStagesUI() {
           <StageSkeleton key={index} />
         ))}
       </div>
-    )
+    );
   }
 
   if (isError) {
@@ -23,24 +22,21 @@ export default function DealStagesUI() {
       <div className="text-center py-8 text-red-500">
         Failed to load deal stages: {error?.message}
       </div>
-    )
+    );
   }
 
   if (!stages || stages.length === 0) {
     return (
-      <div className="text-center py-8 text-gray-500">
-        No deal stages found
-      </div>
-    )
+      <div className="text-center py-8 text-gray-500">No deal stages found</div>
+    );
   }
 
   return (
     <>
       {stages.map(({ stageName, stageCount }, index) => (
-        <Link
-          href={`/deals?stage=${stageName.toLowerCase()}`}
+        <div
           key={stageName}
-          className="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors cursor-pointer group"
+          className="flex items-center justify-between p-3   rounded-lg transition-colors"
         >
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-900/20 flex items-center justify-center">
@@ -53,8 +49,8 @@ export default function DealStagesUI() {
             </span>
           </div>
           <Badge count={stageCount} color="orange" />
-        </Link>
+        </div>
       ))}
     </>
-  )
+  );
 }

@@ -31,7 +31,6 @@ export async function POST(req: NextRequest) {
       headers: backendRes.headers,
     });
   } catch (error) {
-    console.error("Error uploading file:", error);
     return new Response(JSON.stringify({ message: "Error uploading file" }), {
       status: 500,
     });

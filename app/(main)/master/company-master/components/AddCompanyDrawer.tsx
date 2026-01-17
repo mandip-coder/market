@@ -1,17 +1,15 @@
 "use client";
 import { useCompanyModalStore } from "@/context/store/optimizedSelectors";
-import { useApi } from "@/hooks/useAPI";
-import { useLoading } from "@/hooks/useLoading";
-import { APIPATH } from "@/shared/constants/url";
+import { useProducts, useRoles } from "@/services/dropdowns/dropdowns.hooks";
 import { Button, Divider, Drawer } from "antd";
 import { Form, Formik, FormikProps } from "formik";
 import { Save } from "lucide-react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "react-toastify";
 import * as Yup from "yup";
 import ProfileImage from "../../user-management/components/ProfileImage";
+import { useCreateCompany, useUpdateCompany } from "../services/company.hooks";
+import { Company } from "../services/company.types";
 import BasicDetailsForm from "./BasicDetailsForm";
-import { Company } from "./CompanyDataTable";
 
 export interface CompanyFormData extends Omit<Company, "roles" | "products"> {
   rolesUUID: string[];
@@ -19,46 +17,25 @@ export interface CompanyFormData extends Omit<Company, "roles" | "products"> {
 }
 
 function AddCompanyDrawer() {
-  const API = useApi();
-  const [loading, setLoading] = useLoading();
   const formikRef = useRef<FormikProps<CompanyFormData>>(null);
   const [logoUrl, setProfileImageUrl] = useState<string | null>(null);
+  
+  // Hooks
+  const createCompanyMutation = useCreateCompany();
+  const updateCompanyMutation = useUpdateCompany();
   const {
     addCompanyDrawer,
     toggleCompanyDrawer,
     editCompany,
-    setTableDataState,
     setEditCompany,
-    rolesData,
-    productsData,
-    setRolesData,
-    setProductsData
   } = useCompanyModalStore();
+  const { data: roles=[] } = useRoles({enabled:addCompanyDrawer});
+  const { data: products=[] } = useProducts({enabled:addCompanyDrawer});
+
+  
   const isEditMode = !!editCompany;
   const companyData = editCompany || null;
 
-  const fetchRoles = async () => {
-    try {
-      const response = await API.get(APIPATH.ROLES.GETROLES);
-      const roleMAPPER = response.data.map((role: any) => ({ label: role.roleName, value: role.roleUUID }));
-      setRolesData(roleMAPPER);
-    } catch (error: any) {
-      setRolesData([])
-    }
-  }
-  const fetchProducts = async () => {
-    try {
-      const response = await API.get(APIPATH.PRODUCTS.GETPRODUCTS);
-      const productMAPPER = response.data.map((product: any) => ({ label: product.productName, value: product.productUUID }));
-      setProductsData(productMAPPER);
-    } catch (error: any) {
-      setProductsData([])
-    }
-  }
-  useEffect(()=>{
-    fetchRoles();
-    fetchProducts();
-  },[])
 
   useEffect(() => {
     if (isEditMode && companyData?.logoUrl) {
@@ -67,6 +44,7 @@ function AddCompanyDrawer() {
       setProfileImageUrl(null);
     }
   }, [isEditMode, companyData]);
+
   const handleClose = () => {
     formikRef.current?.resetForm();
     setProfileImageUrl(null);
@@ -75,45 +53,24 @@ function AddCompanyDrawer() {
   };
 
   const handleSubmit = async (values: CompanyFormData): Promise<void> => {
-    setLoading(true);
-
-    try {
-      if (isEditMode) {
-        const res = await API.put(
-          `${APIPATH.COMPANY.UPDATECOMPANY}${companyData?.companyUUID}`,
-          values
-        );
-        if (res.status) {
-          setTableDataState((prevData) =>
-            prevData.map((c) =>
-              c.companyUUID === companyData?.companyUUID
-                ? { ...c, ...(res.data as Company) }
-                : c
-            )
-          );
-          toast.success("Company updated successfully!");
-        } else {
-          toast.error(res.message);
-        }
+      if (isEditMode && companyData?.companyUUID) {
+        await updateCompanyMutation.mutateAsync({
+            companyUUID: companyData.companyUUID,
+            companyData: values as unknown as Company // simple cast to satisfy type
+        },{
+          onSuccess: () => {
+            handleClose();
+            setProfileImageUrl(null);
+          },
+        });
       } else {
-        const res = await API.post(APIPATH.COMPANY.CREATECOMPANY, values);
-        if (res.status) {
-          setTableDataState((prevData) => [...prevData, res.data as Company]);
-          toast.success("Company created successfully!");
-        } else {
-          toast.error(res.message);
-        }
+        await createCompanyMutation.mutateAsync(values as unknown as Company,{
+          onSuccess: () => {
+            handleClose();
+            setProfileImageUrl(null);
+          },
+        });
       }
-
-      handleClose();
-      setProfileImageUrl(null);
-    } catch (error: any) {
-      toast.error(
-        error.message || "Failed to create company. Please try again."
-      );
-    } finally {
-      setLoading(false);
-    }
   };
 
   const handleImageChange = useCallback((file: File, url: string) => {
@@ -205,7 +162,7 @@ function AddCompanyDrawer() {
           <Button
             type="primary"
             onClick={() => formikRef.current?.submitForm()}
-            loading={loading}
+            loading={createCompanyMutation.isPending || updateCompanyMutation.isPending}
             icon={<Save className="h-4 w-4" />}
           >
             {isEditMode ? "Update" : "Create"}
@@ -235,6 +192,7 @@ function AddCompanyDrawer() {
               onImageChange={handleImageChange}
               onImageRemove={handleImageRemove}
               title="Company Logo"
+              moduleName="companyProfile"
             />
 
             <Divider size="large">Basic Details</Divider>
@@ -245,8 +203,8 @@ function AddCompanyDrawer() {
               setFieldValue={setFieldValue}
               errors={errors}
               touched={touched}
-              rolesData={rolesData}
-              productsData={productsData}
+              rolesData={roles}
+              productsData={products}
             />
           </Form>
         )}

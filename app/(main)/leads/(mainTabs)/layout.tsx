@@ -13,8 +13,8 @@ export default async function LeadsLayout({
   recommendations: React.ReactNode;
 }) {
   return <>
-    <SuspenseWithBoundary loading={<FullPageSkeleton />}>
     <LeadsHeader />
+    <SuspenseWithBoundary loading={<FullPageSkeleton />}>
       <TabsLayout  leadListing={leadListing} recommendations={recommendations} />
     </SuspenseWithBoundary>
   </>

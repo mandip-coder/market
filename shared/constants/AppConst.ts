@@ -1,27 +1,16 @@
 import type { MenuProps } from "antd";
 import {
-  Accessibility,
-  Activity,
-  Archive,
   Bolt,
   Boxes,
   Building,
   Building2,
-  FileText,
   Grip,
-  Handshake,
   HeartHandshake,
-  HeartPulse,
-  Info,
   LayoutDashboard,
   Mailbox,
-  Microscope,
   PackageSearch,
   Search,
-  User,
-  UserRoundCog,
-  UsersRound,
-  WandSparkles
+  UserRoundCog
 } from "lucide-react";
 import React from "react";
 
@@ -46,11 +35,13 @@ function getItem(
 
 // Base menu items shared between both menus
 const baseMenuItems = [
+  getItem("Admin", "/admin", LayoutDashboard),
   getItem("Dashboard", "/dashboard", LayoutDashboard),
-  getItem("Leads", "/leads",Search),
-  getItem("Deals", "/deals",HeartHandshake),
+  getItem("Prospects", "/leads", Search),
+  getItem("Deals", "/deals", HeartHandshake),
   getItem("Healthcares", "/healthcares", Building2,),
   getItem("Products", "/products", Boxes,),
+  getItem("Campaign", "/campaigns", Mailbox),
 
 ];
 
@@ -59,7 +50,6 @@ const masterMenuItems = [
   getItem("Products", "/master/product-master", PackageSearch),
   getItem("Company", "/master/company-master", Building),
   getItem("Roles", "/master/roles-master", Bolt),
-  getItem("Mass Emails", "/master/mass-emails", Mailbox),
 ];
 
 export const userMenu: MenuItem[] = [

@@ -1,14 +1,22 @@
 "use client";
-import { Skeleton, Tabs } from "antd";
-import { CheckCircle, FileText, Mail, Phone } from "lucide-react";
-import React, { useState, useMemo } from "react";
+import { Tabs } from "antd";
+import { CheckCircle, FileText, History, Mail, Phone } from "lucide-react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { motion } from "motion/react";
 import { TabsProps } from "antd/lib";
-import { Lead } from "../../components/LeadsListing";
 import CallModal from "../../components/modals/CallModal";
 import EmailModal from "../../components/modals/EmailModal";
 import FollowUpModal from "../../components/modals/FollowUpModal";
-import { useLeadFollowUps, useLeadCalls, useLeadEmails } from "../../services";
+import {
+  useLeadCalls,
+  useLeadEmails,
+  useLeadFollowUps,
+  useLeadTimelineCounts,
+} from "../../services/leads.hooks";
+import { Lead } from "../../services/leads.types";
+import Skeleton from "@/components/Skeletons/FormSkeleton";
+import SuspenseWithBoundary from "@/components/SuspenseWithErrorBoundry/SuspenseWithErrorBoundry";
+import TimelineComponent from "@/components/shared/TimelineComponent";
 
 interface LeadDetails {
   lead: {
@@ -16,26 +24,48 @@ interface LeadDetails {
   };
 }
 
-const LeadDetails: React.FC<LeadDetails> = ({ lead }) => {
+const LeadTabs: React.FC<LeadDetails> = ({ lead }) => {
   const leadDetails = lead.data;
+  const isCancelled = leadDetails?.leadStatus === "cancelled";
+
+
+
   const [activeTab, setActiveTab] = useState<string>("overview");
-  const [activeOverviewTab, setActiveOverviewTab] = useState<string>("followup");
+  const [activeOverviewTab, setActiveOverviewTab] =
+    useState<string>("followup");
+
+
+
 
   // Fetch tab data with lazy loading - only fetch when tab is active
-  const { data: followUps = [], isLoading: followUpsLoading } = useLeadFollowUps(
-    leadDetails.leadUUID,
-    activeTab === "overview" && activeOverviewTab === "followup"
-  );
+  const { data: followUps = [], isLoading: followUpsLoading,refetch:refetchFollowUps,isRefetching:isRefetchingFollowUps } =
+    useLeadFollowUps(
+      leadDetails.leadUUID,
+      activeTab === "overview" && activeOverviewTab === "followup"
+    );
 
-  const { data: calls = [], isLoading: callsLoading } = useLeadCalls(
+  const { data: calls = [], isLoading: callsLoading,refetch:refetchCalls,isRefetching:isRefetchingCalls } = useLeadCalls(
     leadDetails.leadUUID,
     activeTab === "overview" && activeOverviewTab === "logCall"
   );
 
-  const { data: emails = [], isLoading: emailsLoading } = useLeadEmails(
+  const { data: emails = [], isLoading: emailsLoading,refetch:refetchEmails,isRefetching:isRefetchingEmails } = useLeadEmails(
     leadDetails.leadUUID,
     activeTab === "overview" && activeOverviewTab === "email"
   );
+  const {
+    data: timelineCounts = {
+      product: 0,
+      attachment: 0,
+      meeting: 0,
+      followUp: 0,
+      call: 0,
+      email: 0,
+      note: 0,
+      stageChange: 0,
+    },
+    isLoading: timelineCountsLoading,
+  } = useLeadTimelineCounts(leadDetails.leadUUID, activeTab === "timeline");
 
   const overViewTabItems: TabsProps["items"] = [
     {
@@ -44,23 +74,19 @@ const LeadDetails: React.FC<LeadDetails> = ({ lead }) => {
         <span className="flex items-center gap-1.5">
           <CheckCircle className="w-4 h-4" />
           <span>Follow Up</span>
-          {followUps.length > 0 && (
-            <span className="ml-1 px-1.5 py-0.5 text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 rounded-full">
-              {followUps.length}
-            </span>
-          )}
+          <span className="ml-1 px-1.5 py-0.5 text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 rounded-full">
+            {leadDetails.followUpCount}
+          </span>
         </span>
       ),
-      children: (<>
-        {followUpsLoading ? (
-          <Skeleton
-            active
-            className="h-[200px]"
-          />
-        ) : (
-          <FollowUpModal lead={leadDetails} followUps={followUps} />
-        )}
-      </>
+      children: (
+        <>
+          {followUpsLoading ? (
+            <Skeleton />
+          ) : (
+            <FollowUpModal lead={leadDetails} followUps={followUps} refetching={isRefetchingFollowUps} refetch={refetchFollowUps} />
+          )}
+        </>
       ),
     },
     {
@@ -69,23 +95,19 @@ const LeadDetails: React.FC<LeadDetails> = ({ lead }) => {
         <span className="flex items-center gap-1.5">
           <Phone className="w-4 h-4" />
           <span>Communication Log</span>
-          {calls.length > 0 && (
-            <span className="ml-1 px-1.5 py-0.5 text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 rounded-full">
-              {calls.length}
-            </span>
-          )}
+          <span className="ml-1 px-1.5 py-0.5 text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 rounded-full">
+            {leadDetails.callLogCount}
+          </span>
         </span>
       ),
-      children: (<>
-        {callsLoading ? (
-          <Skeleton
-            active
-            className="h-[200px]"
-          />
-        ) : (
-          <CallModal lead={leadDetails} calls={calls} />
-        )}
-      </>
+      children: (
+        <>
+          {callsLoading ? (
+            <Skeleton />
+          ) : (
+            <CallModal lead={leadDetails} calls={calls} refetching={isRefetchingCalls} refetch={refetchCalls} />
+          )}
+        </>
       ),
     },
     {
@@ -94,23 +116,19 @@ const LeadDetails: React.FC<LeadDetails> = ({ lead }) => {
         <span className="flex items-center gap-1.5">
           <Mail className="w-4 h-4" />
           <span>Email</span>
-          {emails.length > 0 && (
-            <span className="ml-1 px-1.5 py-0.5 text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 rounded-full">
-              {emails.length}
-            </span>
-          )}
+          <span className="ml-1 px-1.5 py-0.5 text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 rounded-full">
+            {leadDetails.emailCount}
+          </span>
         </span>
       ),
-      children: (<>
-        {emailsLoading ? (
-          <Skeleton
-            active
-            className="h-[200px]"
-          />
-        ) : (
-          <EmailModal lead={leadDetails} emails={emails} />
-        )}
-      </>
+      children: (
+        <>
+          {emailsLoading ? (
+            <Skeleton />
+          ) : (
+            <EmailModal lead={leadDetails} emails={emails} refetching={isRefetchingEmails} refetch={refetchEmails} />
+          )}
+        </>
       ),
     },
   ];
@@ -128,31 +146,72 @@ const LeadDetails: React.FC<LeadDetails> = ({ lead }) => {
         children: (
           <div className="space-y-6">
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md px-3">
-              <Tabs
-                activeKey={activeOverviewTab}
-                onChange={setActiveOverviewTab}
-                items={overViewTabItems}
-              />
+              <div className={isCancelled ? "[&_.ant-btn]:!hidden" : ""}>
+                <Tabs
+                  activeKey={activeOverviewTab}
+                  onChange={setActiveOverviewTab}
+                  items={overViewTabItems}
+                />
+              </div>
             </div>
           </div>
         ),
       },
+      {
+        key: "timeline",
+        label: (
+          <span className="flex items-center gap-1.5">
+            <History className="w-4 h-4" />
+            <span>Timeline</span>
+          </span>
+        ),
+        children: (
+          <SuspenseWithBoundary>
+            <TimelineComponent
+              entityType="lead"
+              entityUUID={leadDetails.leadUUID}
+              timelineCounts={timelineCounts}
+              excludeTabs={[
+                "Product",
+                "Attachment",
+                "Meeting",
+                "Note",
+                "Stage Change",
+              ]}
+            />
+          </SuspenseWithBoundary>
+        ),
+      },
     ],
-    [activeOverviewTab, followUps, calls, emails, leadDetails]
+    [
+      activeOverviewTab,
+      followUps,
+      calls,
+      emails,
+      leadDetails,
+      timelineCounts,
+      timelineCountsLoading,
+      followUpsLoading,
+      callsLoading,
+      emailsLoading,
+      refetchFollowUps,
+      refetchCalls,
+      refetchEmails,
+      isRefetchingFollowUps,
+      isRefetchingCalls,
+      isRefetchingEmails,
+    ]
   );
-
-  const isCancelled = leadDetails?.leadStatus === 'cancelled';
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className={isCancelled ? "[&_.ant-btn]:!hidden" : ""}
     >
-      <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
+      <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} destroyOnHidden />
     </motion.div>
   );
 };
 
-export default LeadDetails;
+export default LeadTabs;

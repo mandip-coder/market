@@ -1,51 +1,36 @@
-import { Button, Card, Image, Tag, Timeline } from "antd";
+import { useLoginUser } from "@/hooks/useToken";
 import { formatUserDisplay, GlobalDate } from "@/Utils/helpers";
-import dayjs from "dayjs";
+import { Avatar, Button, Card, Empty, Skeleton, Tag, Timeline } from "antd";
 import {
   Calendar,
   CheckCircle,
   CircleCheck,
-  CircleSlash,
   FilterX,
   History,
   Mail,
   Notebook,
   Paperclip,
   Phone,
+  RefreshCw,
   ShoppingCart,
   TrendingUp,
 } from "lucide-react";
-import Link from "next/link";
+import { motion } from "motion/react";
 import { useMemo, useState } from "react";
-import { STAGE_LABELS } from "@/lib/types";
-
-// Base timeline event type
-export interface TimelineEvent {
-  id: number;
-  type:
-  | "Product"
-  | "Attachment"
-  | "Meeting"
-  | "Follow Up"
-  | "Call"
-  | "Email"
-  | "Note"
-  | "Stage Change"
-  | "Reminder";
-  title: string;
-  description: string;
-  timestamp: string;
-  user: string;
-  userUUID?: string;
-  color: "blue" | "green" | "red" | "purple" | "orange" | "gray";
-  details?: any;
-}
-
-interface TimelineComponentProps {
-  timelineEvents: TimelineEvent[];
-  excludeEventTypes?: TimelineEvent["type"][]; // Optional: event types to exclude from display
-  currentUserUUID?: string | null;
-}
+import { useQueryClient } from "@tanstack/react-query";
+import { useInfiniteTimeline as useInfiniteDealTimeline } from "../../app/(main)/deals/services/deals.hooks";
+import { useInfiniteTimeline as useInfiniteLeadTimeline } from "../../app/(main)/leads/services/leads.hooks";
+import {
+  DealTimelineCounts,
+  TimelineEvents,
+} from "../../app/(main)/deals/services/deals.types";
+import { LeadTimelineCounts } from "../../app/(main)/leads/services/leads.types";
+import { dealsKeys } from "../../app/(main)/deals/services/deals.queryKeys";
+import { leadsKeys } from "../../app/(main)/leads/services/leads.queryKeys";
+import InfiniteScrollTrigger from "./InfiniteScrollTrigger";
+import AppErrorUI from "../AppErrorUI/AppErrorUI";
+import { ApiError } from "@/lib/apiClient/ApiError";
+import AppScrollbar from "../AppScrollBar";
 
 // Color mapping for timeline dots
 const colorMap = {
@@ -57,13 +42,8 @@ const colorMap = {
   gray: "#8c8c8c",
 } as const;
 
-interface eventType {
-  type: TimelineEvent["type"];
-  icon: any;
-  color: keyof typeof colorMap;
-}
-
-const eventTypes: eventType[] = [
+// Event type configuration for filters
+export const eventTypes = [
   { type: "Product", icon: ShoppingCart, color: "orange" },
   { type: "Attachment", icon: Paperclip, color: "red" },
   { type: "Meeting", icon: Calendar, color: "purple" },
@@ -72,18 +52,31 @@ const eventTypes: eventType[] = [
   { type: "Email", icon: Mail, color: "green" },
   { type: "Note", icon: Notebook, color: "gray" },
   { type: "Stage Change", icon: TrendingUp, color: "blue" },
-  { type: "Reminder", icon: Calendar, color: "red" },
-];
+] as const;
 
+// Extract valid event type names for type safety
+export type EventTypeName = (typeof eventTypes)[number]["type"];
+
+// Generic timeline counts type
+type TimelineCounts = DealTimelineCounts | LeadTimelineCounts;
+
+interface TimelineComponentProps {
+  entityType: "deal" | "lead";
+  entityUUID: string;
+  excludeTabs?: EventTypeName[];
+  timelineCounts?: TimelineCounts;
+}
+
+// Custom timeline dot component
 const CustomDot = ({
   color,
   type,
 }: {
   color: keyof typeof colorMap;
-  type: TimelineEvent["type"];
+  type: string;
 }) => (
   <div
-    className="flex items-center justify-center p-2 rounded-full border-2 border-white shadow-sm"
+    className="p-2 rounded-full shadow-sm"
     style={{ backgroundColor: colorMap[color] }}
   >
     {type === "Product" && <ShoppingCart size={14} className="text-white" />}
@@ -94,32 +87,60 @@ const CustomDot = ({
     {type === "Email" && <Mail size={14} className="text-white" />}
     {type === "Note" && <Notebook size={14} className="text-white" />}
     {type === "Stage Change" && <TrendingUp size={14} className="text-white" />}
-    {type === "Reminder" && <Calendar size={14} className="text-white" />}
   </div>
 );
 
+// Animation variants
+const itemVariants = {
+  hidden: { opacity: 0, x: 150 },
+  visible: {
+    opacity: 1,
+    x: 0,
+    transition: { duration: 0.3, ease: "easeOut" as const },
+  },
+};
+const eventTypeToCountKey: Record<string, keyof DealTimelineCounts> = {
+  Product: "product",
+  Attachment: "attachment",
+  Meeting: "meeting",
+  "Follow Up": "followUp",
+  Call: "call",
+  Email: "email",
+  Note: "note",
+  "Stage Change": "stageChange",
+};
 
 const TimelineComponent: React.FC<TimelineComponentProps> = ({
-  timelineEvents,
-  excludeEventTypes = [],
-  currentUserUUID,
+  entityType,
+  entityUUID,
+  excludeTabs,
+  timelineCounts,
 }) => {
-  // Filter out excluded event types
-  const availableEventTypes = eventTypes.filter(
-    (et) => !excludeEventTypes.includes(et.type)
-  );
+  const user = useLoginUser();
+  const queryClient = useQueryClient();
+
+  const availableEventTypes = useMemo(() => {
+    if (excludeTabs) {
+      return eventTypes.filter((et) => !excludeTabs.includes(et.type));
+    }
+    return eventTypes;
+  }, [excludeTabs]);
+
   const [selectedFilters, setSelectedFilters] = useState<string[]>(
     availableEventTypes.map((et) => et.type)
   );
 
-  // Calculate event counts for each type
   const eventCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    timelineEvents.forEach((event) => {
-      counts[event.type] = (counts[event.type] || 0) + 1;
-    });
-    return counts;
-  }, [timelineEvents]);
+    if (timelineCounts) {
+      const counts: Record<string, number> = {};
+      Object.entries(eventTypeToCountKey).forEach(([eventType, countKey]) => {
+        counts[eventType] = timelineCounts[countKey] || 0;
+      });
+      return counts;
+    }
+    // Fallback if counts not passed (though infinite loading makes client-side counting hard for total)
+    return {};
+  }, [timelineCounts]);
 
   const toggleFilter = (type: string) => {
     if (selectedFilters.includes(type)) {
@@ -137,9 +158,52 @@ const TimelineComponent: React.FC<TimelineComponentProps> = ({
     }
   };
 
-  const filteredEvents = timelineEvents.filter((event) =>
-    selectedFilters.includes(event.type)
-  );
+  // Fetch infinite timeline data - use appropriate hook based on entity type
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    error,
+    refetch,
+    isFetching,
+  } =
+    entityType === "deal"
+      ? useInfiniteDealTimeline(entityUUID, { tabs: selectedFilters })
+      : useInfiniteLeadTimeline(entityUUID, { tabs: selectedFilters });
+
+  // Handle reload - invalidate counts and refetch timeline
+  const handleReload = async () => {
+    // Invalidate timeline counts based on entity type
+    if (entityType === "deal") {
+      await queryClient.invalidateQueries({
+        queryKey: dealsKeys.timelineCounts(entityUUID),
+      });
+    } else {
+      await queryClient.invalidateQueries({
+        queryKey: leadsKeys.timelineCounts(entityUUID),
+      });
+    }
+    // Refetch timeline data
+    await refetch();
+  };
+
+  const timelineEvents = useMemo(() => {
+    return data?.pages.flatMap((page) => page.list) || [];
+  }, [data]);
+
+  if (error) {
+    const statusCode = error instanceof ApiError ? error.statusCode : 500;
+    return (
+      <AppErrorUI
+        code={statusCode}
+        message={error.message}
+        backLink={entityType === "deal" ? "/deals" : "/leads"}
+        buttonName={`Back to ${entityType === "deal" ? "Deals" : "Leads"}`}
+      />
+    );
+  }
 
   return (
     <div className="bg-white dark:bg-black rounded-xl shadow-sm p-6 transition-all duration-300 hover:shadow-md">
@@ -155,6 +219,19 @@ const TimelineComponent: React.FC<TimelineComponentProps> = ({
               {selectedFilters.length === availableEventTypes.length
                 ? "Clear All"
                 : "All"}
+            </Button>
+            <Button
+              size="small"
+              onClick={handleReload}
+              className="text-xs"
+              icon={
+                <RefreshCw
+                  className={`${isFetching ? "animate-spin" : ""}`}
+                  size={14}
+                />
+              }
+            >
+              Reload
             </Button>
           </div>
         </div>
@@ -176,11 +253,9 @@ const TimelineComponent: React.FC<TimelineComponentProps> = ({
               >
                 <div className="flex items-center">
                   <span className="mr-2">{eventType.type}</span>
-                  {count > 0 && (
-                    <span className="ml-1 text-xs bg-purple-500 text-white rounded-full h-4.5 w-4.5 flex place-content-center  leading-4">
-                      {count > 9 ? "9+" : count}
-                    </span>
-                  )}
+                  <span className="ml-1 text-xs bg-purple-500 text-white rounded-full h-4.5 w-4.5 flex place-content-center  leading-4">
+                    {count > 9 ? "9+" : count}
+                  </span>
                 </div>
               </Button>
             );
@@ -188,26 +263,26 @@ const TimelineComponent: React.FC<TimelineComponentProps> = ({
         </div>
 
         <div className="mt-3">
-          {selectedFilters.length === 0 ? (
-            <div className="flex items-center justify-center rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 dark:border-gray-700 dark:bg-gray-800">
-              <FilterX className="mr-3 h-5 w-5 text-gray-400 dark:text-gray-500" />
-              <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
-                No filters selected
-              </span>
-            </div>
-          ) : filteredEvents.length === 0 ? (
-            <div className="flex items-center justify-center rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 dark:border-gray-700 dark:bg-gray-800">
-              <CircleSlash className="mr-3 h-5 w-5 text-gray-400 dark:text-gray-500" />
-              <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
-                No events match your filters
-              </span>
-            </div>
+          {timelineEvents.length === 0 && !isLoading ? (
+            selectedFilters.length === 0 ? (
+              <div className="flex items-center justify-center rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 dark:border-gray-700 dark:bg-gray-800">
+                <FilterX className="mr-3 h-5 w-5 text-gray-400 dark:text-gray-500" />
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                  No filters selected
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 dark:border-gray-700 dark:bg-gray-800">
+                <Empty description="No History Found" />
+              </div>
+            )
           ) : (
             <div className="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 px-4 py-3 dark:border-green-900 dark:bg-green-900/20">
               <div className="flex items-center">
                 <CircleCheck className="mr-3 h-5 w-5 text-green-600 dark:text-green-400" />
                 <span className="text-sm font-medium text-green-800 dark:text-green-200">
-                  {filteredEvents.length} events found
+                  {/* Using flattened count */}
+                  {timelineEvents.length} events Founded
                 </span>
               </div>
               <span className="text-xs text-green-600 dark:text-green-400">
@@ -219,408 +294,204 @@ const TimelineComponent: React.FC<TimelineComponentProps> = ({
       </div>
 
       {/* Timeline */}
-      <Timeline
-        mode="start"
-        items={filteredEvents.map((event: TimelineEvent) => ({
-          icon: <CustomDot color={event.color} type={event.type} />,
-          content: (
-            <Card key={event.id}>
-              {/* Event Header */}
-              <div className="flex justify-between items-start mb-2">
-                <h4 className="font-semibold text-gray-800 dark:text-white text-lg">
-                  {event.title}
-                </h4>
-                <Tag color={event.color} className="ml-2">
-                  {event.type}
-                </Tag>
-              </div>
-
-              {/* Event Description */}
-              <p className="text-gray-600 dark:text-gray-300 mb-3">
-                {event.description}
-              </p>
-
-              {/* Event Meta */}
-              <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mb-4">
-                <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center mr-2">
-                  {formatUserDisplay(
-                    event.user,
-                    event.userUUID,
-                    currentUserUUID
-                  ).charAt(0)}
-                </div>
-                <span>
-                  {formatUserDisplay(
-                    event.user,
-                    event.userUUID,
-                    currentUserUUID
-                  )}
-                </span>
-                <span className="mx-2">•</span>
-                <span>
-                  {dayjs(event.timestamp).format("D MMM, YYYY h:mm A")}
-                </span>
-              </div>
-
-              {/* Event Details - Type-specific rendering */}
-              {event.type === "Stage Change" && event.details && (
-                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-100 dark:border-blue-800">
-                  <div className="flex items-center gap-2 mb-3">
-                    <TrendingUp className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    <span className="font-medium text-blue-800 dark:text-blue-300">
-                      Stage Progress
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <div className="text-xs text-blue-700 dark:text-blue-400 mb-1">
-                        Previous Stage
-                      </div>
-                      <div className="font-medium">
-                        {
-                          STAGE_LABELS[
-                          event.details
-                            .previousStage as keyof typeof STAGE_LABELS
-                          ]
-                        }
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-blue-700 dark:text-blue-400 mb-1">
-                        New Stage
-                      </div>
-                      <div className="font-medium">
-                        {
-                          STAGE_LABELS[
-                          event.details.newStage as keyof typeof STAGE_LABELS
-                          ]
-                        }
-                      </div>
-                    </div>
-                    <div className="col-span-2">
-                      <div className="text-xs text-blue-700 dark:text-blue-400 mb-1">
-                        Reason
-                      </div>
-                      <div className="font-medium">{event.details.reason}</div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {event.type === "Product" && event.details?.product && (
-                <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-4 border border-orange-100 dark:border-orange-800">
-                  <div className="flex items-center gap-2 mb-3">
-                    <ShoppingCart className="w-4 h-4 text-orange-600 dark:text-orange-400" />
-                    <span className="font-medium text-orange-800 dark:text-orange-300">
-                      Product Details
-                    </span>
-                  </div>
-                  <div>
-                    <div className="font-medium text-lg">
-                      {event.details.product.name}
-                    </div>
-                    {event.details.product.description && (
-                      <div className="text-gray-600 dark:text-gray-400 mt-2">
-                        {event.details.product.description}
-                      </div>
-                    )}
-                    {event.details.product.price && (
-                      <div className="mt-3 font-bold text-orange-700 dark:text-orange-400 text-lg">
-                        ${event.details.product.price.toLocaleString()}
-                      </div>
-                    )}
-                    {event.details.reason && (
-                      <div className="mt-3 text-sm text-gray-500 dark:text-gray-400 border-t border-orange-200 dark:border-orange-800 pt-2">
-                        <span className="font-medium text-orange-800 dark:text-orange-300">
-                          Reason:{" "}
-                        </span>
-                        {event.details.reason}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {event.type === "Attachment" && event.details?.attachment && (
-                <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4 border border-red-100 dark:border-red-800">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Paperclip className="w-4 h-4 text-red-600 dark:text-red-400" />
-                    <span className="font-medium text-red-800 dark:text-red-300">
-                      File Details
-                    </span>
-                  </div>
-                  <div>
-                    {["png", "jpg", "jpeg", "gif"].includes(
-                      event.details.attachment.type
-                    ) ? (
-                      <Image
-                        src={event.details.attachment.url}
-                        alt={event.details.attachment.name}
-                        width={100}
-                        height={100}
-                        className="rounded-xl"
-                      />
-                    ) : (
-                      <Link
-                        className="max-w-max block"
-                        href={event.details.attachment.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <div className="font-medium max-w-max">
-                          {event.details.attachment.name}.
-                          {event.details.attachment.type}
-                        </div>
-                      </Link>
-                    )}
-                    <div className="text-gray-600 dark:text-gray-400 mt-2">
-                      Uploaded on{" "}
-                      {GlobalDate(event.details.attachment.uploadedAt)}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {event.type === "Meeting" && event.details?.meetingPoints && (
-                <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 border border-purple-100 dark:border-purple-800">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Calendar className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                    <span className="font-medium text-purple-800 dark:text-purple-300">
-                      Meeting Details
-                    </span>
-                  </div>
-                  <div className="text-xs text-purple-700 dark:text-purple-400 mb-1">
-                    Meeting Points
-                  </div>
-                  <div className="font-medium">
-                    {event.details.meetingPoints}
-                  </div>
-                </div>
-              )}
-
-              {event.type === "Follow Up" && event.details?.followUp && (
-                <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-4 border border-orange-100 dark:border-orange-800">
-                  <div className="flex items-center gap-2 mb-3">
-                    <CheckCircle className="w-4 h-4 text-orange-600 dark:text-orange-400" />
-                    <span className="font-medium text-orange-800 dark:text-orange-300">
-                      Task Details
-                    </span>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="font-medium text-base">
-                      {event.details.followUp.subject}
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      <Tag
-                        color={
-                          event.details.followUp.isCompleted
-                            ? "green"
-                            : event.details.followUp.isCancelled
-                              ? "red"
-                              : "blue"
-                        }
-                      >
-                        {event.details.followUp.isCompleted
-                          ? "Completed"
-                          : event.details.followUp.isCancelled
-                            ? "Cancelled"
-                            : "Open"}
-                      </Tag>
-                      <Tag
-                        color={
-                          event.details.followUp.priority === "High" ||
-                            event.details.followUp.priority === "Urgent"
-                            ? "red"
-                            : "orange"
-                        }
-                      >
-                        {event.details.followUp.priority}
-                      </Tag>
-                      {event.details.followUp.reminder &&
-                        event.details.followUp.reminder !== "None" && (
-                          <Tag color="purple">
-                            Reminder: {event.details.followUp.reminder}
+      {/* Timeline */}
+      {isLoading ? (
+        <div className="py-8">
+          <Skeleton active avatar paragraph={{ rows: 4 }} />
+          <div className="mt-8">
+            <Skeleton active avatar paragraph={{ rows: 4 }} />
+          </div>
+        </div>
+      ) : (
+        <AppScrollbar className="max-h-[calc(100vh-480px)] overflow-x-hidden p-4">
+          <Timeline
+            mode="start"
+            items={
+              [
+                ...timelineEvents.map((event: TimelineEvents) => ({
+                  icon: <CustomDot color={event.color} type={event.type} />,
+                  content: (
+                    <motion.div
+                      key={event.historyUUID}
+                      initial="hidden"
+                      whileInView="visible"
+                      viewport={{ once: true }}
+                      variants={itemVariants}
+                    >
+                      <Card>
+                        {/* Event Header */}
+                        <div className="flex justify-between items-start mb-2">
+                          <h4 className="font-semibold text-gray-800 dark:text-white text-lg">
+                            {event.title}
+                          </h4>
+                          <Tag color={event.color} className="ml-2">
+                            {event.type}
                           </Tag>
-                        )}
-                    </div>
-
-                    <div className="text-sm text-gray-600 dark:text-gray-400">
-                      <strong>Due:</strong>{" "}
-                      {GlobalDate(event.details.followUp.scheduledDateTime)}
-                    </div>
-
-                    {event.details.followUp.remark && (
-                      <div className="text-sm bg-white dark:bg-gray-800 p-2 rounded border border-orange-100 dark:border-orange-900">
-                        <div className="text-xs text-orange-600 dark:text-orange-400 font-semibold mb-1">
-                          Remark
                         </div>
-                        {event.details.followUp.remark}
-                      </div>
-                    )}
 
-                    {event.details.contactPersonNames &&
-                      event.details.contactPersonNames.length > 0 && (
-                        <div className="text-sm">
-                          <div className="text-xs text-orange-600 dark:text-orange-400 font-semibold mb-1">
-                            Contact Persons
-                          </div>
-                          <div className="flex flex-wrap gap-1">
-                            {event.details.contactPersonNames.map(
-                              (name: string, idx: number) => (
-                                <span
-                                  key={idx}
-                                  className="bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200 text-xs px-2 py-1 rounded-full"
-                                >
-                                  {name}
-                                </span>
-                              )
+                        {/* Event Description */}
+                        <p className="text-gray-600 dark:text-gray-300 mb-3">
+                          {event.description}
+                        </p>
+
+                        {/* Event Meta */}
+                        <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mb-4">
+                          <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center mr-2">
+                            {event.profileImageUrl ? (
+                              <Avatar src={event.profileImageUrl} size={24} />
+                            ) : (
+                              <Avatar size={24}>{event.user.charAt(0)}</Avatar>
                             )}
                           </div>
-                        </div>
-                      )}
-                  </div>
-                </div>
-              )}
-
-              {event.type === "Call" && event.details?.call && (
-                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-100 dark:border-blue-800">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Phone className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    <span className="font-medium text-blue-800 dark:text-blue-300">
-                      Call Details
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 mb-3">
-                    <div>
-                      <div className="text-xs text-blue-700 dark:text-blue-400 mb-1">
-                        Outcome
-                      </div>
-                      <Tag
-                        color={
-                          event.details.call.outcome === "Approved Switch"
-                            ? "green"
-                            : "default"
-                        }
-                      >
-                        {event.details.call.outcome}
-                      </Tag>
-                    </div>
-                    <div>
-                      <div className="text-xs text-blue-700 dark:text-blue-400 mb-1">
-                        Duration
-                      </div>
-                      <div className="font-medium">
-                        {event.details.call.duration}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    {event.details.call.purpose && (
-                      <div>
-                        <div className="text-xs text-blue-700 dark:text-blue-400 mb-1">
-                          Purpose
-                        </div>
-                        <div className="text-sm">
-                          {event.details.call.purpose}
-                        </div>
-                      </div>
-                    )}
-                    {event.details.call.agenda && (
-                      <div>
-                        <div className="text-xs text-blue-700 dark:text-blue-400 mb-1">
-                          Agenda
-                        </div>
-                        <div className="text-sm bg-white dark:bg-gray-800 p-2 rounded border border-blue-100 dark:border-blue-900">
-                          {event.details.call.agenda}
-                        </div>
-                      </div>
-                    )}
-                    {event.details.call.reason && (
-                      <div>
-                        <div className="text-xs text-blue-700 dark:text-blue-400 mb-1">
-                          Reason
-                        </div>
-                        <div className="text-sm">
-                          {event.details.call.reason}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {event.type === "Email" && event.details?.email && (
-                <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 border border-green-100 dark:border-green-800">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Mail className="w-4 h-4 text-green-600 dark:text-green-400" />
-                    <span className="font-medium text-green-800 dark:text-green-300">
-                      Email Details
-                    </span>
-                  </div>
-                  <div>
-                    <div className="text-xs text-green-700 dark:text-green-400 mb-1">
-                      Recipients
-                    </div>
-                    <div className="flex flex-wrap gap-1 mb-2">
-                      {event.details.email.recipients?.map(
-                        (email: string, idx: number) => (
-                          <span
-                            key={idx}
-                            className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs px-2 py-1 rounded-full"
-                          >
-                            {email}
+                          <span>
+                            {formatUserDisplay(
+                              event.user,
+                              event.userUUID,
+                              user?.userUUID
+                            )}
                           </span>
-                        )
-                      )}
-                    </div>
-                    {event.details.email.body && (
-                      <div className="mt-2 text-sm text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 p-2 rounded border border-green-100 dark:border-green-900">
-                        {event.details.email.body.length > 200
-                          ? `${event.details.email.body.substring(0, 200)}...`
-                          : event.details.email.body}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-              {event.type === "Reminder" && (
-                <div className="bg-gray-50 dark:bg-gray-700/20 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Calendar className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                    <span className="font-medium text-gray-800 dark:text-gray-300">
-                      Reminder Details
-                    </span>
-                  </div>
-                  <div>
-                    <div className="text-gray-600 dark:text-gray-400 mt-2">
-                      {event.description}
-                    </div>
-                  </div>
-                </div>
-              )}
+                          <span className="mx-2">•</span>
+                          <span>{GlobalDate(event.createdAt)}</span>
+                        </div>
 
-              {event.type === "Note" && (
-                <div className="bg-gray-50 dark:bg-gray-700/20 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Notebook className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                    <span className="font-medium text-gray-800 dark:text-gray-300">
-                      Note Details
-                    </span>
-                  </div>
-                  <div>
-                    <div className="font-medium">{event.title}</div>
-                    <div className="text-gray-600 dark:text-gray-400 mt-2">
-                      {event.description.substring(0, 100)}
-                      {event.description.length > 100 && "..."}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </Card>
-          ),
-        }))}
-      />
+                        {/* Event Details - Type-specific rendering */}
+                        {/* {event.type === "Stage Change" && (
+                          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-100 dark:border-blue-800">
+                            <div className="flex items-center gap-2 mb-3">
+                              <TrendingUp className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                              <span className="font-medium text-blue-800 dark:text-blue-300">
+                                Stage Progress
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3"></div>
+                          </div>
+                        )} */}
+
+                        {/* {event.type === "Product" && (
+                          <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-4 border border-orange-100 dark:border-orange-800">
+                            <div className="flex items-center gap-2 mb-3">
+                              <ShoppingCart className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                              <span className="font-medium text-orange-800 dark:text-orange-300">
+                                Product Details
+                              </span>
+                            </div>
+                          </div>
+                        )} */}
+
+                        {/* {event.type === "Attachment" && (
+                          <div className="bg-red-50 dark:bg-red-900/20 rounded-lg p-4 border border-red-100 dark:border-red-800">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Paperclip className="w-4 h-4 text-red-600 dark:text-red-400" />
+                              <span className="font-medium text-red-800 dark:text-red-300">
+                                File Details
+                              </span>
+                            </div>
+                          </div>
+                        )} */}
+
+                        {/* {event.type === "Meeting" && (
+                          <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 border border-purple-100 dark:border-purple-800">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Calendar className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                              <span className="font-medium text-purple-800 dark:text-purple-300">
+                                Meeting Details
+                              </span>
+                            </div>
+                            <div className="text-xs text-purple-700 dark:text-purple-400 mb-1">
+                              Meeting Points
+                            </div>
+                          </div>
+                        )} */}
+
+                        {/* {event.type === "Follow Up" && (
+                          <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-4 border border-orange-100 dark:border-orange-800">
+                            <div className="flex items-center gap-2 mb-3">
+                              <CheckCircle className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                              <span className="font-medium text-orange-800 dark:text-orange-300">
+                                Task Details
+                              </span>
+                            </div>
+                          </div>
+                        )} */}
+
+                        {/* {event.type === "Call" && (
+                          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-100 dark:border-blue-800">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Phone className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                              <span className="font-medium text-blue-800 dark:text-blue-300">
+                                Call Details
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <div className="text-xs text-blue-700 dark:text-blue-400 mb-1">
+                                  Outcome
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-xs text-blue-700 dark:text-blue-400 mb-1">
+                                  Duration
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {event.type === "Email" && (
+                          <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 border border-green-100 dark:border-green-800">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Mail className="w-4 h-4 text-green-600 dark:text-green-400" />
+                              <span className="font-medium text-green-800 dark:text-green-300">
+                                Email Details
+                              </span>
+                            </div>
+                            <div>
+                              <div className="text-xs text-green-700 dark:text-green-400 mb-1">
+                                Recipients
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {event.type === "Note" && (
+                          <div className="bg-gray-50 dark:bg-gray-700/20 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Notebook className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                              <span className="font-medium text-gray-800 dark:text-gray-300">
+                                Note Details
+                              </span>
+                            </div>
+                            <div>
+                              <div className="font-medium">{event.title}</div>
+                              <div className="text-gray-600 dark:text-gray-400 mt-2">
+                                {event.description.substring(0, 100)}
+                                {event.description.length > 100 && "..."}
+                              </div>
+                            </div>
+                          </div>
+                        )} */}
+                      </Card>
+                    </motion.div>
+                  ),
+                })),
+                // Add loading trigger at the end
+                hasNextPage
+                  ? {
+                      icon: <div className="w-2 h-2" />, // Empty icon for loader
+                      content: (
+                        <InfiniteScrollTrigger
+                          onIntersect={() => fetchNextPage()}
+                          isLoading={isFetchingNextPage}
+                          hasMore={!!hasNextPage}
+                        />
+                      ),
+                    }
+                  : null,
+              ].filter(Boolean) as any
+            }
+          />
+        </AppScrollbar>
+      )}
     </div>
   );
 };

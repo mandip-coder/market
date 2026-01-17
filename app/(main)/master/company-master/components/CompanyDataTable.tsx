@@ -1,22 +1,21 @@
 "use client";
 import { useCompanyStore } from "@/context/store/companyStore";
-import { useApi } from "@/hooks/useAPI";
 import useColumnSearch from "@/hooks/useColumnSearch";
-import { useLoading } from "@/hooks/useLoading";
 import { useTableScroll } from "@/hooks/useTableScroll";
-import { APIPATH } from "@/shared/constants/url";
 import {
   PhoneOutlined,
   ReloadOutlined,
   SearchOutlined,
 } from "@ant-design/icons";
-import ProTable from "@ant-design/pro-table";
+import ProTable, { ProColumns } from "@ant-design/pro-table";
 import type { MenuProps } from "antd";
 import {
+  Avatar,
   Badge,
   Button,
   Card,
   Dropdown,
+  Flex,
   Input,
   Modal,
   Popover,
@@ -27,106 +26,49 @@ import {
 import Paragraph from "antd/es/typography/Paragraph";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { Edit, MoreHorizontal, Trash } from "lucide-react";
+import { Edit, MoreHorizontal, RefreshCw, Trash, User } from "lucide-react";
 import React, {
   memo,
-  use,
   useCallback,
-  useEffect,
   useMemo,
   useState,
 } from "react";
-import { toast } from "react-toastify";
+import { toast } from '@/components/AppToaster/AppToaster';
+import { useCompanies, useDeleteCompany } from "../services/company.hooks";
+import { Company } from "../services/company.types";
+import { CompanyFormData } from "./AddCompanyDrawer";
 import { ExtraThings } from "./TableExtraThings";
 
 dayjs.extend(relativeTime);
 
-export interface Company {
-  companyUUID: string;
-  displayName: string;
-  legalName: string;
-  shortName: string;
-  address: string;
-  webUrl: string;
-  logoUrl?: string | null;
-  email: string;
-  phone1: string;
-  phone2?: string | null;
-  phone3?: string | null;
-  createdAt: string;
-  updatedAt: string;
-  status: "active" | "inactive" | "deleted";
-  roles: {
-    roleUUID: string;
-    roleName: string;
-    description: string;
-    roleCode: string;
-    isSystemRole: boolean;
-    status: "active" | "inactive";
-  }[];
-  products: {
-    productUUID: string;
-    productName: string;
-  }[];
-  rolesUUID?: string[];
-  productsUUID?: string[];
-}
 
-export interface CompanyDataResponse {
-  data: {
-    companies: Company[];
-    total: number;
-    page: number;
-    limit: number;
-  };
-}
 
-interface PaginationParams {
-  current?: number;
-  pageSize?: number;
-  total?: number;
-}
 
-interface FetchParams {
-  pagination?: PaginationParams;
-  sorter?: any;
-  filters?: any;
-}
-
-function CompnayDataTable({
-  tableData,
-}: {
-  tableData: Promise<CompanyDataResponse>;
-}) {
-  const fullData = use(tableData) as CompanyDataResponse;
-  const API = useApi();
+function CompnayDataTable() {
+  const { data: companies, isLoading, refetch, isFetching } = useCompanies();
+  const deleteCompanyMutation = useDeleteCompany();
   const {
-    tableDataState,
-    setTableDataState,
     toggleCompanyDrawer,
     setEditCompany,
   } = useCompanyStore();
-  useEffect(() => {
-    setTableDataState(fullData.data.companies);
-  }, [fullData]);
+
   const [selectedCompnies, setSelectedCompnies] = useState<React.Key[]>([]);
+  const [searchText, setSearchText] = useState<string>("");
   const getSearchProps = useColumnSearch();
-  const [pagination, setPagination] = useState<PaginationParams>({
-    pageSize: fullData.data.limit,
-    total: fullData.data.total,
-  });
-  const [loading, setLoading] = useLoading();
+
+  
   const { scrollY, tableWrapperRef } = useTableScroll();
   const [modal, contextHolder] = Modal.useModal();
+
   const handleEdit = useCallback((company: Company) => {
-    setEditCompany(company as any);
+    setEditCompany(company as CompanyFormData);
     toggleCompanyDrawer();
-  }, []);
+  }, [setEditCompany, toggleCompanyDrawer]);
 
   const clearSelection = useCallback(() => {
     setSelectedCompnies([]);
   }, []);
-  // Memoize action menus to prevent unnecessary re-renders
+
   const actionMenus = useCallback(
     (record: Company): MenuProps["items"] => {
       const baseItems: MenuProps["items"] = [
@@ -158,27 +100,7 @@ function CompnayDataTable({
               okType: "danger",
               cancelText: "Cancel",
               maskClosable: false,
-              onOk: async () => {
-                try {
-                  const res = await API.delete(
-                    `${APIPATH.COMPANY.DELETECOMPANY}${record.companyUUID}`
-                  );
-                  if (res.status) {
-                    setTableDataState((prevData) =>
-                      prevData.filter(
-                        (user) => user.companyUUID !== record.companyUUID
-                      )
-                    );
-                    toast.success(
-                      `Company ${record.displayName} deleted successfully`
-                    );
-                  } else {
-                    toast.error(res.message);
-                  }
-                } catch (error: any) {
-                  toast.error(error.message || "Failed to delete company");
-                }
-              },
+              onOk: () => deleteCompanyMutation.mutate(record.companyUUID),
             });
           },
         },
@@ -186,7 +108,7 @@ function CompnayDataTable({
 
       return baseItems;
     },
-    [modal]
+    [modal, handleEdit, deleteCompanyMutation]
   );
 
   const getPhoneNumberRender = useCallback((record: Company) => {
@@ -276,32 +198,34 @@ function CompnayDataTable({
     );
   }, []);
 
+  // Filter companies based on search text
+  const filteredCompanies = useMemo(() => {
+    if (!searchText.trim()) {
+      return companies || [];
+    }
+    
+    const searchLower = searchText.toLowerCase().trim();
+    return (companies || []).filter((company) => {
+      return (
+        company.displayName?.toLowerCase().includes(searchLower) ||
+        company.email?.toLowerCase().includes(searchLower) ||
+        company.shortName?.toLowerCase().includes(searchLower) ||
+        company.legalName?.toLowerCase().includes(searchLower) ||
+        company.address?.toLowerCase().includes(searchLower) ||
+        company.webUrl?.toLowerCase().includes(searchLower) ||
+        company.phone1?.toLowerCase().includes(searchLower) ||
+        company.phone2?.toLowerCase().includes(searchLower) ||
+        company.phone3?.toLowerCase().includes(searchLower)
+      );
+    });
+  }, [companies, searchText]);
+
   const selectedCompniesData = useMemo(() => {
-    return tableDataState.filter((c) =>
+    return (companies || []).filter((c) =>
       selectedCompnies.includes(c.companyUUID)
     );
-  }, [tableDataState, selectedCompnies]);
+  }, [companies, selectedCompnies]);
 
-  const fetchData = useCallback(
-    async (params: FetchParams = {}) => {
-      setLoading(true);
-
-      try {
-        const response = await API.get(APIPATH.COMPANY.GETCOMPANIES);
-        setTableDataState(response.data.companies);
-        setPagination({
-          total: response.data.total,
-          pageSize: response.data.limit,
-        });
-      } catch (error: any) {
-        console.error("Error fetching data", error);
-        toast.error(error.message || "Failed to fetch companies");
-      } finally {
-        setLoading(false);
-      }
-    },
-    [setLoading, setTableDataState, setPagination, tableDataState]
-  );
   const handleBulkAction = useCallback(
     (action: string) => {
       switch (action) {
@@ -339,16 +263,8 @@ function CompnayDataTable({
             okButtonProps: { type: "primary" },
             width: 700,
             onOk: () => {
-              setTableDataState((prevData) =>
-                prevData.filter(
-                  (c) => !selectedCompnies.includes(c.companyUUID)
-                )
-              );
-              toast.success(
-                `${selectedCompnies.length} User${
-                  selectedCompnies.length > 1 ? "s" : ""
-                } deleted successfully`
-              );
+              // Bulk delete not implemented in backend hooks yet
+               toast.info("Bulk delete not implemented yet");
               clearSelection();
             },
           });
@@ -360,19 +276,27 @@ function CompnayDataTable({
     [selectedCompnies, modal, selectedCompniesData, clearSelection]
   );
   // Memoize columns to prevent unnecessary re-renders
-  const columns = useMemo(() => {
+  const columns: ProColumns<Company>[] = useMemo(() => {
     const baseColumns = [
+     
       {
         title: "Display Name",
         dataIndex: "displayName",
         key: "displayName",
-        fixed: "left",
+        fixed: "left" as const,
         width: 150,
-        sorter: true,
-        render: (text: string) => (
+        sorter: (a: Company, b: Company) => a.displayName.localeCompare(b.displayName),
+        render: (text: any,record:Company) => (<Flex align="center" gap={5}>
+        <Avatar 
+            src={record.logoUrl} 
+            className="border border-gray-200"
+          >
+             {!record.logoUrl && record.displayName?.charAt(0)?.toUpperCase()}
+          </Avatar>
           <Tooltip title={text}>
             <span className="font-semibold">{text}</span>
           </Tooltip>
+        </Flex>
         ),
       },
       {
@@ -380,8 +304,8 @@ function CompnayDataTable({
         dataIndex: "email",
         key: "email",
         width: 190,
-        sorter: true,
-        render: (text: string) => (
+        sorter: (a: Company, b: Company) => a.email.localeCompare(b.email),
+        render: (text: any) => (
           <Tooltip title={text}>
             <span className="font-semibold">{text}</span>
           </Tooltip>
@@ -400,7 +324,7 @@ function CompnayDataTable({
         key: "roles",
         render: (roles: Company["roles"]) => {
           return (<>
-            {roles.length > 1 ?<Tooltip
+            {roles.length > 0 ?<Tooltip
               title={
                 <div className="flex gap-1 flex-wrap">
                   {roles.map((role) => (
@@ -423,7 +347,7 @@ function CompnayDataTable({
         key: "products",
         render: (products: Company["products"]) => {
           return (<>
-            {products.length > 1 ?<Tooltip
+            {products.length > 0 ?<Tooltip
               title={
                 <div className="flex gap-1 flex-wrap">
                   {products.map((product) => (
@@ -454,23 +378,23 @@ function CompnayDataTable({
         title: "Phone",
         key: "phone",
         width: 130,
-        render: (record: Company) => getPhoneNumberRender(record),
+        render: (_: any, record: Company) => getPhoneNumberRender(record),
       },
       {
         title: "Short Name",
         dataIndex: "shortName",
         key: "shortName",
         width: 100,
-        sorter: true,
+        sorter: (a: Company, b: Company) => a.shortName.localeCompare(b.shortName),
       },
       {
         title: "Legal Name",
         dataIndex: "legalName",
         key: "legalName",
         width: 100,
-        sorter: true,
+        sorter: (a: Company, b: Company) => a.legalName.localeCompare(b.legalName),
       },
-    ];
+    ] as ProColumns<Company>[];
 
     return [
       ...baseColumns.map((item) => ({
@@ -496,13 +420,13 @@ function CompnayDataTable({
         ),
       },
     ];
-  }, [getSearchProps, actionMenus]);
+  }, [getSearchProps, actionMenus, getPhoneNumberRender]);
   return (
     <>
       {contextHolder}
       <div ref={tableWrapperRef}>
         <ProTable<Company>
-          columns={columns as any}
+          columns={columns}
           bordered
           defaultSize="small"
           locale={{
@@ -518,21 +442,9 @@ function CompnayDataTable({
               </div>
             ),
           }}
-          dataSource={tableDataState}
-          request={async (params, sorter, filter) => {
-            const apiParams: FetchParams = {
-              pagination: { ...params },
-              sorter,
-              filters: filter,
-            };
-            await fetchData(apiParams);
-            return {
-              data: tableDataState,
-              total: pagination.total || 0,
-              success: true,
-            };
-          }}
-          manualRequest
+          dataSource={filteredCompanies}
+          
+          
           className="pro-table-customize"
           // rowSelection={{
           //   type: "checkbox",
@@ -544,8 +456,8 @@ function CompnayDataTable({
           tableAlertRender={false}
           tableAlertOptionRender={false}
           options={{
-            fullScreen: true,
-            reloadIcon: <ReloadOutlined spin={loading} />,
+            reload: () => refetch(),
+            reloadIcon: <RefreshCw size={18} className={`${isFetching ? "animate-spin" : ""}`} />,
           }}
           toolbar={{
             actions: [
@@ -562,25 +474,29 @@ function CompnayDataTable({
             <Input
               placeholder="Search Company..."
               allowClear
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
               prefix={<SearchOutlined />}
-              style={{ width: 300 }}
+              className="max-w-[400px]"
             />
           }
-          pagination={{
-            ...pagination,
+           pagination={{
+            // ...pagination, // removed local pagination state
             size: "small",
             pageSizeOptions: [5, 10, 20, 50, 100],
             showQuickJumper: true,
             showSizeChanger: true,
+            defaultPageSize: 10,
           }}
           scroll={{ x: 2000, y: scrollY }}
           sticky
-          loading={loading}
+          loading={isLoading}
           rowKey="companyUUID"
         />
       </div>
     </>
   );
 }
+
 
 export default memo(CompnayDataTable);

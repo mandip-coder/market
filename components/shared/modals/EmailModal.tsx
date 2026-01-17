@@ -1,42 +1,66 @@
-'use client';
-import AttachmentModal from '@/components/shared/modals/AttachmentModal';
-import { HCOContactPerson } from '@/components/AddNewContactModal/AddNewContactModal';
-import CustomSelect from '@/components/CustomSelect/CustomSelect';
-import { QuillEditor } from '@/components/Editor/QuillEditor';
-import InputBox from '@/components/Input/Input';
-import Label from '@/components/Label/Label';
-import ModalWrapper from '@/components/Modal/Modal';
-import EmailCard from '@/components/shared/modals/EmailCard';
-import RecipientField from '@/components/shared/modals/RecipientField';
+"use client";
+import { SendEmailPayload } from "@/app/(main)/leads/services/leads.types";
+import { HCOContactPerson } from "@/components/AddNewContactModal/AddNewContactModal";
+import CustomSelect from "@/components/CustomSelect/CustomSelect";
+import { QuillEditor } from "@/components/Editor/QuillEditor";
+import InputBox from "@/components/Input/Input";
+import Label from "@/components/Label/Label";
+import ModalWrapper from "@/components/Modal/Modal";
+import AttachmentModal from "@/components/shared/modals/AttachmentModal";
+import EmailCard from "@/components/shared/modals/EmailCard";
+import RecipientField from "@/components/shared/modals/RecipientField";
 import {
   CheckCircleOutlined,
   ClockCircleOutlined,
   CloseOutlined,
-  EyeOutlined,
-  MailOutlined,
+  ExclamationCircleOutlined,
   PaperClipOutlined,
   SendOutlined
-} from '@ant-design/icons';
+} from "@ant-design/icons";
+import { UseMutationResult } from "@tanstack/react-query";
+import { Button, Input, Modal, Tag } from "antd";
+import dayjs from "dayjs";
+import { Form, Formik, FormikProps } from "formik";
 import {
-  Badge,
-  Button,
-  Input,
-  Modal,
-  Tag,
-  Tooltip
-} from 'antd';
-import dayjs from 'dayjs';
-import { Form, Formik, FormikProps } from 'formik';
-import { File, Mail, Plus, Search, FileText, FileSpreadsheet, Image, Archive } from 'lucide-react';
-import { cloneElement, ReactElement, useEffect, useMemo, useRef, useState } from 'react';
-import { toast } from 'react-toastify';
-import * as Yup from 'yup';
-import { Email } from '../../../lib/types';
-import ContactOptionsRender from '../ContactOptionsRender';
-import { EmptyState } from './EmptyState';
-import { EmailFormValues } from '@/context/store/leadsStore';
-import { SendEmailPayload } from '@/app/(main)/leads/services';
-import { UseMutationResult } from '@tanstack/react-query';
+  Archive,
+  File,
+  FileSpreadsheet,
+  FileText,
+  Image,
+  Mail,
+  Plus,
+  RefreshCw,
+  Search,
+} from "lucide-react";
+import {
+  cloneElement,
+  ReactElement,
+  useMemo,
+  useRef,
+  useState
+} from "react";
+import * as Yup from "yup";
+import { Email } from "../../../lib/types";
+import ContactOptionsRender from "../ContactOptionsRender";
+import { EmptyState } from "./EmptyState";
+import { useUsers } from "@/services/dropdowns/dropdowns.hooks";
+
+export interface EmailFormValues {
+  leadUUID?: string;
+  dealUUID?: string;
+  recipients: string[];
+  ccRecipients: string[];
+  bccRecipients: string[];
+  subject: string;
+  body: string;
+  attachments: {
+    filename: string;
+    url: string;
+    filePath: string;
+    size: number;
+    mimeType: string;
+  }[];
+}
 
 export const FILE_ICON_MAP: Record<string, ReactElement> = {
   pdf: <FileText className="text-red-500" />,
@@ -51,11 +75,11 @@ export const FILE_ICON_MAP: Record<string, ReactElement> = {
   svg: <Image className="text-purple-500" />,
   zip: <Archive className="text-orange-500" />,
   rar: <Archive className="text-orange-500" />,
-  default: <File className="text-gray-500" />
+  default: <File className="text-gray-500" />,
 };
 
 const getFileIcon = (filename: string, className?: string): ReactElement => {
-  const extension = filename?.split('.')?.pop()?.toLowerCase() || '';
+  const extension = filename?.split(".")?.pop()?.toLowerCase() || "";
   const icon = FILE_ICON_MAP[extension] || FILE_ICON_MAP.default;
   return className ? cloneElement(icon, { className } as any) : icon;
 };
@@ -66,6 +90,8 @@ interface EmailModalProps {
   dealUUID?: string;
   leadUUID?: string;
   contactPersons: HCOContactPerson[];
+  refetching: boolean;
+  refetch: () => void;
 }
 
 export const EmailModal: React.FC<EmailModalProps> = ({
@@ -73,34 +99,41 @@ export const EmailModal: React.FC<EmailModalProps> = ({
   sendEmail,
   dealUUID,
   leadUUID,
-  contactPersons
+  contactPersons,
+  refetching,
+  refetch,
 }) => {
   const [isEmailModalVisible, setIsEmailModalVisible] = useState(false);
-  const [isAttachmentModalVisible, setIsAttachmentModalVisible] = useState(false);
+  const [isAttachmentModalVisible, setIsAttachmentModalVisible] =
+    useState(false);
   const [isViewEmailModalVisible, setIsViewEmailModalVisible] = useState(false);
   const [viewingEmail, setViewingEmail] = useState<Email | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
   const [showCC, setShowCC] = useState(false);
   const [showBCC, setShowBCC] = useState(false);
-
+  const {data:systemUsers=[],isLoading:systemUsersLoading}=useUsers()
   const formikRef = useRef<FormikProps<typeof initialValues>>(null);
 
   const validationSchema = Yup.object({
-    leadUUID: leadUUID ? Yup.string().required('Lead UUID is required') : Yup.string(),
-    dealUUID: dealUUID ? Yup.string().required('Deal UUID is required') : Yup.string(),
-    recipients: Yup.array().min(1, 'At least one recipient is required'),
+    leadUUID: leadUUID
+      ? Yup.string().required("Lead UUID is required")
+      : Yup.string(),
+    dealUUID: dealUUID
+      ? Yup.string().required("Deal UUID is required")
+      : Yup.string(),
+    recipients: Yup.array().min(1, "At least one recipient is required"),
     ccRecipients: Yup.array(),
     bccRecipients: Yup.array(),
-    subject: Yup.string().required('Subject is required'),
+    subject: Yup.string().required("Subject is required"),
     body: Yup.string()
-      .required('Body is required')
-      .test('not-empty-html', 'Body is required', (value) => {
+      .required("Body is required")
+      .test("not-empty-html", "Body is required", (value) => {
         if (!value) return false;
-        const textContent = value.replace(/<[^>]*>/g, '').trim();
+        const textContent = value.replace(/<[^>]*>/g, "").trim();
         return textContent.length > 0;
       }),
-    attachments: Yup.array()
+    attachments: Yup.array(),
   });
 
   const initialValues: EmailFormValues = {
@@ -109,31 +142,33 @@ export const EmailModal: React.FC<EmailModalProps> = ({
     recipients: [],
     ccRecipients: [],
     bccRecipients: [],
-    subject: '',
-    body: '',
-    attachments: []
+    subject: "",
+    body: "",
+    attachments: [],
   };
 
   // Memoize contact options to avoid recreating on every render
-  const contactOptions = useMemo(() =>
-    contactPersons
-      .filter(contact => contact.email)
-      .map(contact => ({
-        value: contact.hcoContactUUID,
-        label: contact.email,
-        contact,
-      })),
+  const contactOptions = useMemo(
+    () =>
+      contactPersons
+        .filter((contact) => contact.email)
+        .map((contact) => ({
+          value: contact.hcoContactUUID,
+          label: contact.email,
+          contact,
+        })),
     [contactPersons]
   );
 
   const filteredEmails = useMemo(() => {
     if (!searchTerm) return emails;
 
-    return emails.filter(email =>
-      email.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      email.body.toLowerCase().includes(searchTerm.toLowerCase())
+    return emails.filter(
+      (email) =>
+        email.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        email.body.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [searchTerm, emails]);
+  }, [searchTerm, emails, contactPersons]);
 
   const handleCloseModal = () => {
     setIsEmailModalVisible(false);
@@ -141,8 +176,8 @@ export const EmailModal: React.FC<EmailModalProps> = ({
     setShowBCC(false);
     setSelectedEmailId(null);
     formikRef.current?.resetForm();
-    setSearchTerm('');
-  }
+    setSearchTerm("");
+  };
 
   return (
     <>
@@ -162,9 +197,7 @@ export const EmailModal: React.FC<EmailModalProps> = ({
           </Button>
         </div>
 
-        {/* Search Bar */}
-        {emails.length > 0 && (
-          <div className="mb-6">
+            <div className="mb-6 flex items-center gap-2 justify-between">
             <Input
               placeholder="Search follow ups by subject or remark..."
               prefix={<Search size={16} className="text-gray-400" />}
@@ -172,32 +205,54 @@ export const EmailModal: React.FC<EmailModalProps> = ({
               value={searchTerm}
               className="w-full max-w-md"
               allowClear
-              onClear={() => setSearchTerm('')}
+              onClear={() => setSearchTerm("")}
             />
+             <Button
+              size="small"
+              icon={
+                <RefreshCw
+                  size={16}
+                  className={refetching ? "animate-spin" : ""}
+                />
+              }
+              onClick={refetch}
+              title="Refresh calls"
+            >
+              Refresh
+            </Button>
           </div>
-        )}
 
         {/* Email List */}
         <div className="space-y-3">
-          {filteredEmails.length ? filteredEmails.map(email => (
-            <EmailCard
-              key={email.emailUUID}
-              email={email}
-              isSelected={selectedEmailId === email.emailUUID}
-              onSelect={() => setSelectedEmailId(email.emailUUID === selectedEmailId ? null : email.emailUUID)}
-              onView={() => {
-                setViewingEmail(email);
-                setIsViewEmailModalVisible(true);
-              }}
-            />
-          )) : (
+          {filteredEmails.length ? (
+            filteredEmails.map((email) => (
+              <EmailCard
+                key={email.emailUUID}
+                email={email}
+                isSelected={selectedEmailId === email.emailUUID}
+                onSelect={() =>
+                  setSelectedEmailId(
+                    email.emailUUID === selectedEmailId ? null : email.emailUUID
+                  )
+                }
+                onView={() => {
+                  setViewingEmail(email);
+                  setIsViewEmailModalVisible(true);
+                }}
+              />
+            ))
+          ) : (
             <EmptyState
               searchQuery={searchTerm}
-              onClearSearch={() => setSearchTerm('')}
+              onClearSearch={() => setSearchTerm("")}
               onAction={() => setIsEmailModalVisible(true)}
               icon={Mail}
               emptyTitle="No Emails Found"
-              emptyDescription={searchTerm ? "No emails match your search criteria." : "No emails have been sent yet."}
+              emptyDescription={
+                searchTerm
+                  ? "No emails match your search criteria."
+                  : "No emails have been sent yet."
+              }
               actionLabel="Send First Email"
             />
           )}
@@ -231,7 +286,15 @@ export const EmailModal: React.FC<EmailModalProps> = ({
             });
           }}
         >
-          {({ values, setFieldValue, handleSubmit, isSubmitting, errors, touched, setFieldTouched }) => {
+          {({
+            values,
+            setFieldValue,
+            handleSubmit,
+            isSubmitting,
+            errors,
+            touched,
+            setFieldTouched,
+          }) => {
             return (
               <Form onSubmit={handleSubmit}>
                 <div className="flex items-center justify-end">
@@ -259,19 +322,21 @@ export const EmailModal: React.FC<EmailModalProps> = ({
                   </div>
                 </div>
 
-                <div className='space-y-4'>
+                <div className="space-y-4">
                   <CustomSelect
-                    label='To'
+                    label="To"
                     required
-                    name='recipients'
+                    name="recipients"
                     mode="multiple"
                     className="w-full"
                     hideSelected
                     showSearch={{
-                      optionFilterProp: "label"
+                      optionFilterProp: "label",
                     }}
                     options={contactOptions}
-                    optionRender={(option) => <ContactOptionsRender option={option} />}
+                    optionRender={(option) => (
+                      <ContactOptionsRender option={option} />
+                    )}
                   />
 
                   <RecipientField
@@ -279,7 +344,7 @@ export const EmailModal: React.FC<EmailModalProps> = ({
                     onClose={() => setShowCC(false)}
                     name="ccRecipients"
                     label="CC Recipients"
-                    contactPersons={contactPersons}
+                    contactPersons={systemUsers}
                     colorScheme="blue"
                   />
 
@@ -288,36 +353,40 @@ export const EmailModal: React.FC<EmailModalProps> = ({
                     onClose={() => setShowBCC(false)}
                     name="bccRecipients"
                     label="BCC Recipients"
-                    contactPersons={contactPersons}
+                    contactPersons={systemUsers}
                     colorScheme="purple"
                   />
 
                   <InputBox
-                    name='subject'
-                    label='Subject'
+                    name="subject"
+                    label="Subject"
                     required
                     placeholder="Enter subject..."
                   />
 
-                  <div className='relative'>
-                    <Label text='Body' required />
+                  <div className="relative">
+                    <Label text="Body" required />
                     <QuillEditor
                       value={values.body}
-                      onBlur={() => setFieldTouched('body', true)}
-                      onChange={(value) => setFieldValue('body', value)}
+                      onBlur={() => setFieldTouched("body", true)}
+                      onChange={(value) => setFieldValue("body", value)}
                       placeholder="Write your email content here..."
-                      status={errors.body && touched.body ? 'error' : undefined}
+                      status={errors.body && touched.body ? "error" : undefined}
                     />
-                    {errors.body && touched.body && <span className="field-error">{errors.body}</span>}
+                    {errors.body && touched.body && (
+                      <span className="field-error">{errors.body}</span>
+                    )}
                   </div>
 
                   <Button
-                    type='default'
+                    type="default"
                     icon={<PaperClipOutlined />}
                     onClick={() => setIsAttachmentModalVisible(true)}
                     className="border-dashed"
                   >
-                    Add Attachments {values.attachments.length > 0 && `(${values.attachments.length})`}
+                    Add Attachments{" "}
+                    {values.attachments.length > 0 &&
+                      `(${values.attachments.length})`}
                   </Button>
 
                   {values.attachments.length > 0 && (
@@ -331,8 +400,10 @@ export const EmailModal: React.FC<EmailModalProps> = ({
                             className="!flex !items-center !gap-2 !px-3 !py-2 !text-sm"
                             closeIcon={<CloseOutlined />}
                             onClose={() => {
-                              const newAttachments = values.attachments.filter((_, i) => i !== index);
-                              setFieldValue('attachments', newAttachments);
+                              const newAttachments = values.attachments.filter(
+                                (_, i) => i !== index
+                              );
+                              setFieldValue("attachments", newAttachments);
                             }}
                             icon={getFileIcon(attachment.filename)}
                           >
@@ -345,9 +416,7 @@ export const EmailModal: React.FC<EmailModalProps> = ({
                 </div>
 
                 <div className="flex justify-end gap-3 ">
-                  <Button onClick={handleCloseModal}>
-                    Cancel
-                  </Button>
+                  <Button onClick={handleCloseModal}>Cancel</Button>
                   <Button
                     type="primary"
                     htmlType="submit"
@@ -360,52 +429,166 @@ export const EmailModal: React.FC<EmailModalProps> = ({
                   </Button>
                 </div>
               </Form>
-            )
+            );
           }}
         </Formik>
       </ModalWrapper>
 
       {/* View Email Modal */}
       <Modal
-        title="Email Details"
+        title={
+          <div className="flex items-center gap-1.5">
+            <Mail className="w-4 h-4 text-blue-500" />
+            <span className="text-base">Email Details</span>
+          </div>
+        }
         open={isViewEmailModalVisible}
         onCancel={() => setIsViewEmailModalVisible(false)}
         footer={null}
         width={800}
+        className="email-view-modal"
       >
         {viewingEmail && (
-          <div className="space-y-6 pt-4">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+          <div className="space-y-3 pt-2">
+            {/* Email Header */}
+            <div className="border-b border-gray-200 dark:border-gray-700 pb-2">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
                 {viewingEmail.subject}
               </h2>
-              <div className="flex items-center gap-4 flex-wrap">
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 dark:bg-green-900/20 rounded-full">
-                  <CheckCircleOutlined className="text-green-600 dark:text-green-400" />
-                  <span className="text-sm font-medium text-green-700 dark:text-green-400">Delivered</span>
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-green-50 dark:bg-green-900/20 rounded-full border border-green-200 dark:border-green-800">
+                  {viewingEmail.deliveryStatus === 'delivered' ? <CheckCircleOutlined className="!text-green-600 dark:!text-green-400 text-xs" /> : <ExclamationCircleOutlined className="!text-red-600 dark:!text-red-400 text-xs" />}
+                  <span className="text-xs font-medium !text-green-700 dark:!text-green-400">
+                    {viewingEmail.deliveryStatus === 'delivered' ? 'Delivered' : 
+                     viewingEmail.deliveryStatus === 'sent' ? 'Sent' : 'Failed'}
+                  </span>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                <div className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400">
                   <ClockCircleOutlined />
-                  <span>{dayjs(viewingEmail.sentAt).format('D MMM, YYYY h:mm A')}</span>
+                  <span>
+                    {dayjs(viewingEmail.sentAt).format("D MMM, YYYY h:mm A")}
+                  </span>
                 </div>
               </div>
             </div>
 
-            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Recipients</h3>
-              <div className="flex flex-wrap gap-2">
-                {viewingEmail.recipients.map((recipient: string, idx: number) => (
-                  <Tag key={idx} color="blue" className="m-0">
-                    {recipient}
-                  </Tag>
-                ))}
-              </div>
+            {/* Recipients Section */}
+            <div className="space-y-2">
+              {/* TO Recipients */}
+              {viewingEmail.recipients && viewingEmail.recipients.length > 0 && (
+                <div className="bg-blue-50 dark:bg-blue-900/10 rounded-md p-2.5 border border-blue-200 dark:border-blue-800">
+                  <div className="flex items-start gap-2">
+                    <div className="flex items-center gap-1.5 min-w-[60px]">
+                      <SendOutlined className="text-blue-600 dark:text-blue-400 text-xs" />
+                      <h3 className="text-xs font-semibold text-blue-700 dark:text-blue-300">
+                        To:
+                      </h3>
+                    </div>
+                    <div className="flex-1 flex flex-wrap gap-1.5">
+                      {viewingEmail.recipients.map(
+                        (recipient: string, idx: number) => (
+                          <Tag 
+                            key={idx} 
+                            color="blue" 
+                            className="!m-0 !px-2 !py-0.5 !text-xs !rounded-full"
+                          >
+                            {recipient}
+                          </Tag>
+                        )
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* CC Recipients */}
+              {viewingEmail.ccRecipients && viewingEmail.ccRecipients.length > 0 && (
+                <div className="bg-cyan-50 dark:bg-cyan-900/10 rounded-md p-2.5 border border-cyan-200 dark:border-cyan-800">
+                  <div className="flex items-start gap-2">
+                    <div className="flex items-center gap-1.5 min-w-[60px]">
+                      <Mail className="w-3 h-3 text-cyan-600 dark:text-cyan-400" />
+                      <h3 className="text-xs font-semibold text-cyan-700 dark:text-cyan-300">
+                        CC:
+                      </h3>
+                    </div>
+                    <div className="flex-1 flex flex-wrap gap-1.5">
+                      {viewingEmail.ccRecipients.map(
+                        (recipient: string, idx: number) => (
+                          <Tag 
+                            key={idx} 
+                            color="cyan" 
+                            className="!m-0 !px-2 !py-0.5 !text-xs !rounded-full"
+                          >
+                            {recipient}
+                          </Tag>
+                        )
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* BCC Recipients */}
+              {viewingEmail.bccRecipients && viewingEmail.bccRecipients.length > 0 && (
+                <div className="bg-purple-50 dark:bg-purple-900/10 rounded-md p-2.5 border border-purple-200 dark:border-purple-800">
+                  <div className="flex items-start gap-2">
+                    <div className="flex items-center gap-1.5 min-w-[60px]">
+                      <Mail className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+                      <h3 className="text-xs font-semibold text-purple-700 dark:text-purple-300">
+                        BCC:
+                      </h3>
+                    </div>
+                    <div className="flex-1 flex flex-wrap gap-1.5">
+                      {viewingEmail.bccRecipients.map(
+                        (recipient: string, idx: number) => (
+                          <Tag 
+                            key={idx} 
+                            color="purple" 
+                            className="!m-0 !px-2 !py-0.5 !text-xs !rounded-full"
+                          >
+                            {recipient}
+                          </Tag>
+                        )
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
+            {/* Attachments Section */}
+            {viewingEmail.attachments && viewingEmail.attachments.length > 0 && (
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-2.5 border border-gray-200 dark:border-gray-700">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <PaperClipOutlined className="text-gray-600 dark:text-gray-400 text-xs" />
+                  <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                    Attachments ({viewingEmail.attachments.length})
+                  </h3>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {viewingEmail.attachments.map((attachment, idx) => (
+                      <a
+                        key={idx}
+                        href={attachment.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:underline text-xs text-blue-600 dark:text-blue-400"
+                      >
+                        {attachment.filename}
+                      </a>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Message Body */}
             <div>
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Message</h3>
+              <h3 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-1.5">
+                <FileText className="w-3 h-3" />
+                Message
+              </h3>
               <div
-                className="p-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 prose prose-sm dark:prose-invert max-w-none"
+                className="p-4 bg-white dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 prose prose-sm dark:prose-invert max-w-none min-h-[150px]"
                 dangerouslySetInnerHTML={{ __html: viewingEmail.body }}
               />
             </div>
@@ -417,11 +600,14 @@ export const EmailModal: React.FC<EmailModalProps> = ({
         visible={isAttachmentModalVisible}
         onClose={() => setIsAttachmentModalVisible(false)}
         onSelect={(attachments) => {
-          setIsAttachmentModalVisible(false)
-          const existingAttachments = formikRef.current?.values.attachments || [];
-          formikRef.current?.setFieldValue('attachments', [...existingAttachments, ...attachments]);
+          setIsAttachmentModalVisible(false);
+          const existingAttachments =
+            formikRef.current?.values.attachments || [];
+          formikRef.current?.setFieldValue("attachments", [
+            ...existingAttachments,
+            ...attachments,
+          ]);
         }}
-
       />
     </>
   );

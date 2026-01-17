@@ -1,6 +1,6 @@
 'use client'
 // fullpageskeleton.tsx
-import { Card, Col, Row, Skeleton } from 'antd';
+import { Col, Row, Skeleton } from 'antd';
 import { ProductSkeleton } from './ProductCardSkelton';
 
 const FullPageSkeleton = () => {

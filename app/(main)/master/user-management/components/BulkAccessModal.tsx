@@ -1,11 +1,11 @@
 import { useLoading } from "@/hooks/useLoading";
 import { Button, Card, Col, Form, Row, Select, Tag, Tooltip } from "antd";
 import React, { useEffect } from "react";
-import { CompanyAccess } from "./UserDataTable";
-import { toast } from "react-toastify";
+import { toast } from '@/components/AppToaster/AppToaster';
 import ModalWrapper from "@/components/Modal/Modal";
 import {MinusCircleOutlined, PlusOutlined, ShopOutlined} from "@ant-design/icons";
 import { rowGutter } from "@/shared/constants/themeConfig";
+import { CompanyAccess } from "../services/user.types";
 export const BulkAccessModal: React.FC<{
   visible: boolean;
   onCancel: () => void;
@@ -41,7 +41,7 @@ export const BulkAccessModal: React.FC<{
 
     const getAvailableCompanies = (currentCompanyAccess: CompanyAccess[], currentIndex?: number) => {
       const selectedCompanyIds = currentCompanyAccess
-        .map((item, index) => index !== currentIndex ? item.company.companyUUID : null)
+        .map((item, index) => index !== currentIndex ? item.companyUUID : null)
         .filter(Boolean);
 
       return companiesData.filter(company => !selectedCompanyIds.includes(company.id));
@@ -52,7 +52,7 @@ export const BulkAccessModal: React.FC<{
         setLoading(true);
         const values = await form.validateFields();
         const invalidEntries = values.companyAccess.filter(
-          (entry: CompanyAccess) => !entry.company.companyUUID || !entry.roles || entry.roles.length === 0);
+          (entry: CompanyAccess) => !entry.companyUUID || !entry.roles || entry.roles.length === 0);
 
         if (invalidEntries.length > 0) {
           toast.error('Please select a company, at least one role, and at least one product for each entry');
@@ -207,7 +207,7 @@ export const BulkAccessModal: React.FC<{
               currentAccess.map((companyAccess, i) => (
                 <div key={i} className="mb-2">
                   <Tag color="blue">
-                    {companiesData.find(c => c.id === companyAccess.company.companyUUID)?.name || 'Unknown Company'}
+                    {companiesData.find(c => c.id === companyAccess.companyUUID)?.name || 'Unknown Company'}
                   </Tag>
                   <div className="ml-2 mt-1">
                     <span className="text-xs">Roles: </span>

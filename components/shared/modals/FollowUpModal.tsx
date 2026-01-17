@@ -14,6 +14,12 @@ import {
 } from "@/context/store/dealsStore";
 
 import {
+  CreateFollowUpPayload,
+  UpdateFollowUpPayload,
+} from "@/app/(main)/leads/services/leads.types";
+import { useOutcomes } from "@/services/dropdowns/dropdowns.hooks";
+import { UseMutationResult } from "@tanstack/react-query";
+import {
   Button,
   Divider,
   Dropdown,
@@ -24,13 +30,15 @@ import {
   Table,
   Tag,
 } from "antd";
+import { ColumnProps } from "antd/es/table";
+import Paragraph from "antd/es/typography/Paragraph";
+import { Tooltip } from "antd/lib";
 import dayjs from "dayjs";
 import { Field, Form, Formik } from "formik";
 import debounce from "lodash/debounce";
 import {
   Calendar,
   CheckCircle,
-  CheckSquare,
   Edit,
   MoreVertical,
   Plus,
@@ -38,28 +46,47 @@ import {
   Search,
   Trash2,
   UserPlus,
-  XCircle,
+  XCircle
 } from "lucide-react";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "react-toastify";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from '@/components/AppToaster/AppToaster';
 import * as Yup from "yup";
-import { FollowUP } from "../../../lib/types";
+import { FollowUP, followUpStatus } from "../../../lib/types";
 import ContactOptionsRender from "../ContactOptionsRender";
 import { EmptyState } from "./EmptyState";
-import { Tooltip } from "antd/lib";
-import { ColumnProps } from "antd/es/table";
-import { useDropDowns } from "@/context/store/optimizedSelectors";
-import Paragraph from "antd/es/typography/Paragraph";
-import { CreateFollowUpPayload, UpdateFollowUpPayload } from "@/app/(main)/leads/services";
-import { UseMutationResult } from "@tanstack/react-query";
 
 interface FollowUpModalProps {
   followUps: FollowUP[];
-  createFollowUp: UseMutationResult<FollowUP, Error, CreateFollowUpPayload, unknown>;
-  updateFollowUp: UseMutationResult<FollowUP, Error, { followUpUUID: string, data: UpdateFollowUpPayload }, unknown>;
-  completeFollowUp: UseMutationResult<FollowUP, Error, { followUpUUID: string, data: CompleteFollowUpValues }, unknown>;
-  cancelFollowUp: UseMutationResult<FollowUP, Error, { followUpUUID: string, data: CancelFollowUpValues }, unknown>;
-  rescheduleFollowUp: UseMutationResult<FollowUP, Error, { followUpUUID: string, data: RescheduleFollowUpValues }, unknown>;
+  createFollowUp: UseMutationResult<
+    FollowUP,
+    Error,
+    CreateFollowUpPayload,
+    unknown
+  >;
+  updateFollowUp: UseMutationResult<
+    FollowUP,
+    Error,
+    { followUpUUID: string; data: UpdateFollowUpPayload },
+    unknown
+  >;
+  completeFollowUp: UseMutationResult<
+    FollowUP,
+    Error,
+    { followUpUUID: string; data: CompleteFollowUpValues },
+    unknown
+  >;
+  cancelFollowUp: UseMutationResult<
+    FollowUP,
+    Error,
+    { followUpUUID: string; data: CancelFollowUpValues },
+    unknown
+  >;
+  rescheduleFollowUp: UseMutationResult<
+    FollowUP,
+    Error,
+    { followUpUUID: string; data: RescheduleFollowUpValues },
+    unknown
+  >;
   deleteFollowUp: UseMutationResult<FollowUP, Error, string, unknown>;
   contactPersons: HCOContactPerson[];
   onAddContactPerson?: (contact: HCOContactPerson) => void;
@@ -67,8 +94,10 @@ interface FollowUpModalProps {
   hcoName: string | null;
   leadUUID?: string;
   dealUUID?: string;
+  refetching: boolean;
+  refetch: () => void;
 }
-const FollowUpModesEnum = {
+export const FollowUpModesEnum = {
   CALL: "Call",
   MEETING: "Meeting",
   EMAIL: "Email",
@@ -76,14 +105,16 @@ const FollowUpModesEnum = {
   WHATSAPP: "WhatsApp",
   SMS: "SMS",
   VISIT: "Visit",
-};
-const FollowUpModes = Object.keys(FollowUpModesEnum);
+}
+export const FollowUpModes = Object.keys(FollowUpModesEnum);
 
 // Create options for the follow-up mode dropdown
 const followUpModeOptions = FollowUpModes.map((mode) => ({
   value: mode,
   label: FollowUpModesEnum[mode as keyof typeof FollowUpModesEnum],
 }));
+
+
 
 export const FollowUpModal: React.FC<FollowUpModalProps> = ({
   followUps,
@@ -94,19 +125,20 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
   rescheduleFollowUp,
   deleteFollowUp,
   contactPersons,
-  onAddContactPerson,
   hcoUUID,
   hcoName,
   leadUUID,
   dealUUID,
+  refetching,
+  refetch
 }) => {
   const [open, setOpen] = useState(false);
   const [editingFollowUp, setEditingFollowUp] = useState<FollowUP | null>(null);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const debouncedRef = useRef<any>(null);
-  const { outcomes } = useDropDowns();
-  const [statusFilters, setStatusFilters] = useState<string[]>([
+  const { data: outcomes = [] } = useOutcomes();
+  const [statusFilters, setStatusFilters] = useState<followUpStatus[]>([
     "Scheduled",
     "Overdue",
     "Rescheduled",
@@ -125,12 +157,11 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
   const [pendingContactPersons, setPendingContactPersons] = useState<string[]>(
     []
   );
-  const [refreshLoading, setRefreshLoading] = useState(false);
   const formikRef = useRef<any>(null);
 
   const initialValues = {
-    ...leadUUID && { leadUUID },
-    ...dealUUID && { dealUUID },
+    ...(leadUUID && { leadUUID }),
+    ...(dealUUID && { dealUUID }),
     subject: editingFollowUp?.subject || "",
     scheduledDate: editingFollowUp ? dayjs(editingFollowUp.scheduledDate) : "",
     contactPersons: editingFollowUp?.contactPersons || [],
@@ -139,8 +170,12 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
   };
 
   const validationSchema = Yup.object({
-    leadUUID: leadUUID ? Yup.string().required("Lead UUID is required") : Yup.string(),
-    dealUUID: dealUUID ? Yup.string().required("Deal UUID is required") : Yup.string(),
+    leadUUID: leadUUID
+      ? Yup.string().required("Lead UUID is required")
+      : Yup.string(),
+    dealUUID: dealUUID
+      ? Yup.string().required("Deal UUID is required")
+      : Yup.string(),
     subject: Yup.string().required("Subject is required"),
     scheduledDate: Yup.mixed()
       .required("Date & time is required")
@@ -183,8 +218,6 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
     }
   }, [pendingContactPersons]);
 
-
-
   const filteredFollowUps = useMemo(() => {
     const q = debouncedQuery.trim().toLowerCase();
 
@@ -201,7 +234,9 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
 
     // Apply status filter
     if (statusFilters.length > 0) {
-      filtered = filtered.filter((f: FollowUP) => statusFilters.includes(f.status));
+      filtered = filtered.filter((f: FollowUP) =>
+        statusFilters.includes(f.status)
+      );
     }
 
     return filtered;
@@ -216,14 +251,17 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
       ...(dealUUID && { dealUUID }),
     };
     if (editingFollowUp) {
-      updateFollowUp.mutate({
-        followUpUUID: editingFollowUp.followUpUUID,
-        data: formattedValues,
-      }, {
-        onSuccess: () => {
-          setOpen(false);
+      updateFollowUp.mutate(
+        {
+          followUpUUID: editingFollowUp.followUpUUID,
+          data: formattedValues,
         },
-      });
+        {
+          onSuccess: () => {
+            setOpen(false);
+          },
+        }
+      );
     } else {
       createFollowUp.mutate(formattedValues, {
         onSuccess: () => {
@@ -265,12 +303,6 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
     setQuery("");
     setDebouncedQuery("");
     debouncedRef.current?.cancel?.();
-  }, []);
-
-  // Refresh handler to refetch follow-up data
-  const handleRefresh = useCallback(() => {
-
-    toast.info("Refreshing follow-ups...");
   }, []);
 
   // Helper function to determine if actions can be performed
@@ -341,26 +373,19 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
       })),
     [contactPersons]
   );
-
-  // Handle adding new contact person
-  const handleAddNewContact = useCallback(() => {
-    setAddContactModalOpen(true);
-  }, []);
-
-  const handleContactSave = useCallback(
-    (contact: HCOContactPerson) => {
-      // Call the callback to add to store if provided
-      if (onAddContactPerson) {
-        onAddContactPerson(contact);
+  const handleAddNewContact = (contactData: HCOContactPerson) => {
+    setTimeout(() => {
+      if (contactData) {
+        const currentContacts = formikRef.current?.values.contactPersons || [];
+        formikRef.current?.setFieldValue("contactPersons", [
+          ...currentContacts,
+          contactData.hcoContactUUID,
+        ]);
+        formikRef.current?.setFieldTouched("contactPersons", true);
+        setAddContactModalOpen(false);
       }
-
-      // Auto-select the newly added contact
-      setPendingContactPersons((prev) => [...prev, contact.hcoContactUUID]);
-
-      setAddContactModalOpen(false);
-    },
-    [onAddContactPerson]
-  );
+    }, 100);
+  };
 
   // Custom dropdown render for Contact Persons select
   const contactPersonsDropdownRender = useCallback(
@@ -372,14 +397,14 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
           <Button
             type="primary"
             icon={<UserPlus size={16} />}
-            onClick={handleAddNewContact}
+            onClick={() => setAddContactModalOpen(true)}
           >
             Add New Contact
           </Button>
         </div>
       </>
     ),
-    [handleAddNewContact]
+    [setAddContactModalOpen]
   );
 
   const columns: ColumnProps<FollowUP>[] = [
@@ -387,6 +412,7 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
       title: "Subject",
       dataIndex: "subject",
       key: "subject",
+      width: "20%",
       sorter: (a: FollowUP, b: FollowUP) => {
         const subjectA = a.subject.toLowerCase();
         const subjectB = b.subject.toLowerCase();
@@ -421,7 +447,8 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
           </div>
         );
       },
-    }, {
+    },
+    {
       title: "Description",
       dataIndex: "description",
       key: "description",
@@ -529,14 +556,12 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
           if (menuItems.length > 0) {
             menuItems.push({ type: "divider", key: "divider" });
           }
-          menuItems.push(
-            {
-              key: "cancel",
-              label: "Cancel",
-              icon: <XCircle size={14} />,
-              onClick: () => handleCancelClick(record),
-            }
-          );
+          menuItems.push({
+            key: "cancel",
+            label: "Cancel",
+            icon: <XCircle size={14} />,
+            onClick: () => handleCancelClick(record),
+          });
         }
 
         if (menuItems.length === 0 && !canComplete) {
@@ -622,11 +647,11 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
               icon={
                 <RefreshCw
                   size={16}
-                  className={refreshLoading ? "!animate-spin" : ""}
+                  className={refetching ? "!animate-spin" : ""}
                 />
               }
-              disabled={refreshLoading}
-              onClick={handleRefresh}
+              disabled={refetching}
+              onClick={refetch}
               title="Refresh follow-ups"
             >
               Refresh
@@ -643,11 +668,11 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
               pageSize: 5,
               showSizeChanger: false,
               showQuickJumper: false,
-              showTotal: (total) => `Total ${total} Follow Ups`,
+              showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} Follow Ups`,
             }}
             onChange={(pagination, filters, sorter) => {
               if (filters.status) {
-                setStatusFilters(filters.status as string[]);
+                setStatusFilters(filters.status as followUpStatus[]);
               }
             }}
             className="overflow-x-auto"
@@ -767,14 +792,16 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
                   <Button
                     type="primary"
                     htmlType="submit"
-                    loading={updateFollowUp.isPending || createFollowUp.isPending}
+                    loading={
+                      updateFollowUp.isPending || createFollowUp.isPending
+                    }
                     disabled={!isValid || (!!editingFollowUp && !dirty)}
                   >
                     {editingFollowUp ? "Update Follow Up" : "Add Follow Up"}
                   </Button>
                 </div>
               </Form>
-            )
+            );
           }}
         </Formik>
       </ModalWrapper>
@@ -950,7 +977,9 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
                 {
                   followUpUUID: selectedFollowUp.followUpUUID,
                   data: {
-                    scheduledDate: dayjs(values.scheduledDate).format("YYYY-MM-DD HH:mm:ss"),
+                    scheduledDate: dayjs(values.scheduledDate).format(
+                      "YYYY-MM-DD HH:mm:ss"
+                    ),
                     nextFollowUpNotes: values.nextFollowUpNotes,
                   },
                 },
@@ -1017,9 +1046,7 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
                         status={meta.touched && meta.error ? "error" : ""}
                       />
                       {meta.touched && meta.error && (
-                        <div className="field-error">
-                          {meta.error}
-                        </div>
+                        <div className="field-error">{meta.error}</div>
                       )}
                     </>
                   )}
@@ -1074,7 +1101,7 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
       <AddNewContactModal
         open={addContactModalOpen}
         onClose={() => setAddContactModalOpen(false)}
-        onSave={handleContactSave}
+        onSave={(values) => handleAddNewContact(values)}
         showExtraFields={false}
         requireHelthcareId={true}
         hcoUUID={hcoUUID || undefined}

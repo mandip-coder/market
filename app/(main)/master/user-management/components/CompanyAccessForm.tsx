@@ -4,15 +4,17 @@ import Label from "@/components/Label/Label";
 import { rowGutter } from "@/shared/constants/themeConfig";
 import { Col, Row, Select, Tooltip } from "antd";
 import { memo, useEffect, useState } from "react";
-import { CountryOption, UserFormValues } from "./Add-User-Drawer";
-import { Company } from "../../company-master/components/CompanyDataTable";
+import { Company } from "../../company-master/services/company.types";
+import { UserFormValues } from "./BasicDetailsForm";
+import { Country } from "@/services/dropdowns/dropdowns.types";
 
 interface CountryAccessFormProps {
   values: UserFormValues;
   setFieldValue: (field: string, value: any) => void;
   errors: Record<string, any>;
   companiesData: Partial<Company>[];
-  countryOptions: CountryOption[];
+  countryOptions: Country[];
+  touched: Record<string, boolean>;
 }
 
 function CountryAccessForm({
@@ -20,7 +22,8 @@ function CountryAccessForm({
   setFieldValue,
   errors,
   companiesData,
-  countryOptions
+  countryOptions,
+  touched
 }: CountryAccessFormProps) {
  
 
@@ -43,10 +46,16 @@ function CountryAccessForm({
               }
               maxTagCount="responsive"
               placeholder="Select countries"
-              options={countryOptions}
+              options={countryOptions.map((country) => ({
+                label: country.countryName,
+                value: country.countryUUID,
+              }))}
               value={values.countryAccess || []}
               onChange={(value) => {
                 setFieldValue("countryAccess", value);
+              }}
+              onBlur={() => {
+                setFieldValue("countryAccess", values.countryAccess);
               }}
               maxTagPlaceholder={(omitted) => (
                 <Tooltip
@@ -55,10 +64,10 @@ function CountryAccessForm({
                   {`+${omitted.length} more`}
                 </Tooltip>
               )}
-              status={errors.countryAccess ? "error" : undefined}
+              status={touched.countryAccess && errors.countryAccess ? "error" : undefined}
             />
 
-            {errors.countryAccess && (
+            {touched.countryAccess && errors.countryAccess && (
               <div className="field-error">
                 {errors.countryAccess as string}
               </div>
@@ -80,7 +89,10 @@ function CountryAccessForm({
               }}
               maxTagCount="responsive"
               placeholder="Select companies"
-              options={companiesData}
+              options={companiesData.map((company) => ({
+                label: company.displayName,
+                value: company.companyUUID,
+              }))}
               value={values.companyAccess || []}
               onChange={(value) => {
                 setFieldValue("companyAccess", value);
@@ -92,10 +104,10 @@ function CountryAccessForm({
                   {`+${omitted.length} more`}
                 </Tooltip>
               )}
-              status={errors.companyAccess ? "error" : undefined}
+              status={touched.companyAccess && errors.companyAccess ? "error" : undefined}
             />
 
-            {errors.companyAccess && (
+            {touched.companyAccess && errors.companyAccess && (
               <div className="field-error">
                 {errors.companyAccess as string}
               </div>

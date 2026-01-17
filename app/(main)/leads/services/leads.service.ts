@@ -1,10 +1,10 @@
+import { CompleteFollowUpValues, RescheduleFollowUpValues } from '@/context/store/dealsStore';
 import { apiClient } from '@/lib/apiClient/apiClient';
+import { CallLog, Email, FollowUP } from '@/lib/types';
 import { APIPATH } from '@/shared/constants/url';
-import { LeadFilters, LeadsResponse, CreateLeadData, CancelLeadData, ConvertLeadData, Lead } from './leads.types';
-import { FollowUP, CallLog, Email } from '@/lib/types';
-import { CancelFollowUpValues, CompleteFollowUpValues, RescheduleFollowUpValues } from '@/context/store/dealsStore';
-import { CreateFollowUpPayload, UpdateFollowUpPayload, CreateCallPayload, UpdateCallPayload, SendEmailPayload } from './leads.hooks';
-import { HCOContactPerson } from '@/components/AddNewContactModal/AddNewContactModal';
+import { CreateCallPayload, CreateFollowUpPayload, SendEmailPayload, UpdateCallPayload, UpdateFollowUpPayload, TimelineFilters, LeadTimelineCounts } from './leads.types';
+import { CancelLeadData, ConvertLeadData, CreateLeadData, Lead, LeadFilters, LeadsResponse } from './leads.types';
+import { TimelineResponse } from '../../deals/services/deals.types';
 
 /**
  * Leads API Service
@@ -48,14 +48,6 @@ export const leadsService = {
   },
 
   /**
-   * Fetch contacts for a lead
-   */
-  getContacts: async (hcoUUID: string): Promise<HCOContactPerson[]> => {
-    const response = await apiClient.get<{ data: HCOContactPerson[] }>(APIPATH.HCO.CONTACTPERSONS(hcoUUID));
-    return response.data;
-  },
-
-  /**
    * Create a new lead
    */
   createLead: async (data: CreateLeadData): Promise<Lead> => {
@@ -67,7 +59,7 @@ export const leadsService = {
    * Cancel a lead
    */
   cancelLead: async (data: CancelLeadData): Promise<Lead> => {
-    const response = await apiClient.put<{ data: Lead }>(APIPATH.LEAD.CANCEL + data.leadUUID, {
+    const response = await apiClient.post<{ data: Lead }>(APIPATH.LEAD.CANCEL + data.leadUUID, {
       closeReason: data.closeReason,
     });
     return response.data;
@@ -76,8 +68,11 @@ export const leadsService = {
   /**
    * Convert lead to deal
    */
-  convertLeadToDeal: async (leadUUID: string): Promise<Lead> => {
-    const response = await apiClient.post<{ data: Lead }>(APIPATH.LEAD.CONVERT + leadUUID);
+  convertLeadToDeal: async (data: ConvertLeadData): Promise<{ dealUUID: string }> => {
+    const response = await apiClient.post<{ data: { dealUUID: string } }>(
+      APIPATH.LEAD.CONVERT + data.leadUUID,
+      { summary: data.summary }
+    );
     return response.data;
   },
 
@@ -216,6 +211,52 @@ export const leadsService = {
     const response = await apiClient.post<{ data: Email }>(
       APIPATH.LEAD.TABS.EMAIL.CREATEEMAIL,
       data
+    );
+    return response.data;
+  },
+
+  // ==================== TIMELINE ====================
+
+  /**
+   * Fetch timeline for a lead
+   */
+  fetchTimeline: async (
+    leadUUID: string,
+    filters: TimelineFilters
+  ): Promise<TimelineResponse["data"]> => {
+    const { page, tabs } = filters;
+
+    const queryParams = new URLSearchParams({
+      page: page.toString(),
+    });
+
+    if (tabs) {
+      const formattedTabs = tabs.map((tab) =>
+        tab
+          .split(" ")
+          .map((word, index) =>
+            index === 0
+              ? word.toLowerCase()
+              : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+          )
+          .join("")
+      );
+      queryParams.append("filters", formattedTabs.join(","));
+    }
+    const response = await apiClient.get<TimelineResponse>(
+      APIPATH.LEAD.TABS.TIMELINE(leadUUID) + "?" + queryParams.toString()
+    );
+    return response.data;
+  },
+
+  /**
+   * Fetch timeline counts for a lead
+   */
+  fetchTimelineCounts: async (
+    leadUUID: string
+  ): Promise<LeadTimelineCounts> => {
+    const response = await apiClient.get<{ data: LeadTimelineCounts }>(
+      APIPATH.LEAD.TABS.TIMELINECOUNTS(leadUUID)
     );
     return response.data;
   },

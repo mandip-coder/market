@@ -2,14 +2,15 @@ import { Avatar, Typography, Space } from "antd";
 import { UserOutlined } from "@ant-design/icons";
 import React from "react";
 
-export const UserInfo = React.memo((({initial, fullName, userName, avatar, empCode }: { initial?: string; fullName?: string; userName?: string; avatar?: string, empCode?: string }) => {
+export const UserInfo = React.memo((({initial, fullName, userName, avatar, empCode, profileImage }: { initial?: string; fullName?: string; userName?: string; avatar?: string, empCode?: string, profileImage: string|null }) => {
   return (
     <div className="!flex !items-start gap-3 p-2">
       {/* Avatar Section */}
       <Avatar
         size={38}
-        src={avatar}
+        src={profileImage}
         icon={<UserOutlined />}
+        className="shrink-0"
       />
 
       {/* Name + Username */}

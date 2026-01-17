@@ -3,24 +3,11 @@ import { GlobalDate } from '@/Utils/helpers'
 import { Button } from 'antd'
 import { ArrowLeft, Building2, Clock } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { use, useCallback } from 'react'
+import { useCallback } from 'react'
+import { Healthcare } from '../services/types'
 
-interface Healthcare {
-  id: string;
-  icbId: string;
-  name: string;
-  type: string;
-  address: string;
-  phone: string;
-  website: string;
-  createdAt: string;
-  updatedAt: string;
-  createdBy: string;
-  updatedBy: string;
-}
-
-export default function HealthCareDetailsHeader({ headerDetails }: { headerDetails:Healthcare }) {
-  const healthcare =headerDetails
+export default function HealthCareDetailsHeader({ headerDetails }: { headerDetails: Healthcare }) {
+  const healthcare = headerDetails
   const router = useRouter();
   const handleBack = useCallback(() => {
     router.push('/healthcares');
@@ -35,11 +22,11 @@ export default function HealthCareDetailsHeader({ headerDetails }: { headerDetai
         <div className="flex items-start gap-2">
           <div className="flex-grow">
             <h1 className="text-lg font-bold text-gray-900 dark:text-white">
-              {healthcare.name}
+              {healthcare.hcoName}
             </h1>
             <div className="flex gap-2 items-center text-md text-gray-600 dark:text-gray-400 mt-0.5">
               <span><Building2 size={18} /></span>
-              <span>{healthcare.type}</span>
+              <span>{healthcare.hcoType}</span>
             </div>
           </div>
           <Button

@@ -1,16 +1,26 @@
-/**
- * Query keys factory for dropdowns
- * Provides type-safe and hierarchical cache key management
- */
 export const dropdownKeys = {
-  // Base key for all dropdown-related queries
-  all: ['dropdowns'] as const,
-
-  // Individual dropdown keys
+  all: ["dropdowns"] as const,
+  roles: () => [...dropdownKeys.all, "roles"] as const,
   hcoList: () => [...dropdownKeys.all, 'hcoList'] as const,
   leadSources: () => [...dropdownKeys.all, 'leadSources'] as const,
   personalityTraits: () => [...dropdownKeys.all, 'personalityTraits'] as const,
   users: () => [...dropdownKeys.all, 'users'] as const,
   products: () => [...dropdownKeys.all, 'products'] as const,
   outcomes: () => [...dropdownKeys.all, 'outcomes'] as const,
+  contactsPersons: (hcoUUID: string) => [...dropdownKeys.all, 'contactsPersons', hcoUUID] as const,
+  hcoTypes: () => [...dropdownKeys.all, 'hcoTypes'] as const,
+  countryList: () => [...dropdownKeys.all, 'countryList'] as const,
+  states: (countryUUID: string) => [...dropdownKeys.all, 'states', countryUUID] as const,
+  cities: (stateUUID: string) => [...dropdownKeys.all, 'cities', stateUUID] as const,
+  companies: () => [...dropdownKeys.all, 'companies'] as const,
+  countries: () => [...dropdownKeys.all, 'countries'] as const,
+  therapeuticAreas: () => [...dropdownKeys.all, 'therapeuticAreas'] as const,
+  regionalOffices: () => [...dropdownKeys.all, 'regionalOffices'] as const,
+  icbs: () => [...dropdownKeys.all, 'icbs'] as const,
+  lossReasons: () => [...dropdownKeys.all, 'lossReasons'] as const,
+  dealStages: () => [...dropdownKeys.all, 'dealStages'] as const,
+  productDocumentCategories: () => [...dropdownKeys.all, 'productDocumentCategories'] as const,
+  regions: () => [...dropdownKeys.all, 'regions'] as const,
+  icbList: () => [...dropdownKeys.all, 'icbList'] as const,
+  services: () => [...dropdownKeys.all, 'services'] as const,
 } as const;

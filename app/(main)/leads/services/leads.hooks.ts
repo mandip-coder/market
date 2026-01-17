@@ -1,93 +1,18 @@
 'use client'
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { toast } from 'react-toastify';
 import { leadsKeys } from './leads.queryKeys';
 import { leadsService } from './leads.service';
-import { LeadFilters, CreateLeadData, CancelLeadData, ConvertLeadData, Lead } from './leads.types';
+import { LeadFilters, CreateLeadData, CancelLeadData, Lead, LeadsResponse, ConvertLeadData, CreateFollowUpPayload, UpdateFollowUpPayload, CreateCallPayload, UpdateCallPayload, SendEmailPayload, TimelineFilters } from './leads.types';
 import { FollowUP, CallLog, Email } from '@/lib/types';
 import { CompleteFollowUpValues, CancelFollowUpValues, RescheduleFollowUpValues } from '@/context/store/dealsStore';
+import { dealsKeys } from '../../deals/services/deals.queryKeys';
+import { DealsResponse, TimelineResponse } from '../../deals/services/deals.types';
 
-// ==================== TYPE DEFINITIONS ====================
 
-/**
- * Payload for creating a follow-up
- */
-export interface CreateFollowUpPayload {
-  leadUUID?: string;
-  dealUUID?: string;
-  subject: string;
-  scheduledDate: string;
-  contactPersons: string[];
-  description: string;
-  followUpMode: string;
-}
 
-/**
- * Payload for updating a follow-up
- */
-export interface UpdateFollowUpPayload {
-  subject?: string;
-  scheduledDate?: string;
-  contactPersons?: string[];
-  description?: string;
-  followUpMode?: string;
-}
 
-/**
- * Payload for creating a call log
- */
-export interface CreateCallPayload {
-  leadUUID?: string;
-  dealUUID?: string;
-  subject: string;
-  callStartTime: string;
-  duration: string;
-  purpose: string;
-  agenda: string;
-  outcomeUUID: string;
-  comment?: string;
-}
-
-/**
- * Payload for updating a call log
- */
-export interface UpdateCallPayload {
-  subject?: string;
-  callStartTime?: string;
-  duration?: string;
-  purpose?: string;
-  agenda?: string;
-  outcomeUUID?: string;
-  comment?: string;
-}
-
-/**
- * Payload for sending an email
- */
-export interface SendEmailPayload {
-  leadUUID?: string;
-  dealUUID?: string;
-  subject: string;
-  body: string;
-  recipients: string[];
-  ccRecipients?: string[];
-  bccRecipients?: string[];
-  attachments?: {
-    filename: string;
-    url: string;
-    filePath: string;
-    size: number;
-    mimeType: string;
-  }[];
-}
-
-// ==================== LEAD HOOKS ====================
-
-/**
- * Hook to fetch paginated leads with filters
- * Automatically caches data with filter-specific keys
- */
 export function useLeads(filters: LeadFilters) {
   return useQuery({
     queryKey: leadsKeys.list(filters),
@@ -97,17 +22,14 @@ export function useLeads(filters: LeadFilters) {
   });
 }
 
-/**
- * Hook to fetch individual lead by ID
- * Caches each lead separately for optimal performance
- */
 export function useLead(id: string, enabled: boolean = true) {
   return useQuery({
     queryKey: leadsKeys.detail(id),
     queryFn: () => leadsService.fetchLeadById(id),
     staleTime: 60 * 60000, // 1 hour
     gcTime: 60 * 60000, // 1 hour
-    enabled: enabled && !!id, // Only fetch if enabled and id exists
+    enabled: enabled && !!id,
+    retry: 1,
   });
 }
 
@@ -122,15 +44,23 @@ export function useCreateLead() {
     mutationFn: (data: CreateLeadData) => leadsService.createLead(data),
     onSuccess: (data: Lead) => {
       // Update all list queries (with different filters) by adding the new lead
-      queryClient.setQueriesData({ queryKey: leadsKeys.lists() }, (old: Lead[] | undefined) => {
+      queryClient.setQueriesData({ queryKey: leadsKeys.lists() }, (old: LeadsResponse | undefined) => {
         if (!old) return old;
-        return [...old, data];
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            list: [data, ...old.data.list],
+            totalCount: old.data.totalCount + 1,
+            filterCount: old.data.filterCount + 1,
+          },
+        };
       });
-      toast.success('Lead created successfully');
+      toast.success('Prospect created successfully');
     },
     onError: (error: Error) => {
-      console.error('Error creating lead:', error);
-      toast.error(error.message || 'Failed to create lead');
+      console.error('Error creating prospect:', error);
+      toast.error(error.message || 'Failed to create prospect');
     },
   });
 }
@@ -144,24 +74,37 @@ export function useCancelLead() {
 
   return useMutation({
     mutationFn: (data: CancelLeadData) => leadsService.cancelLead(data),
-    onSuccess: (data: Lead, variables: CancelLeadData) => {
+    onSuccess: (_, variables: CancelLeadData) => {
       // Update all list queries (with different filters) by updating the cancelled lead
-      queryClient.setQueriesData({ queryKey: leadsKeys.lists() }, (old: Lead[] | undefined) => {
+      queryClient.setQueriesData({ queryKey: leadsKeys.lists() }, (old: LeadsResponse | undefined) => {
         if (!old) return old;
-        return old.map((lead) => {
-          if (lead.leadUUID === variables.leadUUID) {
-            return { ...lead, ...data };
-          }
-          return lead;
-        });
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            list: old.data.list.map((lead) => {
+              if (lead.leadUUID === variables.leadUUID) {
+                return { ...lead, leadStatus: 'cancelled', closeReason: variables.closeReason };
+              }
+              return lead;
+            }),
+          },
+        };
       });
       // Update the specific lead detail cache
-      queryClient.setQueryData(leadsKeys.detail(variables.leadUUID), data);
-      toast.success('Lead cancelled successfully');
+      queryClient.setQueryData(leadsKeys.detail(variables.leadUUID), (old: Lead | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          leadStatus: 'cancelled',
+          closeReason: variables.closeReason,
+        };
+      });
+      toast.success('Prospect cancelled successfully');
     },
     onError: (error: Error) => {
-      console.error('Error cancelling lead:', error);
-      toast.error(error.message || 'Failed to cancel lead');
+      console.error('Error cancelling prospect:', error);
+      toast.error(error.message || 'Failed to cancel prospect');
     },
   });
 }
@@ -174,20 +117,40 @@ export function useConvertLead() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (leadUUID: string) => leadsService.convertLeadToDeal(leadUUID),
-    onSuccess: (data: Lead) => {
+    mutationFn: (data: ConvertLeadData) => leadsService.convertLeadToDeal(data),
+    onSuccess: (data, variables) => {
       // Update all list queries (with different filters) by removing the converted lead
-      queryClient.setQueriesData({ queryKey: leadsKeys.lists() }, (old: Lead[] | undefined) => {
+      queryClient.setQueriesData({ queryKey: leadsKeys.lists() }, (old: LeadsResponse | undefined) => {
         if (!old) return old;
-        return old.filter((lead) => lead.leadUUID !== data.leadUUID);
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            list: old.data.list.filter((lead) => lead.leadUUID !== variables.leadUUID),
+            totalCount: old.data.totalCount - 1,
+            filterCount: old.data.filterCount - 1,
+          },
+        };
       });
       // Remove the specific lead detail from cache
-      queryClient.removeQueries({ queryKey: leadsKeys.detail(data.leadUUID) });
-      toast.success('Lead converted to deal successfully');
+      queryClient.removeQueries({ queryKey: leadsKeys.detail(variables.leadUUID) });
+      queryClient.setQueriesData({ queryKey: dealsKeys.lists() }, (old: DealsResponse | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          data: {
+            ...old.data,
+            list: [data, ...old.data.list],
+            totalCount: old.data.totalCount + 1,
+            filterCount: old.data.filterCount + 1,
+          },
+        };
+      });
+      toast.success('Prospect converted to deal successfully');
     },
     onError: (error: Error) => {
-      console.error('Error converting lead:', error);
-      toast.error(error.message || 'Failed to convert lead');
+      console.error('Error converting prospect:', error);
+      toast.error(error.message || 'Failed to convert prospect');
     },
   });
 }
@@ -252,6 +215,8 @@ export function useCreateFollowUp(leadUUID: string) {
       queryClient.setQueryData<FollowUP[]>(leadsKeys.followUps(leadUUID), (old = []) => {
         return [...old, newFollowUp];
       });
+      // Increment count
+      incrementCounts(queryClient, leadUUID, "followUpCount");
       toast.success('Follow-up created successfully');
     },
     onError: (error: Error) => {
@@ -376,6 +341,8 @@ export function useDeleteFollowUp(leadUUID: string) {
       queryClient.setQueryData<FollowUP[]>(leadsKeys.followUps(leadUUID), (old = []) => {
         return old.filter(f => f.followUpUUID !== followUpUUID);
       });
+      // Decrement count
+      decrementCounts(queryClient, leadUUID, "followUpCount");
       toast.success('Follow-up deleted successfully');
     },
     onError: (error: Error) => {
@@ -383,15 +350,7 @@ export function useDeleteFollowUp(leadUUID: string) {
     },
   });
 }
-export function useContactsPersons(hcoUUID: string) {
-  return useQuery({
-    queryKey: leadsKeys.contacts(),
-    queryFn: () => leadsService.getContacts(hcoUUID),
-    staleTime: Infinity,
-    enabled: !!hcoUUID,
-    retry: 0,
-  });
-}
+
 
 // ==================== CALL MUTATION HOOKS ====================
 
@@ -409,6 +368,8 @@ export function useCreateCall(leadUUID: string) {
       queryClient.setQueryData<CallLog[]>(leadsKeys.calls(leadUUID), (old = []) => {
         return [...old, newCall];
       });
+      // Increment count
+      incrementCounts(queryClient, leadUUID, "callLogCount");
     },
   });
 }
@@ -446,6 +407,8 @@ export function useDeleteCall(leadUUID: string) {
       queryClient.setQueryData<CallLog[]>(leadsKeys.calls(leadUUID), (old = []) => {
         return old.filter(c => c.callLogUUID !== callLogUUID);
       });
+      // Decrement count
+      decrementCounts(queryClient, leadUUID, "callLogCount");
     },
   });
 }
@@ -466,6 +429,131 @@ export function useSendEmail(leadUUID: string) {
       queryClient.setQueryData<Email[]>(leadsKeys.emails(leadUUID), (old = []) => {
         return [...old, newEmail];
       });
+      // Increment count
+      incrementCounts(queryClient, leadUUID, "emailCount");
     },
+  });
+}
+
+const incrementCounts = (
+  queryClient: ReturnType<typeof useQueryClient>,
+  leadUUID: string,
+  tab: "followUpCount" | "emailCount" | "callLogCount"
+) => {
+  queryClient.setQueryData<Lead>(leadsKeys.detail(leadUUID), (old) => {
+    if (!old) return old;
+    return {
+      ...old,
+      [tab]: ((old[tab] as number) || 0) + 1,
+    };
+  });
+
+  // Also update the counts in the leads list cache
+  queryClient.setQueriesData<LeadsResponse>(
+    { queryKey: leadsKeys.lists() },
+    (old) => {
+      if (!old) return old;
+      return {
+        ...old,
+        data: {
+          ...old.data,
+          list: old.data.list.map((lead) =>
+            lead.leadUUID === leadUUID
+              ? {
+                ...lead,
+                [tab]: ((lead[tab] as number) || 0) + 1,
+              }
+              : lead
+          ),
+        },
+      };
+    }
+  );
+};
+
+/**
+ * Helper function to decrement counts for a specific tab in the deal cache
+ */
+const decrementCounts = (
+  queryClient: ReturnType<typeof useQueryClient>,
+  leadUUID: string,
+  tab: "followUpCount" | "emailCount" | "callLogCount"
+) => {
+  queryClient.setQueryData<Lead>(leadsKeys.detail(leadUUID), (old) => {
+    if (!old) return old;
+    return {
+      ...old,
+      [tab]: Math.max(((old[tab] as number) || 0) - 1, 0),
+    };
+  });
+
+  // Also update the counts in the leads list cache
+  queryClient.setQueriesData<LeadsResponse>(
+    { queryKey: leadsKeys.lists() },
+    (old) => {
+      if (!old) return old;
+      return {
+        ...old,
+        data: {
+          ...old.data,
+          list: old.data.list.map((lead) =>
+            lead.leadUUID === leadUUID
+              ? {
+                ...lead,
+                [tab]: Math.max(((lead[tab] as number) || 0) - 1, 0),
+              }
+              : lead
+          ),
+        },
+      };
+    }
+  );
+};
+
+// ==================== TIMELINE HOOKS ====================
+
+/**
+ * Hook for infinite scroll timeline with page-based pagination
+ * Uses TanStack Query's useInfiniteQuery for automatic pagination
+ */
+export function useInfiniteTimeline(
+  leadUUID: string,
+  filters: Omit<TimelineFilters, 'page'>,
+  enabled?: boolean
+) {
+  return useInfiniteQuery({
+    queryKey: [...leadsKeys.timeline(leadUUID), 'infinite', filters],
+    queryFn: ({ pageParam = 1 }) =>
+      leadsService.fetchTimeline(leadUUID, {
+        ...filters,
+        page: pageParam,
+      }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage: TimelineResponse['data']) => {
+      if (!lastPage.list || lastPage.list.length === 0) return undefined;
+      return lastPage.hasNext ? lastPage.page + 1 : undefined
+    },
+    staleTime: Infinity,
+    gcTime: Infinity,
+    enabled: !!leadUUID && enabled,
+    retry: 1,
+  });
+}
+
+/**
+ * Hook to fetch lead timeline counts
+ * Only fetches when enabled
+ */
+export function useLeadTimelineCounts(
+  leadUUID: string,
+  enabled?: boolean
+) {
+  return useQuery({
+    queryKey: leadsKeys.timelineCounts(leadUUID),
+    queryFn: () => leadsService.fetchTimelineCounts(leadUUID),
+    staleTime: 60 * 60000, // 1 hour
+    gcTime: 60 * 60000, // 1 hour
+    retry: 1,
+    enabled: !!leadUUID && enabled,
   });
 }

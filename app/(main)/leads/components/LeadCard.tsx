@@ -12,10 +12,10 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
-import { Lead } from "./LeadsListing";
 import { LoadingOutlined } from "@ant-design/icons";
 import { formatUserDisplay } from "@/Utils/helpers";
 import { useLoginUser } from "@/hooks/useToken";
+import { Lead } from "../services/leads.types";
 
 dayjs.extend(relativeTime);
 

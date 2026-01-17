@@ -1,12 +1,12 @@
-import { Company } from "@/app/(main)/master/company-master/components/CompanyDataTable";
 import { useSidebar } from "@/context/SidebarContextProvider";
 import { logoutAction } from "@/lib/actions/signOut";
 import { refreshTokenAction } from "@/lib/actions/refreshToken";
-import { Dropdown, MenuProps } from "antd";
+import { Avatar, Dropdown, MenuProps } from "antd";
 import { ChevronsUpDown, LogOut } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
-import { toast } from "react-toastify";
+import { toast } from '@/components/AppToaster/AppToaster';
+import { Company } from "@/types/authorization";
 
 
 function getInitials(name: string) {
@@ -87,29 +87,27 @@ export default function OrgSwitcher() {
   }
 
   const items: MenuProps["items"] = [
-    ...orgs.map((org) => {
-      const isSelected = selectedOrg?.companyUUID === org.companyUUID;
-      return {
-        key: org.companyUUID,
-        title: "",
-        disabled: isSelected || switching,
-        label: (
-          <div
-            className={`flex items-center gap-3 py-2 rounded-md ${isSelected || switching ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
-              }`}
-            onClick={() => !isSelected && !switching && handleOrgSwitch(org)}
-          >
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold text-sm">
-              {getInitials(org?.displayName || "")}
-            </div>
-            <div className="flex flex-col">
-              <span className="font-medium text-gray-800 dark:text-gray-200">{org?.displayName}</span>
-              <span title={org?.email} className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-40">{org?.email}</span>
-            </div>
-          </div>
-        ),
-      };
-    }),
+    // ...orgs.map((org) => {
+    //   const isSelected = selectedOrg?.companyUUID === org.companyUUID;
+    //   return {
+    //     key: org.companyUUID,
+    //     title: "",
+    //     disabled: isSelected || switching,
+    //     label: (
+    //       <div
+    //         className={`flex items-center gap-3 py-2 rounded-md ${isSelected || switching ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+    //           }`}
+    //         onClick={() => !isSelected && !switching && handleOrgSwitch(org)}
+    //       >
+    //         <Avatar size={40} src={org?.imagePath} />
+    //         <div className="flex flex-col">
+    //           <span className="font-medium text-gray-800 dark:text-gray-200">{org?.displayName}</span>
+    //           <span title={org?.email} className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-40">{org?.email}</span>
+    //         </div>
+    //       </div>
+    //     ),
+    //   };
+    // }),
     // {
     //   type: "group",
     //   key: "group",
@@ -125,10 +123,10 @@ export default function OrgSwitcher() {
     //   label: "Settings",
     //   icon: <Settings size={16} />
     // },
-    {
-      type: "divider",
-      key: "divider",
-    },
+    // {
+    //   type: "divider",
+    //   key: "divider",
+    // },
     {
       key: "logout",
       danger: true,
@@ -156,12 +154,10 @@ export default function OrgSwitcher() {
         ) : (
           <>
             <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-9 h-9 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold text-sm">
-                {getInitials(selectedOrg?.displayName || "")}
-              </div>
+             <Avatar size={40} src={selectedOrg?.imagePath} />
               <div className="flex flex-col items-start text-left">
                 <span className="font-semibold text-gray-800 dark:text-gray-200">{selectedOrg?.displayName}</span>
-                <span className="text-xs text-gray-500 dark:text-gray-400">{selectedOrg?.email}</span>
+                <span className="truncate max-w-[150px] block text-xs text-gray-500 dark:text-gray-400">{selectedOrg?.email}</span>
               </div>
             </div>
             <ChevronsUpDown className="w-4 h-4 text-gray-600 dark:text-gray-300" />

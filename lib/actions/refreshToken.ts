@@ -1,9 +1,9 @@
 "use server"
 
 import { SERVERAPI } from "@/Utils/apiFunctions";
+import { Company } from "@/app/(main)/master/company-master/services/company.types";
 import { APIPATH } from "@/shared/constants/url";
 import { jwtDecode } from "jwt-decode";
-import { Company } from "@/app/(main)/master/company-master/components/CompanyDataTable";
 
 interface RefreshTokenResponse {
   status: boolean;

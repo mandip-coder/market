@@ -1,8 +1,9 @@
 import { CallModal as SharedCallModal } from '@/components/shared/modals/CallModal';
 import { CallLog } from '@/lib/types';
-import { Lead, useCreateCall, useUpdateCall, useDeleteCall } from '../../services';
+import { useCreateCall, useDeleteCall, useUpdateCall } from '../../services/leads.hooks';
+import { Lead } from '../../services/leads.types';
 
-export default function CallModal({ lead, calls }: { lead: Lead, calls: CallLog[] }) {
+export default function CallModal({ lead, calls, refetching, refetch }: { lead: Lead, calls: CallLog[], refetching: boolean, refetch: () => void }) {
 
   const createCall = useCreateCall(lead.leadUUID);
   const updateCall = useUpdateCall(lead.leadUUID);
@@ -15,6 +16,8 @@ export default function CallModal({ lead, calls }: { lead: Lead, calls: CallLog[
       updateCall={updateCall}
       deleteCall={deleteCall}
       leadUUID={lead.leadUUID}
+      refetching={refetching}
+      refetch={refetch}
     />
   );
 }

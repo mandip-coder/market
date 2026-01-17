@@ -1,8 +1,8 @@
-import { Select, SelectProps, Tooltip, Popover, Tag, Button } from "antd";
+import { Popover, Select, SelectProps, Tag } from "antd";
 import { useField } from "formik";
+import { Check, Inbox } from "lucide-react";
 import React from "react";
 import Label from "../Label/Label";
-import { Check, Inbox, X } from "lucide-react";
 
 type CustomSelectProps = SelectProps & {
   label?: string;
@@ -48,13 +48,13 @@ function CustomSelect({
 
           const popoverContent = (
             <div className="max-w-xs max-h-64 overflow-y-auto">
-              <div className="space-y-1">
+              <div className="!space-y-2 !space-x-2">
                 {omitted.map((item: any) => (
                   <Tag
                     key={item.value}
                     variant="outlined"
                     closable
-                    onClose={(e) => handleRemove(item.value)}
+                    onClose={() => handleRemove(item.value)}
                   >
                     {item.label}
                   </Tag>

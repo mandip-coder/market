@@ -5,13 +5,14 @@ import Label from '@/components/Label/Label';
 import ContactOptionsRender from '../ContactOptionsRender';
 import { CloseOutlined } from '@ant-design/icons';
 import { Button } from 'antd';
+import { User } from '@/services/dropdowns/dropdowns.types';
 
 interface RecipientFieldProps {
   show: boolean;
   onClose: () => void;
   name: string;
   label: string;
-  contactPersons: HCOContactPerson[];
+  contactPersons: User[];
   colorScheme: 'blue' | 'purple';
 }
 
@@ -64,7 +65,7 @@ export const RecipientField: React.FC<RecipientFieldProps> = ({
         options={contactPersons
           .filter(contact => contact.email)
           .map(contact => ({
-            value: contact.hcoContactUUID,
+            value: contact.userUUID,
             label: contact.email,
             contact,
           }))}

@@ -1,20 +1,14 @@
-import { NextConfig } from 'next';
-const base = process.env.NEXT_PUBLIC_BASE_PATH || '';
-
-// Get the local IP address for dev origins
-const devOrigins = [
-  'http://localhost:3000',
-  'http://127.0.0.1:3000',
-  'http://192.168.4.134:3000',
-  'http://192.168.4.134',
-  'https://192.168.4.134:3000',
-  'https://192.168.4.134',
-];
-
+import type { NextConfig } from 'next';
+import { getPath } from './lib/path';
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '/market-access';
 const config: NextConfig = {
   reactStrictMode: true,
-  basePath: base,
+
+  // ✅ THIS IS ALL YOU NEED
+  basePath: basePath,
+
   reactCompiler: true,
+
   async headers() {
     return [
       {
@@ -36,18 +30,17 @@ const config: NextConfig = {
       },
     ];
   },
-  
   async redirects() {
     return [
       {
         source: '/',
-        destination: base,
+        destination: basePath,
         permanent: true,
-        basePath: false
+        basePath: false,
       },
     ];
   },
-  
+
   experimental: {
     globalNotFound: true,
     serverActions: {
@@ -56,4 +49,4 @@ const config: NextConfig = {
   },
 };
 
-export default config
+export default config;

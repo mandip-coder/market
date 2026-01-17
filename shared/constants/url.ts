@@ -1,12 +1,17 @@
+
+export const baseURL = process.env.NEXT_PUBLIC_BASE_URL;
+export const basePath = process.env.NEXT_PUBLIC_BASE_PATH
 export const APIPATH = {
   LOGIN: "auth/login",
   LOGOUT: "auth/logout",
   REFRESH_TOKEN: "auth/refresh-token",
-  FILEUPLOAD: "files/upload",
+  FILEUPLOAD: baseURL+"/market-access/api/upload",
   DASHBOARD: {
     KPIDATA: "dashboard/deals-statistics",
     TOPPRODUCTS: "dashboard/top-products",
     STAGECOUNTS: "dashboard/stage-counts",
+    LEADFOLLOWUP: "dashboard/lead-followups",
+    DEALFOLLOWUP: "dashboard/deal-followups",
   },
   USERS: {
     GETUSERS: "users/all",
@@ -16,6 +21,13 @@ export const APIPATH = {
     GETUSER: "users",
     STATUSUPDATE: (userUUID: string, status?: string) =>
       `users/${userUUID}?status=${status}`,
+    ACCESS: {
+      UPDATEACCESS: (userUUID: string, companyUUID: string) =>
+        `users/${userUUID}/company-access/${companyUUID}`,
+      REMOVEACCESS: (userUUID: string, companyUUID: string) =>
+        `users/${userUUID}/company-access/${companyUUID}`,
+      ADDACCESS: (userUUID: string) => `users/${userUUID}/company-access`,
+    },
   },
   COMPANY: {
     GETCOMPANIES: "company",
@@ -33,6 +45,11 @@ export const APIPATH = {
     MUTLIPLEDELETEROLE: "roles/delete-list",
     GETROLE: "roles",
   },
+  MASSEMAILS: {
+    GETALLEMAILS: "mass-mail",
+    CREATEEMAILS: "mass-mail/send",
+
+  },
   HCO: {
     GETHEALTHCARES: "hco",
     CREATEHEALTHCARE: "hco",
@@ -40,15 +57,12 @@ export const APIPATH = {
     DELETEHEALTHCARE: "hco/",
     GETHEALTHCARE: "hco/",
     UPDATESTATUS: (healthcareUUID: string) => `hco/${healthcareUUID}/status`,
-    CONTACTPERSONS: (hcoUUID: string) => `hco-contact/hco/${hcoUUID}/contacts`,
+    GETDEALS: (hcoUUID: string) => `hco/deal/${hcoUUID}`,
   },
   DEAL: {
     GETALLDEALS: "deal",
     CREATEDEAL: "deal",
     GETDEAL: "deal/",
-    ADDDEALPRODCUT: "deal-products",
-    GETPRODUCTS: (dealUUID: string) => `deal-products/deal/${dealUUID}/all`,
-    DELETEDEALPRODUCT: "deal-products/delete",
     TABS: {
       FOLLOWUP: {
         GETALLFOLLOWUP: "deal-follow-ups/deal/",
@@ -85,6 +99,21 @@ export const APIPATH = {
         GETALLEMAIL: (id: string) => `deal/${id}/mail`,
         CREATEEMAIL: "mails/deal",
       },
+      PRODUCTS: {
+        ADDDEALPRODCUT: "deal-products",
+        GETPRODUCTS: (dealUUID: string) => `deal-products/deal/${dealUUID}/all`,
+        DELETEDEALPRODUCT: "deal-products/delete",
+      },
+      ATTACHMENTS: {
+        GETALLATTACHMENTS: "deal-attachment/deal/",
+        ADDDEALATTACHMENT: "deal-attachment",
+        UPDATEDEALATTACHMENT: "deal-attachment/",
+        DELETEDEALATTACHMENT: "deal-attachment/",
+      },
+      TIMELINE: (dealUUID: string) => `deal/${dealUUID}/history`,
+      TIMELINECOUNTS: (dealUUID: string) => `deal/${dealUUID}/history-count`,
+      DEALSTAGEUPDATE: (dealUUID: string) => `deal/${dealUUID}/stage`,
+      DEALALLCONTACTS: (dealUUID: string) => `deal/${dealUUID}/contacts`,
     },
   },
   LEAD: {
@@ -93,6 +122,11 @@ export const APIPATH = {
     CREATELEAD: "lead",
     CANCEL: "lead/cancel/",
     CONVERT: "lead/convert-to-deal/",
+    RECOMMENDATIONS: "recommended-actions/search",
+    RECOMMENDATIONWISEHCOLIST: (ICBCODE: string) =>
+      `recommended-actions/${ICBCODE}/hco`,
+    APPLYRECOMMENDATION: (recommendationUUID: string) =>
+      `recommended-actions/${recommendationUUID}/suggestion-applied`,
     TABS: {
       FOLLOWUP: {
         GETALLFOLLOWUP: "lead-follow-ups/lead/",
@@ -113,18 +147,35 @@ export const APIPATH = {
         GETALLEMAIL: (id: string) => `lead/${id}/mail`,
         CREATEEMAIL: "mails/lead",
       },
+      TIMELINE: (leadUUID: string) => `lead/${leadUUID}/history`,
+      TIMELINECOUNTS: (leadUUID: string) => `lead/${leadUUID}/history-count`,
     },
   },
   PRODUCTS: {
     GETPRODUCTS: "products",
     CREATEPRODUCT: "products",
-    UPDATEPRODUCT: "products/",
+    UPDATEPRODUCT: (productUUID: string) => `products/${productUUID}`,
     DELETEPRODUCT: "products/",
-    GETPRODUCT: "products/",
+    GETPRODUCT: (productUUID: string) => `products/${productUUID}`,
     UPDATESTATUS: (productUUID: string) => `products/${productUUID}/status`,
+    PRODUCTWISEDEALS: (productUUID: string) => `products/deal/${productUUID}`,
+    DOCUMENTS: {
+      CREATE: "product-documents",
+      GETALL: (productUUID: string) => `product-documents/product/${productUUID}`,
+      DELETE: (productUUID: string) => `product-documents/${productUUID}`,
+      UPDATE: (productUUID: string) => `product-documents/${productUUID}`,
+      UPDATESTATUS: (productUUID: string, isSensitive: boolean) => `product-documents/${productUUID}/sensitive?sensitive=${isSensitive}`,
+    },
+    GETPRODUCTCOUNTS: (productUUID: string) => `products/counts/${productUUID}`,
   },
   DROPDOWN_MODULE: {
     HCO: "dropdown/module/hco",
+    PRODUCTS: "dropdown/module/product",
+    COUNTRY: "dropdown/countries",
+    STATE: (countryUUID: string) => `dropdown/states/${countryUUID}`,
+    CITY: (stateUUID: string) => `dropdown/cities/${stateUUID}`,
+    ROLES: "dropdown/module/role",
+    PRODUCTSDOCUMENTCATEGORIES: "dropdown/module/documentCategory",
   },
   DROPDOWN: {
     LEADSOURCE: "dropdown/lead_source",
@@ -132,6 +183,21 @@ export const APIPATH = {
     USERS: "dropdown/users",
     PRODUCTS: "dropdown/products",
     OUTCOMES: "dropdown/outcome",
+    HCOTYPES: "dropdown/hco_type",
+    ROLES: "dropdown/roles",
+    CONTACTPERSONS: (hcoUUID: string) =>
+      `dropdown/contact_person/hco/${hcoUUID}`,
+    THERAPEUTICAREAS: "therapeutic-areas",
+    REGIONALOFFICES: "dropdown/regional_office",
+    ICBS: "dropdown/icbCode",
+    LOSSREASONS: "dropdown/loss_reason",
+    DEALSTAGES: "dropdown/deal_stage",
+    ICBDROPDOWN: "dropdown/icb",
+    REGION: "region",
+    HCOWITHICBUUID: "dropdown/hco-icb",
+    HCOSERVICES: "hco-service",
+    MASSEMAIL_CONTACTPERSONS: "dropdown/filter/contact_person",
+
   },
   COUNTRY: {
     GETCOUNTRYLIST: "country",

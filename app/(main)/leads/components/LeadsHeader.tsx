@@ -12,15 +12,15 @@ function LeadsHeader() {
   const extraContent = useMemo(() => (
     <div className="flex gap-3 flex-shrink-0">
       <Button type="primary" icon={<Search size={16} />} onClick={() => toggleLeadDrawer()}>
-        New Lead
+        New Prospect
       </Button>
     </div>
   ), [])
 
   return (<>
     <PageHeading
-      title="Leads"
-      descriptionLine="Leads and Recommendations"
+      title="Prospect"
+      descriptionLine="Prospects and Recommendations"
       extra={extraContent}
     />
     <LeadDrawer />

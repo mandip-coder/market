@@ -1,16 +1,23 @@
 import { CallModal as SharedCallModal } from '@/components/shared/modals/CallModal';
-import { useDealCallModalStore } from '@/context/store/optimizedSelectors';
+import { CallLog } from '@/lib/types';
+import { Deal } from '../../services/deals.types';
+import { useCreateCall, useDeleteCall, useUpdateCall } from '../../services/deals.hooks';
 
-export default function CallModal() {
-  const { calls, logCall, updateCall, deleteCall,setCalls,dealUUID } = useDealCallModalStore();
+export default function CallModal({ deal, calls,refetching,refetch }: { deal: Deal, calls: CallLog[],refetching:boolean,refetch:()=>void }) {
+
+  const createCall = useCreateCall(deal.dealUUID);
+  const updateCall = useUpdateCall(deal.dealUUID);
+  const deleteCall = useDeleteCall(deal.dealUUID);
+
   return (
-    <SharedCallModal 
-      calls={calls} 
-      logCall={logCall} 
-      updateCall={updateCall} 
+    <SharedCallModal
+      calls={calls}
+      createCall={createCall}
+      updateCall={updateCall}
       deleteCall={deleteCall}
-      setCalls={setCalls}
-      dealUUID={dealUUID} 
+      dealUUID={deal.dealUUID}
+      refetching={refetching}
+      refetch={refetch}
     />
   );
 }

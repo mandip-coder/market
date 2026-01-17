@@ -24,7 +24,7 @@ function HealthCareHeader() {
           </Button>
         </div>
       } />
-      <AddhealthcareDrawer open={addHealthCareModal} onClose={() => setHealthCareModal(false)} />
+      <AddhealthcareDrawer/>
       </>
   )
 }

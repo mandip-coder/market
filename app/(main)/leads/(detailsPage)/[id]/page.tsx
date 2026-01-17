@@ -6,7 +6,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
   // Validate ID format
   if (id.length !== 36) {
-    return <AppErrorUI code={400} message={"Invalid Page Request"} backLink="/leads" buttonName="Back to Leads" />
+    return <AppErrorUI code={400} message={"Invalid Page Request"} backLink="/leads" buttonName="Back to Prospects" />
   }
 
 

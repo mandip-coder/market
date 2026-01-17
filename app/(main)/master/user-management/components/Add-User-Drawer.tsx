@@ -1,85 +1,32 @@
 'use client'
 import { useUsersStore } from "@/context/store/usersStore";
-import { useApi } from "@/hooks/useAPI";
-import { APIPATH } from "@/shared/constants/url";
+import { useLoading } from "@/hooks/useLoading";
 import { Button, Checkbox, Col, Divider, Drawer, Row } from "antd";
 import { Form, Formik, FormikProps } from 'formik';
 import { Save } from "lucide-react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { toast } from "react-toastify";
 import * as Yup from 'yup';
-import { Company } from "../../company-master/components/CompanyDataTable";
+import { User } from "../services/user.types";
 import BasicDetailsForm from "./BasicDetailsForm";
 import CountryAccessForm from "./CompanyAccessForm";
 import ProfileImage from "./ProfileImage";
-import { Country, User } from "./UserDataTable";
-import { useLoading } from "@/hooks/useLoading";
+import { useCompanies, useCountries } from "@/services/dropdowns/dropdowns.hooks";
+import { useAddUser, useUpdateUser } from "../services/user.hooks";
+import { UserFormValues } from "./BasicDetailsForm";
 
-// Mock data for companies (now used as companies under countries)
-
-export interface UserFormValues {
-  userUUID?: string;
-  initial: string;
-  firstName: string;
-  lastName: string;
-  phone1: string;
-  phone1HasWhatsapp?: boolean;
-  phone2?: string;
-  phone2HasWhatsapp?: boolean;
-  phone3?: string;
-  phone3HasWhatsapp?: boolean;
-  officePhone: string;
-  email: string;
-  empCode: string; // Using empCode as it matches the schema
-  multiFactorLogin?: boolean;
-  countryAccess: Country[];
-  companyAccess: Company[];
-  profileImage?: File | null;
-  profileImageUrl?: string | null;
-  loginUsername: string;
-  fullName?: string;
-}
-
-
-
-export interface CountryOption {
-  label: string;
-  value: string;
-}
 
 function AddUserDrawer() {
-  const API = useApi()
   const [loading, setLoading] = useLoading();
   const formikRef = useRef<FormikProps<UserFormValues>>(null);
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
-  const { addUserDrawer, toggleAddUserDrawer, editUser,setTableDataState, setEditUser } = useUsersStore()
+  const { addUserDrawer, toggleAddUserDrawer, editUser, setEditUser } = useUsersStore()
 
-  const [countryOptions, setCountryOptions] = useState<CountryOption[]>([]);
-  const [companiesData, setCompaniesData] = useState<Company[]>([]);
+  // Hooks
+  const addUserMutation = useAddUser();
+  const updateUserMutation = useUpdateUser();
+  const {data:countryOptions=[]} = useCountries()
+  const {data:companiesData=[]} = useCompanies()
 
-  const fetchContyOptions=async()=>{
-    const response = await API.get(APIPATH.COUNTRY.GETCOUNTRYLIST);
-    const data = response.data.map((item: any) => ({
-      label: item.countryName,
-      value: item.countryUuid,
-    })) as CountryOption[];
-    
-    setCountryOptions(data);
-  }
-
-  const fetchCompaniesData=async()=>{
-    const response = await API.get(APIPATH.COMPANY.GETCOMPANIES);
-    const data = response.data.companies.map((item: any) => ({
-      label: item.displayName,
-      value: item.companyUUID,
-    })) as Company[];
-    
-    setCompaniesData(data);
-  }
-  useEffect(() => {
-    fetchContyOptions();
-    fetchCompaniesData();
-  }, []);
 
   const isEditMode = !!editUser;
   const userData = editUser || null;
@@ -100,32 +47,26 @@ function AddUserDrawer() {
   };
 
   const handleSubmit = async (values: UserFormValues): Promise<void> => {
-    setLoading(true);
-
-    try {
-      if (isEditMode) {
-        const res = await API.put(`${APIPATH.USERS.UPDATEUSER}${userData?.userUUID}`, values);
-        setTableDataState(prevData => prevData.map(user => user.userUUID === userData?.userUUID ? {...user, ...res.data as User } : user));
-        toast.success('User updated successfully!');
-        handleClose();
-        setProfileImageUrl(null);
+      const { profileImage, ...payload } = values;
+      
+      if (isEditMode && userData?.userUUID) {
+        await updateUserMutation.mutateAsync({
+          userUUID: userData.userUUID,
+          payload: payload as unknown as User
+        },{
+          onSuccess: () => {
+            handleClose();
+            setProfileImageUrl(null);
+          },
+        });
       } else {
-        const createUser = await API.post(APIPATH.USERS.CREATEUSER, values)
-        if(!createUser.status){
-          toast.error(createUser.message || 'Failed to create user. Please try again.');
-        }else{
-          setTableDataState(prevData => [...prevData, createUser.data as User]);
-          toast.success('User created successfully!');
-          handleClose();
-          setProfileImageUrl(null);
-        }
-        
+        await addUserMutation.mutateAsync(payload as unknown as User,{
+          onSuccess: () => {
+            handleClose();
+            setProfileImageUrl(null);
+          },
+        });
       }
-    } catch (error:any) {
-      toast.error(error.message || 'Failed to create user. Please try again.');
-    } finally {
-      setLoading(false);
-    }
   };
 
   const handleImageChange = useCallback((file: File, url: string) => {
@@ -156,6 +97,8 @@ function AddUserDrawer() {
       return {
         ...userData,
         profileImage: null,
+        // Map country UUID array from API response to form field
+        countryAccess: userData.countryAccessUUID || [],
       };
     }
 
@@ -179,12 +122,13 @@ function AddUserDrawer() {
       phone2HasWhatsapp: false,
       phone3HasWhatsapp: false
 
+
     };
   };
 const validationSchema = Yup.object().shape({
     initial: Yup.string().required('Initial is required'),
-    firstName: Yup.string().required('First name is required'),
-    lastName: Yup.string().required('Last name is required'),
+    firstName: Yup.string().trim().required('First name is required').matches(/^[a-zA-Z ]+$/, 'First name should only contain letters and spaces'),
+    lastName: Yup.string().trim().required('Last name is required').matches(/^[a-zA-Z ]+$/, 'Last name should only contain letters and spaces'),
     email: Yup.string().required('Email is required').email('Invalid email address'),
     loginUsername: Yup.string().required('Login username is required'),
     companyAccess: Yup.array().required('Company access is required').min(1, 'At least one company is required'),
@@ -242,7 +186,7 @@ const validationSchema = Yup.object().shape({
           <Button
             type="primary"
             onClick={() => formikRef.current?.submitForm()}
-            loading={loading}
+            loading={loading || addUserMutation.isPending || updateUserMutation.isPending}
             icon={<Save className="h-4 w-4" />}
           >
             {isEditMode ? 'Update User' : 'Create User'}
@@ -264,6 +208,7 @@ const validationSchema = Yup.object().shape({
               imageUrl={profileImageUrl}
               onImageChange={handleImageChange}
               onImageRemove={handleImageRemove}
+              moduleName="userProfile"
             />
 
             <Divider size="large">Basic Details</Divider>
@@ -281,6 +226,7 @@ const validationSchema = Yup.object().shape({
               values={values}
               setFieldValue={setFieldValue}
               errors={errors}
+              touched={touched}
               companiesData={companiesData}
               countryOptions={countryOptions}
             />

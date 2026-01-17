@@ -1,6 +1,6 @@
 'use client'
 
-import { useTopProductsQuery } from '@/app/(main)/dashboard/api/queries'
+import { useTopProductsQuery } from '@/app/(main)/dashboard/services/dashboard.hooks'
 import { ProductSkeleton } from '@/components/Skeletons/ProductCardSkelton'
 import { Badge, Tag } from 'antd'
 import { Package } from 'lucide-react'

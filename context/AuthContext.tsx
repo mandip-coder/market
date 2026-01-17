@@ -6,15 +6,6 @@ import { Session } from "next-auth";
 import { useSession } from "next-auth/react";
 import { apiClient } from "@/lib/apiClient/apiClient";
 
-// Define your custom user interface
-interface User {
-  name?: string | null;
-  email?: string | null;
-  image?: string | null;
-  permissions?: string[];
-  role?: string | null;
-  accessToken?: string | null;
-}
 
 const AuthContext = createContext<Session | null | undefined>(undefined);
 

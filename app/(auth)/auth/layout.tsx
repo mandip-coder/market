@@ -1,6 +1,5 @@
 'use client'
-import LightRays from "@/components/LightRays/LightRays";
-import { TestimonialSlider } from "@/components/TestimonialSlider/TestimonialSlider";
+
 import { useThemeContext } from "@/context/ThemeContextProvider";
 import { DefaultTheme } from "@/shared/constants/themeConfig";
 import { ConfigProvider, theme } from "antd";
@@ -41,7 +40,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         All rights reserved &copy;  2026
       </div>
     </div>
-    <div className="flex !overflow-hidden h-screen bg-transparent dark:bg-black">
+    <div className="flex !overflow-hidden h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 dark:from-slate-900 dark:via-gray-900 dark:to-slate-800">
       <div className="max-w-5xl m-auto w-full">
         <motion.div
           key={pathname}
@@ -51,27 +50,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           {children}
         </motion.div>
       </div>
-      {/* <div className="w-1/2 hidden lg:block relative">
-        <TestimonialSlider />
-        <div className="bg-[url(/market-access/images/login-image.jpg)] h-screen bg-cover">
-        </div>
 
-      </div> */}
     </div>
 
-<div className="absolute top-0 left-0 w-full h-full -z-1">
-  <LightRays
-    raysOrigin="top-center"
-    raysColor="#1a4d7a"
-    raysSpeed={1.5}
-    lightSpread={0.8}
-    rayLength={1.2}
-    followMouse={true}
-    mouseInfluence={0.1}
-    noiseAmount={0.1}
-    distortion={0.05}
-  />
-</div>
+
     <ToastContainer />
   </ConfigProvider>
 }

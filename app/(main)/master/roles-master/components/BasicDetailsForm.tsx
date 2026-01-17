@@ -6,16 +6,16 @@ import { Col, Row } from "antd";
 import TextArea from "antd/es/input/TextArea";
 import { FormikErrors, FormikHandlers, FormikHelpers, FormikTouched } from "formik";
 import { memo } from "react";
-import { RolesFormData } from "./AddRoleDrawer";
+import { Role } from "../services/roles.types";
 import CustomCheckBox from "@/components/CustomCheckBox/CustomCheckBox";
 
 interface BasicDetailsFormProps {
-  values: RolesFormData;
+  values: Role;
   handleChange: FormikHandlers["handleChange"];
   handleBlur: FormikHandlers["handleBlur"];
-  setFieldValue: FormikHelpers<RolesFormData>["setFieldValue"];
-  errors: FormikErrors<RolesFormData>;
-  touched: FormikTouched<RolesFormData>;
+  setFieldValue: FormikHelpers<Role>["setFieldValue"];
+  errors: FormikErrors<Role>;
+  touched: FormikTouched<Role>;
 }
 
 function BasicDetailsForm({

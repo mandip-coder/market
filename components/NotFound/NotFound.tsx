@@ -1,15 +1,14 @@
 'use client'
 import '@/styles/globals.css';
+import { getPath } from '@/lib/path';
 import Image from "next/image";
-import { useRouter } from 'next/navigation';
 
 export default function NotFound() {
-const router=useRouter();
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100 flex flex-col items-center justify-center px-6 py-12 transition-colors duration-300">
       <div className="w-full max-w-md md:max-w-lg lg:max-w-xl mb-8">
         <Image
-          src="/market-access/images/404.svg"
+          src={getPath('/images/404.svg')}
           alt="404 - Not Found"
           width={800}
           height={600}
@@ -27,7 +26,7 @@ const router=useRouter();
       </p>
 
       <button
-        onClick={() => window.location.href = '/market-access/dashboard'}
+        onClick={() => window.location.href = getPath('/dashboard')}
         className="cursor-pointer inline-block px-6 py-3 rounded-lg font-medium shadow-md transition-colors duration-300 bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-500 dark:hover:bg-blue-600"
       >
         Go back home

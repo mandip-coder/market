@@ -1,5 +1,4 @@
 import dynamic from 'next/dynamic';
-import React from 'react';
 import { ReactQuillProps } from 'react-quill';
 import 'react-quill-new/dist/quill.snow.css';
 

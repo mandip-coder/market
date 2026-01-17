@@ -1,15 +1,9 @@
-import { Stage, stages } from "../../../../lib/types";
-
 export const generateUniqueId = () => {
   return Date.now().toString(36) + Math.random().toString(36).substring(2);
 };
 
-export const stageOptions: { value: stages; label: string; defaultProbability: number }[] = [
-  { value: Stage.DISCUSSION, label: 'Discussion', defaultProbability: 25 },
-  { value: Stage.NEGOTIATION, label: 'Negotiation', defaultProbability: 60 },
-  { value: Stage.CLOSED_WON, label: 'Closed Won', defaultProbability: 100 },
-  { value: Stage.CLOSED_LOST, label: 'Closed Lost', defaultProbability: 0 }
-];
+// Removed stageOptions as it relied on static Stage enum and is now dynamic or unused.
+
 
 export const priorityOptions = ['Low', 'Medium', 'High', 'Urgent'].map((option) => ({ 
   value: option, 

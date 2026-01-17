@@ -117,7 +117,7 @@ export default function AppErrorUI({
 }: {
   message?: string;
   onRetry?: () => void;
-  code?:400 | 401 | 403 | 404 | 405 | 408 | 410 | 429 | 500 | 502 | 503 | 504
+  code?:number
   backLink?: string
   buttonName?: string
 }) {

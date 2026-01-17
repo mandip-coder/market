@@ -1,160 +1,171 @@
-'use client'
-import ContactModal, { HCOContactPerson } from '@/components/AddNewContactModal/AddNewContactModal';
-import { toast } from '@/components/AppToaster/AppToaster';
-import { CardHeader } from '@/components/CardHeader/CardHeader';
-import CustomSelect from '@/components/CustomSelect/CustomSelect';
-import Input from '@/components/Input/Input';
-import Label from '@/components/Label/Label';
-import { useLoading } from '@/hooks/useLoading';
-import { rowGutter } from '@/shared/constants/themeConfig';
-import { Avatar, Button, Card, Col, Drawer, Modal, Row, Tooltip, Typography } from 'antd';
-import TextArea from 'antd/es/input/TextArea';
-import { City, Country, State } from 'country-state-city';
-import { Form, Formik, FormikProps } from 'formik';
-import { Building, Edit, Flag, Globe, Hash, Mail, MapPin, Phone, Plus, Save, Trash2, User, Users } from 'lucide-react';
-import { useRef, useState, useEffect } from 'react';
+"use client";
+import { toast } from "@/components/AppToaster/AppToaster";
+import CustomSelect from "@/components/CustomSelect/CustomSelect";
+import Input from "@/components/Input/Input";
+import Label from "@/components/Label/Label";
+import {
+  useCountry,
+  useCountryStates,
+  useHcoServices,
+  useHCOTypes,
+  useRegions,
+  useStatesCities
+} from "@/services/dropdowns/dropdowns.hooks";
+import { rowGutter } from "@/shared/constants/themeConfig";
+import { Button, Col, Drawer, Row } from "antd";
+import TextArea from "antd/es/input/TextArea";
+
+import { useHealthCareStore } from "@/context/store/healthCareStore";
+import { Form, Formik, FormikProps } from "formik";
+import { Building, Flag, Globe, Hash, Layers, Mail, MapPin, MapPinned, Phone, Save } from "lucide-react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import * as Yup from "yup";
+import { useCreateHealthcare } from "./services/healthcares.hooks";
+import { CreateHealthcareData } from "./services/types";
 
-const HEALTHCARE_TYPES = ["NHS Trust", "Foundation Trust", "PCN"];
-
-interface AddhealthcareDrawerProps {
-  open: boolean;
-  onClose: () => void;
-}
-
-export default function AddhealthcareDrawer({ open, onClose }: AddhealthcareDrawerProps) {
-  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
-  const [editingContact, setEditingContact] = useState<HCOContactPerson | null>(null);
-  const [contactToDelete, setContactToDelete] = useState<HCOContactPerson | null>(null);
-  const [states, setStates] = useState<any[]>([]);
-  const [cities, setCities] = useState<any[]>([]);
-  const [selectedCountry, setSelectedCountry] = useState('');
-  const [selectedState, setSelectedState] = useState('');
+const validationSchema = Yup.object().shape({
+  hcoName: Yup.string().required("Healthcare name is required"),
+  hcoTypeUUID: Yup.string().required("Healthcare type is required"),
+  address: Yup.string().required("Address is required"),
+  countryUUID: Yup.string().required("Country is required"),
+  stateUUID: Yup.string().required("State/Province is required"),
+  cityUUID: Yup.string().required("City is required"),
+  phone1: Yup.string()
+    .required("Primary phone is required")
+    .matches(/^\d{7,20}$/, "Invalid phone number"),
+  phone2: Yup.string().matches(/^\d{7,20}$/, "Invalid phone number"),
+  email: Yup.string()
+    .required("Email is required")
+    .email("Invalid email address"),
+  regionUUID: Yup.string().required("Region is required"),
+  services: Yup.array().of(Yup.string()).required("Services are required").min(1, "At least one service is required"),
+  healthcareCode: Yup.string(),
+  icbCode: Yup.string(),
+  website: Yup.string().url("Invalid URL"),
+});
+export default function AddhealthcareDrawer() {
+  const { addHealthCareModal, setHealthCareModal } = useHealthCareStore();
+  const [selectedCountry, setSelectedCountry] = useState("");
+  const [selectedState, setSelectedState] = useState("");
   const [noStatesAvailable, setNoStatesAvailable] = useState(false);
   const [noCitiesAvailable, setNoCitiesAvailable] = useState(false);
-
-  const validationSchema = Yup.object().shape({
-    name: Yup.string().required("Healthcare name is required"),
-    type: Yup.string().required("Healthcare type is required"),
-    address: Yup.string().required("Address is required"),
-    country: Yup.string().required("Country is required"),
-    state: Yup.string().required("State/Province is required"),
-    city: Yup.string().required("City is required"),
-    phone1: Yup.number().typeError("Primary phone must be a number").required("Primary phone is required"),
-    phone2: Yup.number().typeError("Secondary phone must be a number"),
-    contacts: Yup.array().of(
-      Yup.object().shape({
-        name: Yup.string().required("HCOContactPerson name is required"),
-        position: Yup.string().required("Position is required"),
-      })
-    ),
+  const { data: healthcareTypes = [] } = useHCOTypes({
+    enabled: addHealthCareModal,
   });
+  const { data: countryList = [] } = useCountry({
+    enabled: addHealthCareModal,
+  });
+  const { data: states = [], isLoading: statesLoading } =
+    useCountryStates(selectedCountry);
+  const { data: cities = [], isLoading: citiesLoading } =
+    useStatesCities(selectedState);
+  const { data: regions = [] } = useRegions({
+    enabled: addHealthCareModal,
+  });
+  const { data: hcoServices = [] } = useHcoServices({
+    enabled: addHealthCareModal,
+  });
+  const createHealthcareMutation = useCreateHealthcare();
 
-  const [loading, setLoading] = useLoading();
+  const handleSubmit = useCallback(
+    async (values: CreateHealthcareData, { resetForm }: any) => {
+      await createHealthcareMutation.mutateAsync(values, {
+        onSuccess: () => {
+          resetForm();
+          setHealthCareModal(false);
+        },
+      });
+    },
+    [createHealthcareMutation]
+  );
 
-  const handleSubmit = async (values: any, { resetForm }: any) => {
-    setLoading(true);
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      resetForm();
-      onClose();
-      toast.success('Healthcare created successfully!');
-    } catch (error) {
-      console.error("Error creating Healthcare:", error);
-      toast.error('Failed to create Healthcare. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAddContact = () => {
-    setEditingContact(null);
-    setIsContactModalOpen(true);
-  };
-
-  const handleEditContact = (contact: HCOContactPerson) => {
-    setEditingContact(contact);
-    setIsContactModalOpen(true);
-  };
-
-  const handleDeleteContact = (contact: HCOContactPerson) => {
-    setContactToDelete(contact);
-  };
-
-  const confirmDeleteContact = (values: any, setFieldValue: any) => {
-    if (contactToDelete) {
-      const updatedContacts = values.contacts.filter(
-        (contact: HCOContactPerson) => contact.hcoContactUUID !== contactToDelete.hcoContactUUID
-      );
-      setFieldValue('contacts', updatedContacts);
-      setContactToDelete(null);
-      toast.success('HCOContactPerson deleted successfully!');
-    }
-  };
-
-  const handleCountryChange = (value: string, setFieldValue: any) => {
-    setSelectedCountry(value);
-    setFieldValue('country', value);
-    setFieldValue('state', '');
-    setFieldValue('city', '');
-    setSelectedState('');
-    setNoCitiesAvailable(false);
-
-    if (value) {
-      const countryStates = State.getStatesOfCountry(value);
-      setStates(countryStates);
-      setCities([]);
-
-      // Check if country has no states
-      if (countryStates.length === 0) {
-        setNoStatesAvailable(true);
-        // Use country name as state and city
-        const countryName = Country.getAllCountries().find(c => c.isoCode === value)?.name || '';
-        setFieldValue('state', countryName);
-        setFieldValue('city', countryName);
-      } else {
-        setNoStatesAvailable(false);
-      }
-    } else {
-      setStates([]);
-      setCities([]);
-      setNoStatesAvailable(false);
-    }
-  };
-
-  const handleStateChange = (value: string, setFieldValue: any) => {
-    setSelectedState(value);
-    setFieldValue('state', value);
-    setFieldValue('city', '');
-
-    if (value) {
-      const stateCities = City.getCitiesOfState(selectedCountry, value);
-      setCities(stateCities);
-
-      // Check if state has no cities
-      if (stateCities.length === 0) {
-        setNoCitiesAvailable(true);
-        // Use state name as city
-        const stateName = states.find(s => s.isoCode === value)?.name || '';
-        setFieldValue('city', stateName);
-      } else {
-        setNoCitiesAvailable(false);
-      }
-    } else {
-      setCities([]);
+  const handleCountryChange = useCallback(
+    (value: string, setFieldValue: any) => {
+      setSelectedCountry(value);
+      setFieldValue("countryUUID", value);
+      setFieldValue("stateUUID", "");
+      setFieldValue("cityUUID", "");
+      setSelectedState("");
       setNoCitiesAvailable(false);
-    }
-  };
+      setNoStatesAvailable(false);
+    },
+    []
+  );
+
+  const handleStateChange = useCallback((value: string, setFieldValue: any) => {
+    setSelectedState(value);
+    setFieldValue("stateUUID", value);
+    setFieldValue("cityUUID", "");
+    setNoCitiesAvailable(false);
+  }, []);
 
   const addorgFormRef = useRef<FormikProps<any> | null>(null);
+
+  // Memoize dropdown options to prevent recreating on every render
+  const healthcareTypeOptions = useMemo(
+    () =>
+      healthcareTypes.map((type) => ({
+        value: type.hcoTypeUUID,
+        label: type.hcoTypeName,
+      })),
+    [healthcareTypes]
+  );
+
+  const countryOptions = useMemo(
+    () =>
+      countryList.map((country) => ({
+        label: country.countryName,
+        value: country.countryUUID,
+      })),
+    [countryList]
+  );
+
+  const stateOptions = useMemo(
+    () =>
+      states.map((state) => ({
+        label: state.stateName,
+        value: state.stateUUID,
+      })),
+    [states]
+  );
+
+  const cityOptions = useMemo(
+    () =>
+      cities.map((city) => ({
+        label: city.cityName,
+        value: city.cityUUID,
+      })),
+    [cities]
+  );
+
+  const regionOptions = useMemo(
+    () =>
+      regions.map((region) => ({
+        label: region.regionName,
+        value: region.regionUUID,
+      })),
+    [regions]
+  );
+
+  const serviceOptions = useMemo(
+    () =>
+      hcoServices.map((service) => ({
+        label: service.hcoServiceName,
+        value: service.hcoServiceUUID,
+      })),
+    [hcoServices]
+  );
+ 
 
   return (
     <Drawer
       title={
-        <span className=" font-semibold text-gray-800 dark:text-white">Add New Healthcare</span>
+        <span className=" font-semibold text-gray-800 dark:text-white">
+          Add New Healthcare
+        </span>
       }
-      onClose={onClose}
-      open={open}
+      onClose={() => setHealthCareModal(false)}
+      open={addHealthCareModal}
       size={"large"}
       destroyOnHidden
       className="healthcare-drawer dark:bg-gray-800"
@@ -163,8 +174,8 @@ export default function AddhealthcareDrawer({ open, onClose }: AddhealthcareDraw
           <Button
             type="primary"
             htmlType="submit"
-            form='orgform'
-            loading={loading}
+            form="orgform"
+            loading={createHealthcareMutation.isPending}
             icon={<Save className="h-4 w-4" />}
           >
             Create Healthcare
@@ -174,85 +185,107 @@ export default function AddhealthcareDrawer({ open, onClose }: AddhealthcareDraw
     >
       <Formik
         initialValues={{
-          name: "",
-          type: "",
+          hcoName: "",
+          hcoTypeUUID: "",
           address: "",
           phone1: "",
           phone2: "",
+          email: "",
           website: "",
-          contacts: [],
-          country: "",
-          state: "",
-          city: "",
+          cityUUID: "",
           icbCode: "",
           healthcareCode: "",
+          countryUUID: "",
+          stateUUID: "",
+          regionUUID: "",
+          hcoServices: [],
         }}
         validationSchema={validationSchema}
         onSubmit={handleSubmit}
+        validateOnChange={false}
         innerRef={addorgFormRef}
       >
-        {({ values, errors, touched, handleChange, handleBlur, handleSubmit, isSubmitting, setFieldValue }) => (
-          <Form id='orgform'>
+        {({
+          values,
+          errors,
+          touched,
+          handleChange,
+          handleBlur,
+          setFieldValue,
+        }) => (
+          <Form id="orgform">
             <Row gutter={rowGutter}>
               <Row gutter={[16, 16]}>
                 <Col xs={24}>
                   <Input
-                    name="name"
-                    label='Healthcare Name'
+                    name="hcoName"
+                    label="Healthcare Name"
                     required
-                    prefix={<Building className="h-4 w-4 text-gray-400 dark:text-gray-500" />}
+                    prefix={
+                      <Building className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                    }
                   />
                 </Col>
                 <Col xs={8}>
                   <CustomSelect
                     required
-                    name="type"
-                    label='Type'
+                    name="hcoTypeUUID"
+                    label="Type"
                     placeholder="Select healthcare type"
-                    options={HEALTHCARE_TYPES.map((type) => ({ label: type, value: type }))}
+                    options={healthcareTypeOptions}
+                    showSearch={{
+                      optionFilterProp: "label",
+                    }}
                   />
                 </Col>
                 <Col xs={8}>
                   <CustomSelect
                     required
-                    name="country"
-                    label='Country'
-                    showSearch={
-                      {
-                        optionFilterProp: "label"
-                      }
-                    }
-                    options={Country.getAllCountries().map(country => ({ label: country.name, value: country.isoCode }))}
+                    name="countryUUID"
+                    label="Country"
+                    showSearch={{
+                      optionFilterProp: "label",
+                    }}
+                    options={countryOptions}
                     value={selectedCountry}
-                    onChange={(value) => handleCountryChange(value, setFieldValue)}
-                    prefix={<Flag className="h-4 w-4 text-gray-400 dark:text-gray-500" />}
+                    onChange={(value) =>
+                      handleCountryChange(value, setFieldValue)
+                    }
+                    prefix={
+                      <Flag className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                    }
                   />
                 </Col>
                 <Col xs={8}>
                   <CustomSelect
                     required
-                    name="state"
-                    label='State/Province'
-                    showSearch={
-                      {
-                        optionFilterProp: "label"
-                      }
+                    name="stateUUID"
+                    label="State/Province"
+                    showSearch={{
+                      optionFilterProp: "label",
+                    }}
+                    options={stateOptions}
+                    onChange={(value) =>
+                      handleStateChange(value, setFieldValue)
                     }
-                    options={states.map(state => ({ label: state.name, value: state.isoCode }))}
-                    onChange={(value) => handleStateChange(value, setFieldValue)}
                     disabled={!selectedCountry || noStatesAvailable}
-                    prefix={<MapPin className="h-4 w-4 text-gray-400 dark:text-gray-500" />}
+                    loading={statesLoading}
+                    prefix={
+                      <MapPin className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                    }
                   />
                 </Col>
                 <Col xs={8}>
                   {noCitiesAvailable ? (
-                    <div className='relative'>
-                      <Label text='City' required />
+                    <div className="relative">
+                      <Label text="City" required />
                       <Input
-                        name="city"
-                        value={values.city}
+                        name="cityUUID"
+                        value={values.cityUUID}
                         disabled
-                        prefix={<MapPin className="h-4 w-4 text-gray-400 dark:text-gray-500" />}
+                        prefix={
+                          <MapPin className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                        }
                       />
                       <div className="text-xs text-gray-500 mt-1 dark:text-gray-400">
                         Using state name as city (no cities available)
@@ -261,220 +294,143 @@ export default function AddhealthcareDrawer({ open, onClose }: AddhealthcareDraw
                   ) : (
                     <CustomSelect
                       required
-                      name="city"
-                      label='City'
-                      options={cities.map(city => ({ label: city.name, value: city.name }))}
+                      name="cityUUID"
+                      label="City"
+                      options={cityOptions}
                       disabled={!selectedState}
-                      prefix={<MapPin className="h-4 w-4 text-gray-400 dark:text-gray-500" />}
+                      loading={citiesLoading}
+                      showSearch={{
+                        optionFilterProp: "label",
+                      }}
+                      prefix={
+                        <MapPin className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                      }
                     />
                   )}
                 </Col>
-
+                <Col xs={8}>
+                  <CustomSelect
+                    required
+                    name="regionUUID"
+                    label="Region"
+                    placeholder="Select region"
+                    options={regionOptions}
+                    showSearch={{
+                      optionFilterProp: "label",
+                    }}
+                    prefix={
+                      <MapPinned className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                    }
+                  />
+                </Col>
+                <Col xs={8}>
+                  <CustomSelect
+                    maxResponsive
+                    required
+                    name="hcoServices"
+                    label="Services"
+                    placeholder="Select services"
+                    options={serviceOptions}
+                    mode="multiple"
+                    showSearch={{
+                      optionFilterProp: "label",
+                    }}
+                    prefix={
+                      <Layers className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                    }
+                  />
+                </Col>
                 <Col xs={24}>
-                  <div className='relative'>
-                    <Label text='Address' required />
+                  <div className="relative">
+                    <Label text="Address" required />
                     <TextArea
                       name="address"
                       rows={3}
                       required
                       onChange={handleChange}
                       onBlur={handleBlur}
-                      status={touched.address && errors.address ? 'error' : undefined}
+                      status={
+                        touched.address && errors.address ? "error" : undefined
+                      }
                       className="rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                     />
-                    {touched.address && errors.address && <span className="field-error">{errors.address as any}</span>}
+                    {touched.address && errors.address && (
+                      <span className="field-error">
+                        {errors.address as any}
+                      </span>
+                    )}
                   </div>
                 </Col>
                 <Col xs={24} sm={12}>
                   <Input
-                    name="icbCode"
-                    label='ICB Code'
-                    prefix={<Hash className="h-4 w-4 text-gray-400 dark:text-gray-500" />}
+                    name="healthcareCode"
+                    label="Healthcare Code"
+                    prefix={
+                      <Hash className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                    }
                   />
                 </Col>
                 <Col xs={24} sm={12}>
                   <Input
-                    name="healthcareCode"
-                    label='Healthcare Code'
-                    prefix={<Hash className="h-4 w-4 text-gray-400 dark:text-gray-500" />}
+                    name="icbCode"
+                    label="ICB Code"
+                    prefix={
+                      <Hash className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                    }
+                  />
+                </Col>
+                <Col xs={24}>
+                  <Input
+                    name="email"
+                    label="Email"
+                    type="email"
+                    required
+                    placeholder="Enter email address"
+                    prefix={
+                      <Mail className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                    }
                   />
                 </Col>
                 <Col xs={24} sm={12}>
                   <Input
                     name="phone1"
-                    label='Primary Phone'
+                    label="Primary Phone"
+                    minLength={7}
+                    maxLength={20}
                     required
-                    prefix={<Phone className="h-4 w-4 text-gray-400 dark:text-gray-500" />}
+                    prefix={
+                      <Phone className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                    }
                   />
                 </Col>
                 <Col xs={24} sm={12}>
                   <Input
                     name="phone2"
-                    label='Secondary Phone'
-                    prefix={<Phone className="h-4 w-4 text-gray-400 dark:text-gray-500" />}
+                    label="Secondary Phone"
+                    minLength={7}
+                    maxLength={20}
+                    prefix={
+                      <Phone className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                    }
                   />
                 </Col>
+
                 <Col xs={24}>
                   <Input
                     name="website"
-                    label='Website'
+                    label="Website"
                     placeholder="Enter website URL"
-                    prefix={<Globe className="h-4 w-4 text-gray-400 dark:text-gray-500" />}
+                    prefix={
+                      <Globe className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                    }
                   />
                 </Col>
+
               </Row>
-
-              <Col xs={24}>
-                <Card
-                  title={
-                    <div className="flex justify-between items-center">
-                      <CardHeader title="Contacts" />
-                      <Button
-                        type="primary"
-                        size="small"
-                        icon={<Plus className="h-4 w-4" />}
-                        onClick={handleAddContact}
-                        className="rounded-full px-4 dark:bg-blue-600 dark:hover:bg-blue-700"
-                      >
-                        Add HCOContactPerson
-                      </Button>
-                    </div>
-                  }
-                  size="small"
-                  variant="borderless"
-                >
-                  {values.contacts.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {values.contacts.map((contact: HCOContactPerson) => (
-                        <div
-                          key={contact.hcoContactUUID}
-                          className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 dark:bg-gray-700 dark:border-gray-600"
-                        >
-                          <div className="p-4">
-                            <div className="flex justify-between items-start mb-3">
-                              <div className="flex items-center gap-3">
-                                <Avatar
-                                  size={40}
-                                  icon={<User />}
-                                  className="!bg-blue-100 !text-blue-600 dark:!bg-blue-900 dark:!text-blue-300"
-                                />
-                                <div>
-                                  <Typography.Text strong className="text-base block dark:text-white">
-                                    {contact.fullName}
-                                  </Typography.Text>
-                                  <div className="text-gray-500 text-sm dark:text-gray-400">
-                                    {contact.role}
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex space-x-2">
-                                <Tooltip title="Edit">
-                                  <Button
-                                    type="text"
-                                    size="small"
-                                    icon={<Edit className="h-4 w-4" />}
-                                    onClick={() => handleEditContact(contact)}
-                                    className="text-gray-500 hover:text-blue-500 hover:bg-blue-50 dark:text-gray-400 dark:hover:text-blue-400 dark:hover:bg-blue-900/50 rounded-full p-2"
-                                  />
-                                </Tooltip>
-                                <Tooltip title="Delete">
-                                  <Button
-                                    type="text"
-                                    size="small"
-                                    danger
-                                    icon={<Trash2 className="h-4 w-4" />}
-                                    onClick={() => handleDeleteContact(contact)}
-                                    className="text-gray-500 hover:text-red-500 hover:bg-red-50 dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-red-900/50 rounded-full p-2"
-                                  />
-                                </Tooltip>
-                              </div>
-                            </div>
-
-                            <div className="space-y-2">
-                              <div className="flex items-center text-gray-600 dark:text-gray-400">
-                                <Mail className="h-4 w-4 mr-2 text-gray-400 dark:text-gray-500" />
-                                <Typography.Text className="text-sm dark:text-gray-300">
-                                  {contact.email || <span className="text-gray-400 dark:text-gray-500">No email</span>}
-                                </Typography.Text>
-                              </div>
-                              <div className="flex items-center text-gray-600 dark:text-gray-400">
-                                <Phone className="h-4 w-4 mr-2 text-gray-400 dark:text-gray-500" />
-                                <Typography.Text className="text-sm dark:text-gray-300">
-                                  {contact.phone || <span className="text-gray-400 dark:text-gray-500">No phone</span>}
-                                </Typography.Text>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-6 text-gray-500 bg-gray-50 rounded-lg border border-gray-200 dark:bg-gray-700/50 dark:border-gray-600 dark:text-gray-400">
-                      <div className="mb-2 p-2 bg-blue-100 rounded-full dark:bg-blue-900/50">
-                        <Users className="h-5 w-5 text-blue-500 dark:text-blue-400" />
-                      </div>
-                      <Typography.Text className="text-gray-600 mb-1 text-sm font-medium dark:text-gray-300">No contacts</Typography.Text>
-                      <Typography.Text type="secondary" className="text-center text-xs mb-3 max-w-xs dark:text-gray-500">
-                        Add contacts to this healthcare
-                      </Typography.Text>
-                      <Button
-                        type="primary"
-                        size="small"
-                        icon={<Plus className="h-4 w-4" />}
-                        onClick={handleAddContact}
-                        className="rounded-full px-3 text-xs dark:bg-blue-600 dark:hover:bg-blue-700"
-                      >
-                        Add HCOContactPerson
-                      </Button>
-                    </div>
-                  )}
-                </Card>
-              </Col>
             </Row>
-            <ContactModal
-              open={isContactModalOpen}
-              onClose={() => setIsContactModalOpen(false)}
-              onSave={(contact: any) => {
-                if (editingContact) {
-                  const updatedContacts = addorgFormRef.current?.values.contacts.map((c: HCOContactPerson) =>
-                    c.hcoContactUUID === editingContact.hcoContactUUID ? { ...contact, id: editingContact.hcoContactUUID } : c
-                  );
-                  addorgFormRef.current?.setFieldValue("contacts", updatedContacts);
-                } else {
-                  const newContact = { ...contact, id: Date.now().toString() };
-                  addorgFormRef.current?.setFieldValue("contacts", [
-                    ...addorgFormRef.current?.values.contacts,
-                    newContact,
-                  ]);
-                }
-                setIsContactModalOpen(false);
-                setEditingContact(null);
-              }}
-              initialContact={editingContact}
-              requireHelthcareId={false}
-            />
-
-            <Modal
-              title={
-                <div className="flex items-center gap-2">
-                  <Trash2 className="h-5 w-5 text-red-500 dark:text-red-400" />
-                  <span className="dark:text-white">Confirm Delete</span>
-                </div>
-              }
-              open={!!contactToDelete}
-              onOk={() => confirmDeleteContact(values, setFieldValue)}
-              onCancel={() => setContactToDelete(null)}
-              okText="Delete"
-              cancelText="Cancel"
-              okButtonProps={{ danger: true }}
-              className="delete-confirm-modal dark:bg-gray-800 dark:text-white"
-            >
-              <p className="text-gray-700 dark:text-gray-300">Are you sure you want to delete the contact <span className="font-semibold dark:text-white">"{contactToDelete?.fullName}"</span>?</p>
-              <p className="text-gray-500 text-sm mt-2 dark:text-gray-400">This action cannot be undone.</p>
-            </Modal>
           </Form>
         )}
       </Formik>
     </Drawer>
-  )
+  );
 }

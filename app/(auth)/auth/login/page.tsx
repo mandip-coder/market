@@ -1,17 +1,22 @@
 "use client";
 import { toast } from "@/components/AppToaster/AppToaster";
-import GradientText from "@/components/GradientText/GradientText";
+import AuthLogo from "@/components/AuthLogo/AuthLogo";
 import Label from "@/components/Label/Label";
-import ShinyText from "@/components/ShinyText/ShinyText";
 import { useLoading } from "@/hooks/useLoading";
 import { signInAction } from "@/lib/actions/signIn";
 import { EyeInvisibleOutlined, EyeTwoTone } from "@ant-design/icons";
 import { Button, Input } from "antd";
 import { Lock, User2 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
+
+// Email validation helper
+const isValidEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
 
 const Login = () => {
   const [credentials, setCredentials] = useState({
@@ -21,6 +26,14 @@ const Login = () => {
   const [loading, setLoading] = useLoading();
   const router = useRouter();
   const { update } = useSession();
+
+  // Save email to sessionStorage on blur if valid
+  const handleEmailBlur = () => {
+    if (credentials.username && isValidEmail(credentials.username)) {
+      sessionStorage.setItem('loginEmail', credentials.username);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -30,6 +43,8 @@ const Login = () => {
     });
 
     if (res?.success) {
+      // Clear stored email on successful login
+      sessionStorage.removeItem('loginEmail');
       setLoading(false);
       update();
       router.push("/dashboard");
@@ -40,95 +55,77 @@ const Login = () => {
   };
 
   return (
-    <div className="h-full flex flex-col items-center justify-center border border-border-header dark:border-dark-border p-20 rounded-2xl w-full max-w-200">
-      <div className="mb-5">
-        <GradientText
-          colors={["#1a7a6a", "#1a4d7a", "#1a7a6a", "#1a4d7a", "#1a7a6a"]}
-          animationSpeed={3}
-          showBorder={false}
-          className="text-5xl"
-          
-        >
-          Market Access
-        </GradientText>
+    <div className="h-full flex flex-col items-center justify-center border border-white/20 shadow-2xl p-8 md:p-12 rounded-3xl w-full max-w-lg bg-white/70 dark:bg-black/60 backdrop-blur-xl">
+      <div className="mb-6 text-center pb-2">
+        <AuthLogo />
       </div>
-      <div className="mb-5">
-        <h1 className="text-2xl font-semibold mb-1 text-center dark:text-white">
-          Sign In
+      <div className="mb-8 text-center">
+        <h1 className="text-2xl font-bold mb-2 text-gray-800 dark:text-white">
+          Welcome Back
         </h1>
-        <span className="text-gray-500 text-base dark:text-gray-400">
-          Sign in to your account
+        <span className="text-gray-600 font-medium text-sm md:text-base dark:text-gray-300">
+          Sign in to access your dashboard
         </span>
       </div>
-      <form className="w-full" onSubmit={handleSubmit}>
-        <div className="flex flex-col mb-2">
-          <div className="mb-2">
-            <Label text="Email/Username" className="dark:text-gray-200" />
+      <form className="w-full space-y-5" onSubmit={handleSubmit}>
+        <div className="space-y-5">
+          <div>
+            <Label text="Email/Username" className="!text-gray-700 dark:!text-gray-200 font-medium mb-1.5" />
             <Input
-              prefix={<User2 size={18} className="dark:text-gray-400" />}
-              size="large"
+              autoFocus
+              prefix={<User2 size={18} className="text-gray-400 group-hover:text-primary transition-colors" />}
+              size="middle"
               placeholder="Enter Your Email/Username"
-              onChange={(e: any) =>
+              onChange={(e) =>
                 setCredentials({ ...credentials, username: e.target.value })
               }
+              onBlur={handleEmailBlur}
               name="username"
               type="text"
               value={credentials.username}
+              className="rounded-xl py-2.5 dark:bg-gray-900/50 dark:border-gray-700 hover:border-primary focus:border-primary transition-all"
             />
           </div>
-          <Label text="Password" className="dark:text-gray-200" />
-          <Input.Password
-            prefix={<Lock size={18} className="dark:text-gray-400" />}
-            required
-            iconRender={(visible) =>
-              visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />
-            }
-            size="large"
-            value={credentials.password}
-            placeholder="Enter Your Password"
-            onChange={(e: any) =>
-              setCredentials({ ...credentials, password: e.target.value })
-            }
-            name="password"
-          />
+          <div>
+            <Label text="Password" className="!text-gray-700 dark:!text-gray-200 font-medium mb-1.5" />
+            <Input.Password
+              prefix={<Lock size={18} className="text-gray-400 group-hover:text-primary transition-colors" />}
+              size="middle"
+              placeholder="Enter Your Password"
+              iconRender={(visible) =>
+                visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />
+              }
+              onChange={(e) =>
+                setCredentials({ ...credentials, password: e.target.value })
+              }
+              name="password"
+              value={credentials.password}
+              className="rounded-xl py-2.5 dark:bg-gray-900/50 dark:border-gray-700 hover:border-primary focus:border-primary transition-all"
+            />
+            <div className="flex justify-end mt-2">
+              <Link
+                href="/auth/forget-password"
+                className="text-primary text-sm font-semibold dark:text-blue-400 hover:underline"
+              >
+                Forgot Password?
+              </Link>
+            </div>
+          </div>
         </div>
-        <div className="flex justify-between items-center">
-          {/* <div className="flex items-center gap-2">
-            <Checkbox className="dark:border-gray-600">
-              <span className="font-semibold dark:text-gray-200">Remember for 30 days</span>
-            </Checkbox>
-          </div> */}
-          {/* <Link
-            href="/auth/forget-password"
-            className="text-primary font-semibold dark:text-blue-400 hover:dark:text-blue-300"
-          >
-            Forgot Password?
-          </Link> */}
-        </div>
-        <div className="mt-3">
+
+        <div className="pt-4">
           <Button
-            size="large"
+            size="middle"
             color="primary"
             variant="solid"
             disabled={loading || !credentials.username || !credentials.password}
             loading={loading}
             htmlType="submit"
-            className="w-full dark:bg-blue-600 dark:hover:bg-blue-700 dark:border-blue-600"
+            className="w-full h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300 dark:bg-blue-600 dark:hover:bg-blue-700 dark:border-blue-600"
           >
             Sign In
           </Button>
         </div>
-        {/* <div className="flex items-center justify-center mt-3">
-          <span className="text-gray-500 text-base dark:text-gray-400">
-            Don't have an account?
-            <Link
-              href="/auth/signup"
-              className="text-primary font-semibold dark:text-blue-400 hover:dark:text-blue-300 ml-1"
-            >
-              Sign Up
-            </Link>
-          </span>
-        </div> */}
       </form>
     </div>
   );

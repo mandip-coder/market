@@ -2,14 +2,13 @@
 import CustomSelect from "@/components/CustomSelect/CustomSelect";
 import Input from "@/components/Input/Input";
 import Label from "@/components/Label/Label";
-import { Product } from "@/context/store/productStore";
 import { rowGutter } from "@/shared/constants/themeConfig";
 import { Col, Divider, Row } from "antd";
 import TextArea from "antd/es/input/TextArea";
 import { FormikErrors, FormikHandlers, FormikHelpers, FormikTouched } from "formik";
 import { memo, useState } from "react";
-import { Role } from "../../roles-master/components/RoleDataTable";
 import { CompanyFormData } from "./AddCompanyDrawer";
+import { Product, Role } from "@/services/dropdowns/dropdowns.types";
 
 interface BasicDetailsFormProps {
   values: CompanyFormData;
@@ -33,8 +32,7 @@ function BasicDetailsForm({
   productsData=[]
 }: BasicDetailsFormProps) {
   
-  const [roles,setRoles]=useState(rolesData)
-  const [products,setProducts]=useState(productsData)
+  
 
   const PhoneNumberInput = ({
     name,
@@ -138,7 +136,7 @@ function BasicDetailsForm({
             <CustomSelect
               name="rolesUUID"
               label="Roles"
-              options={roles}
+              options={rolesData.map((role)=>({label:role.roleName,value:role.roleUUID}))}
               mode="multiple"
               required
               maxResponsive
@@ -149,7 +147,7 @@ function BasicDetailsForm({
             <CustomSelect
               name="productsUUID"
               label="Products"
-              options={products}
+              options={productsData.map((product)=>({label:product.productName,value:product.productUUID}))}
               mode="multiple"
               required
               maxResponsive

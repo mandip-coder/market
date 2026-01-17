@@ -5,8 +5,8 @@ import CustomSelect from "@/components/CustomSelect/CustomSelect";
 import InputBox from "@/components/Input/Input";
 import Label from "@/components/Label/Label";
 import ModalWrapper from "@/components/Modal/Modal";
-import { useDropDowns } from "@/context/store/optimizedSelectors";
 import { GlobalDate } from "@/Utils/helpers";
+import { UseMutationResult } from "@tanstack/react-query";
 import {
   Button,
   Card,
@@ -35,12 +35,12 @@ import {
   Trash2,
 } from "lucide-react";
 import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "react-toastify";
+import { toast } from '@/components/AppToaster/AppToaster';
 import * as Yup from "yup";
 import { CallLog } from "../../../lib/types";
 import { EmptyState } from "./EmptyState";
-import { CreateCallPayload, UpdateCallPayload } from "@/app/(main)/leads/services";
-import { UseMutationResult } from "@tanstack/react-query";
+import { useOutcomes } from "@/services/dropdowns/dropdowns.hooks";
+import { CreateCallPayload, UpdateCallPayload } from "@/app/(main)/leads/services/leads.types";
 const { Text, Paragraph } = Typography;
 
 // Constants
@@ -238,7 +238,9 @@ const CallForm = memo<{
     leadUUID,
     dealUUID,
   }) => {
-    const { outcomes } = useDropDowns();
+
+    const { data:outcomes=[] } = useOutcomes();
+
     const initialValues = useMemo(() => {
       if (editingCall) {
         return {
@@ -287,7 +289,18 @@ const CallForm = memo<{
             .required("Duration is required")
             .min(0, "Duration must be at least 0 minutes")
             .max(5000, "Duration cannot exceed 5000 minutes")
-            .integer("Duration must be a whole number"),
+            .integer("Duration must be a whole number")
+            .test(
+              "end-time-not-future",
+              "Call end time cannot be in the future",
+              function (value) {
+                const { callStartTime } = this.parent;
+                if (!callStartTime || !value) return true;
+                const endTime = dayjs(callStartTime).add(value, 'minutes');
+                const now = dayjs();
+                return endTime.isBefore(now) || endTime.isSame(now, 'second');
+              }
+            ),
           purpose: Yup.string()
             .required("Purpose is required")
             .max(200, "Purpose must be at most 255 characters")
@@ -347,7 +360,6 @@ const CallForm = memo<{
         validationSchema={validationSchema}
         onSubmit={handleSubmit}
         enableReinitialize
-        validateOnChange={false}
         key={editingCall?.callLogUUID || "new-call"}
       >
         {({ isValid, dirty }) => (
@@ -375,7 +387,7 @@ const CallForm = memo<{
 
               <InputBox
                 name="duration"
-                label="Duration"
+                label="Duration (in minutes)"
                 type={"number"}
                 placeholder="e.g., 30 minutes"
                 min={0}
@@ -471,6 +483,8 @@ interface CallModalProps {
   deleteCall: UseMutationResult<void, Error, string, unknown>;
   leadUUID?: string;
   dealUUID?: string;
+  refetching: boolean;
+  refetch: () => void;
 }
 
 export const CallModal: React.FC<CallModalProps> = ({
@@ -480,13 +494,14 @@ export const CallModal: React.FC<CallModalProps> = ({
   deleteCall,
   leadUUID,
   dealUUID,
+  refetching,
+  refetch,
 }) => {
   const [open, setOpen] = useState(false);
   const [editingCall, setEditingCall] = useState<CallLog | null>(null);
   const [modal, contextHolder] = Modal.useModal();
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [refreshLoading, setRefreshLoading] = useState(false);
 
   const debouncedUpdate = useMemo(
     () =>
@@ -565,10 +580,7 @@ export const CallModal: React.FC<CallModalProps> = ({
     debouncedUpdate.cancel();
   }, [debouncedUpdate]);
 
-  // Refresh handler to refetch call data
-  const handleRefresh = useCallback(() => {
-    toast.info("Refreshing calls...");
-  }, []);
+
 
   return (
     <>
@@ -587,8 +599,7 @@ export const CallModal: React.FC<CallModalProps> = ({
           </Button>
         </div>
 
-        {calls.length > 0 && (
-          <div className="mb-6 flex items-center justify-between gap-3">
+            <div className="mb-6 flex items-center justify-between gap-3">
             <Input
               placeholder="Search calls by subject, purpose, outcome, or comment..."
               prefix={<Search size={16} className="text-gray-400" />}
@@ -603,17 +614,15 @@ export const CallModal: React.FC<CallModalProps> = ({
               icon={
                 <RefreshCw
                   size={16}
-                  className={refreshLoading ? "!animate-spin" : ""}
+                  className={refetching ? "animate-spin" : ""}
                 />
               }
-              disabled={refreshLoading}
-              onClick={handleRefresh}
+              onClick={refetch}
               title="Refresh calls"
             >
               Refresh
             </Button>
           </div>
-        )}
 
         {filteredCalls?.length ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

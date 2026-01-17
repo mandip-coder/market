@@ -1,10 +1,10 @@
-import React from "react";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
+import React from "react";
 dayjs.extend(customParseFormat);
 
-import { DatePicker } from "antd";
 import type { DatePickerProps } from "antd";
+import { DatePicker } from "antd";
 import { useField } from "formik";
 import Label from "../Label/Label";
 
@@ -24,7 +24,7 @@ function CustomDatePicker({ label, onBlur, format, ...props }: CustomDatePickerP
   const pickerValue = field.value ? dayjs(field.value) : null;
 
   // When user picks a date from calendar, set ISO string in Formik
-  const handleChange: DatePickerProps["onChange"] = (date, dateString) => {
+  const handleChange: DatePickerProps["onChange"] = (date) => {
     if (date) {
       // store an ISO string (or use date.toISOString())
       helpers.setValue(date);

@@ -104,6 +104,7 @@ export const EmailCard: React.FC<EmailCardProps> = ({
                   {email.recipients.slice(0, 3).map((recipient: string, idx: number) => (
                     <Tag
                       key={idx}
+                      variant='outlined'
                       className="m-0 text-xs bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600"
                     >
                       {recipient}

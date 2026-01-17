@@ -1,22 +1,7 @@
+import { Product, ProductFormData } from "@/app/(main)/products/services/types";
 import { create } from "zustand";
 
-export interface ProductFormData extends Product {
-  productUUID: string;
-}
 
-export interface Product {
-  productErpId: number,
-  productCode: string,
-  productName: string,
-  genericName: string,
-  therapeuticArea: string,
-  createdAt: string,
-  updatedAt: string,
-  createdBy: string,
-  updatedBy: string,
-  productUUID: string,
-  dealProductUUID: string
-}
 
 interface ProductStore {
   addProductDrawer: boolean;

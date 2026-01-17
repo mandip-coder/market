@@ -1,7 +1,10 @@
 "use client";
+import AddNewContactModal from "@/components/AddNewContactModal/AddNewContactModal";
 import { useDealStore } from "@/context/store/dealsStore";
+import { useLeadStore } from "@/context/store/leadsStore";
 import {
   ArrowUpRight,
+  Hand,
   Handshake,
   LucideIcon,
   Package,
@@ -9,11 +12,9 @@ import {
   Zap,
 } from "lucide-react";
 import Link from "next/link";
-import { memo, useCallback, useState, lazy, Suspense } from "react";
-import AddNewContactModal, {
-  HCOContactPerson,
-} from "@/components/AddNewContactModal/AddNewContactModal";
+import { memo, useCallback, useState } from "react";
 import DealDrawer from "../../deals/components/Add-Deal";
+import LeadDrawer from "../../leads/components/LeadDrawer";
 
 // Define types for our action items
 interface ActionItemProps {
@@ -95,7 +96,8 @@ interface ActionType {
 }
 
 const QuickActions = memo(() => {
-  const { setDealDrawer, openDealDrawer } = useDealStore();
+  const { setDealDrawer } = useDealStore();
+  const {toggleLeadDrawer} = useLeadStore();
   const [openContactModal, setOpenContactModal] = useState(false);
 
   // Memoize handlers to prevent unnecessary re-renders
@@ -104,7 +106,7 @@ const QuickActions = memo(() => {
     setOpenContactModal(false);
   }, []);
 
-  const handleSaveContact = useCallback((values: HCOContactPerson) => {
+  const handleSaveContact = useCallback(() => {
     setOpenContactModal(false);
   }, []);
 
@@ -117,9 +119,16 @@ const QuickActions = memo(() => {
   // Define action items with proper icons and colors
   const actionItems: ActionType[] = [
     {
+      icon: Hand,
+      title: "Prospect",
+      description: "Create new prospect",
+      gradientColors: "from-green-800 to-green-500",
+      onClick: toggleLeadDrawer,
+    },
+    {
       icon: Handshake,
-      title: "Log Deal",
-      description: "Record a new interaction",
+      title: "Create Deal",
+      description: "Create a new Deal",
       gradientColors: "from-purple-500 to-blue-500",
       onClick: handleOpenDrawer,
     },
@@ -161,6 +170,7 @@ const QuickActions = memo(() => {
         </div>
       </div>
       <DealDrawer />
+      <LeadDrawer/>
       <AddNewContactModal
         open={openContactModal}
         onClose={handleDrawerClose}

@@ -1,23 +1,20 @@
-import { HCOContactPerson } from "@/components/AddNewContactModal/AddNewContactModal";
-
-export interface RecommendationProduct {
-  productUUID: string;
-  productName: string;
-  dealCount: number;
-}
-
-
 export interface Recommendation {
-  suggestionId: string;
-  hcoUUID: string;
-  hcoName: string;
-  leadSource: string;
-  leadSourceName: string;
-  summary: string;
-  products: RecommendationProduct[];
-  contactPersons: HCOContactPerson[];
+  recommendedUUID: string;
+  countryName: string;
+  hcoCount: number;
+  icbCode: string;
+  icbName: string;
+  productName: string;
+  regionalOfficeCode: string;
+  regionalOfficeName: string;
 }
 
 export interface RecommendationsResponse {
-  data: Recommendation[];
+  data: {
+    filteredCount: number;
+    hasNext: boolean;
+    page: number;
+    totalCount: number;
+    list: Recommendation[];
+  };
 }

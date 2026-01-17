@@ -1,33 +1,22 @@
 'use client'
-import { useDealStore } from '@/context/store/dealsStore'
-import { Deal } from '@/lib/types'
-import { GlobalDate } from '@/Utils/helpers'
+import { Deal } from '@/app/(main)/deals/services/deals.types'
+import { useLoginUser } from '@/hooks/useToken'
+import { formatUserDisplay, GlobalDate } from '@/Utils/helpers'
 import { Button } from 'antd'
 import { ArrowLeft, Building2, Clock } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { memo, useCallback, useEffect } from 'react'
+import { memo, useCallback } from 'react'
 interface headerDetails {
-  deal: {
-    data: Deal
-  }
+  dealData: Deal
 }
-function DealDetailsHeader({ deal }: headerDetails) {
-  const dealData = deal.data
+function DealDetailsHeader({ dealData }: headerDetails) {
   const router = useRouter();
-  const { setHcoDetails, setDealStage, setDealUUID } = useDealStore()
   const handleBack = useCallback(() => {
     router.push('/deals');
   }, [router]);
-  useEffect(() => {
+ 
+  const userUUID=useLoginUser()?.userUUID
 
-    setHcoDetails({
-      hcoName: dealData.hcoName,
-      hcoUUID: dealData.hcoUUID
-    })
-    setDealUUID(dealData.dealUUID)
-    setDealStage(dealData.dealStage)
-
-  }, []);
   return (
     <div className="mb-2 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 p-3 relative overflow-hidden">
 
@@ -61,7 +50,7 @@ function DealDetailsHeader({ deal }: headerDetails) {
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-500">Created On</p>
               <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                {GlobalDate(dealData.createdAt)} by {dealData.createdBy}
+                {GlobalDate(dealData.createdAt)} by {formatUserDisplay(dealData.createdBy,dealData.createdUUID,userUUID)}
               </p>
             </div>
           </div>
@@ -71,7 +60,7 @@ function DealDetailsHeader({ deal }: headerDetails) {
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-500">Last Updated</p>
               <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                {GlobalDate(dealData.updatedAt)} by {dealData.createdBy}
+                {GlobalDate(dealData.updatedAt)} by {formatUserDisplay(dealData.updatedBy,dealData.updatedUUID,userUUID)}
               </p>
             </div>
           </div>

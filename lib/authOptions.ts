@@ -50,10 +50,7 @@ async function authorizeUser(credentials: Record<string, unknown> | undefined) {
 
 }
 
-// Token refresh function
 
-
-// NextAuth configuration
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
   basePath: "/api/authentication",

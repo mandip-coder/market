@@ -4,7 +4,7 @@ import { ArrowUpRight } from "lucide-react";
 interface KPICardProps {
   title: string;
   value: string | number;
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   color?: string;
   trend?: {
     isPositive: boolean;
@@ -56,12 +56,14 @@ export const KpiCard = ({
             </div>
           )}
         </div>
-        <div
-          className="p-3 rounded-lg"
-          style={{ backgroundColor: `${color}10`, color }}
-        >
-          {icon}
-        </div>
+        {icon && (
+          <div
+            className="p-3 rounded-lg"
+            style={{ backgroundColor: `${color}10`, color }}
+          >
+            {icon}
+          </div>
+        )}
       </div>
     </Card>
   );

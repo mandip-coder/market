@@ -48,7 +48,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <Layout>
             <AppScrollbar className="max-h-screen p-5">
               <Content>
-                <FadeEffects>{children}</FadeEffects>
+                <FadeEffects type="slide">{children}</FadeEffects>
               </Content>
             </AppScrollbar>
           </Layout>

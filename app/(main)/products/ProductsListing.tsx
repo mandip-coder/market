@@ -1,21 +1,18 @@
 "use client";
 
-import { Product } from "@/context/store/productStore";
 import { GlobalDate } from "@/Utils/helpers";
 
-import { Badge, Button, Card, Input, Pagination, Select } from "antd";
+import FullPageSkeleton from "@/components/Skeletons/FullpageSkeleton";
+import { Button, Card, Input, Pagination, Select } from "antd";
 import { AnimatePresence, motion } from "framer-motion";
-import {
-  Clock,
-  Eye,
-  Loader2,
-  Package,
-  Plus,
-  Search
-} from "lucide-react";
+import { Clock, Package, Plus, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { memo, use, useCallback, useEffect, useMemo, useState } from "react";
-import AddProductForm from "./AddProductForm";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import AddProductForm from "./AddProductDrawer";
+import { useProductsList } from "./services/products.hooks";
+import { Product } from "./services/types";
+import Link from "next/link";
+import { useTherapeuticAreas } from "@/services/dropdowns/dropdowns.hooks";
 
 // Constants
 const THERAPEUTIC_AREAS = [
@@ -87,8 +84,7 @@ const formatPrice = (price: number | null) => {
   return `£${price.toFixed(2)}`;
 };
 
-const getAreaColor = (area: string) =>
-  AREA_COLORS[area as TherapeuticArea] || "default";
+
 const getAreaClassColor = (area: string) =>
   AREA_CLASS_COLORS[area as TherapeuticArea] ||
   "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300";
@@ -125,88 +121,82 @@ const cardVariants = {
   },
 };
 
-export const ProductCard = memo(({
-  product,
-  handleViewDetails,
-  page,
-}: {
-  product: Product;
-  handleViewDetails: (product: Product) => void;
-  page: number;
-}) => {
-  return (
-    <motion.div
-      onClick={() => handleViewDetails(product)}
-      variants={cardVariants as any}
-      initial="hidden"
-      animate="show"
-      exit="exit"
-      transition={{ type: "spring", stiffness: 900, damping: 15 }}
-      key={`${product.productUUID}-${page}`}
-      className="h-full"
-    >
-      <Card size="small" hoverable variant="borderless">
-        <div className="p-4 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3 flex-1 min-w-0">
-              <div className="flex-shrink-0 p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
-                <Package className="h-5 w-5 text-slate-700 dark:text-slate-300" />
+export const ProductCard = memo(
+  ({
+    product,
+    page,
+  }: {
+    product: Product;
+    page: number;
+  }) => {
+    return (
+      <Link href={`/products/${product.productUUID}`}>
+      <motion.div
+        variants={cardVariants as any}
+        initial="hidden"
+        animate="show"
+        exit="exit"
+        transition={{ type: "spring", stiffness: 900, damping: 15 }}
+        key={`${product.productUUID}-${page}`}
+        className="h-full"
+      >
+        <Card size="small" hoverable variant="borderless">
+          <div className="p-4 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3 flex-1 min-w-0">
+                <div className="flex-shrink-0 p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                  <Package className="h-5 w-5 text-slate-700 dark:text-slate-300" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base font-semibold text-slate-900 dark:text-white mb-1 line-clamp-1">
+                    {product.productName}
+                  </h3>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-base font-semibold text-slate-900 dark:text-white mb-1 line-clamp-1">
-                  {product.productName}
-                </h3>
-                <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
-                  {product.productCode}
+
+              {product.therapeuticArea && (
+                <span
+                  className={`flex-shrink-0 text-xs px-2 py-1 rounded font-medium ${getAreaClassColor(
+                    product.therapeuticArea
+                  )}`}
+                >
+                  {product.therapeuticArea}
                 </span>
-              </div>
+              )}
             </div>
-
-            {product.therapeuticArea && (
-              <span
-                className={`flex-shrink-0 text-xs px-2 py-1 rounded font-medium ${getAreaClassColor(
-                  product.therapeuticArea
-                )}`}
-              >
-                {product.therapeuticArea}
-              </span>
-            )}
           </div>
-        </div>
 
-        <div className="p-4">
-          <div className="space-y-2">
-            {product.updatedAt && (
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-slate-400" />
-                  <span className="text-slate-500 dark:text-slate-400">
-                    Last Updated
+          <div className="p-4">
+            <div className="space-y-2">
+              {product.updatedAt && (
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-slate-400" />
+                    <span className="text-slate-500 dark:text-slate-400">
+                      Last Updated
+                    </span>
+                  </div>
+                  <span className="font-medium text-slate-900 dark:text-white">
+                    {GlobalDate(product.updatedAt)}
                   </span>
                 </div>
-                <span className="font-medium text-slate-900 dark:text-white">
-                  {GlobalDate(product.updatedAt)}
-                </span>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
-      </Card>
-    </motion.div>
-  );
-});
+        </Card>
+      </motion.div>
+      </Link>
+    );
+  }
+);
 ProductCard.displayName = "ProductCard";
-interface ProductPromise {
-  response: Promise<{
-    data: Product[];
-  }>;
-}
+
 // Main Component
-export default function ProductsListing({ response }: ProductPromise) {
-  const dataResponse = use(response);
-  const Products = dataResponse.data;
-  const [products, setProducts] = useState<Product[]>(Products as Product[]);
-  const [loading, setLoading] = useState(false);
+export default function ProductsListing() {
+  const { data: products = [], isLoading: listLoading } = useProductsList();
+  const { data: therapeuticAreas = [], isLoading: therapeuticAreasLoading } =
+    useTherapeuticAreas();
+    const [filterProducts, setFilterProducts] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [therapeuticAreaFilter, setTherapeuticAreaFilter] =
     useState<string>("");
@@ -214,49 +204,44 @@ export default function ProductsListing({ response }: ProductPromise) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const router = useRouter();
 
-  const itemsPerPage = 10
+  const itemsPerPage = 10;
 
   // Fetch data
   useEffect(() => {
-    setLoading(true);
-    try {
-      // Apply filters
-      let filteredData = Products as Product[];
-
-      // Filter by search query
-      if (searchQuery) {
-        filteredData = filteredData.filter(
-          (product) =>
-            product.productName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            product.productCode?.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-      }
-
-      if (therapeuticAreaFilter) {
-        filteredData = filteredData.filter(
-          (product) => product.therapeuticArea === therapeuticAreaFilter
-        );
-      }
-
-      setProducts(filteredData);
-      setPage(1);
-    } catch (error) {
-      console.error("Failed to fetch products:", error);
-    } finally {
-      setLoading(false);
+    let filteredData = products;
+    
+    // Apply search filter
+    if (searchQuery) {
+      filteredData = filteredData.filter(
+        (product) =>
+          product.productName
+            ?.toLowerCase()
+            .includes(searchQuery.toLowerCase())
+      );
     }
-  }, [searchQuery, therapeuticAreaFilter]);
+    
+    // Apply therapeutic area filter
+    if (therapeuticAreaFilter) {
+      filteredData = filteredData.filter(
+        (product) => product.therapeuticAreaUUID === therapeuticAreaFilter
+      );
+    }
+    
+    // Update filtered products state after all filters are applied
+    setFilterProducts(filteredData);
+    setPage(1);
+  }, [searchQuery, therapeuticAreaFilter, products]);
 
   // Memoized calculations
   const { totalPages, currentProducts } = useMemo(() => {
-    const totalPages = Math.ceil(products.length / itemsPerPage);
+    const totalPages = Math.ceil(filterProducts.length / itemsPerPage);
     const startIndex = (page - 1) * itemsPerPage;
-    const currentProducts = products.slice(
+    const currentProducts = filterProducts.slice(
       startIndex,
       startIndex + itemsPerPage
     );
     return { totalPages, currentProducts };
-  }, [products, page, itemsPerPage]);
+  }, [filterProducts, page, itemsPerPage]);
 
   // Event handlers
   const handleViewDetails = useCallback((product: Product) => {
@@ -268,8 +253,6 @@ export default function ProductsListing({ response }: ProductPromise) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
-
-
   return (
     <>
       <main className="w-full">
@@ -279,6 +262,7 @@ export default function ProductsListing({ response }: ProductPromise) {
             type="text"
             placeholder="Search products by name or code..."
             value={searchQuery}
+            allowClear
             className="w-full max-w-[500px]"
             prefix={<Search className="h-4 w-4 text-slate-400" />}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -286,56 +270,60 @@ export default function ProductsListing({ response }: ProductPromise) {
           <Select
             value={therapeuticAreaFilter || "Therapeutic Area"}
             onChange={(value) =>
-              setTherapeuticAreaFilter(value === "Therapeutic Area" ? "" : value)
+              setTherapeuticAreaFilter(
+                value === "Therapeutic Area" ? "" : value
+              )
             }
             className="w-full max-w-[200px]"
             allowClear
-            showSearch
-            options={THERAPEUTIC_AREAS.map((area) => ({
-              value: area,
-              label: area,
+            showSearch={{
+              optionFilterProp: "label",
+            }}
+            options={therapeuticAreas.map((area) => ({
+              value: area.therapeuticAreaUUID,
+              label: area.therapeuticArea,
             }))}
           />
           <div className="ml-auto">
-            {!loading && totalPages > 1 && (
+            {!listLoading && totalPages > 1 && (
               <Pagination
                 current={page}
                 total={products.length}
                 pageSize={itemsPerPage}
                 onChange={handlePageChange}
                 showSizeChanger={false}
-                showTotal={(total, range) => `Showing ${range[0]}-${range[1]} of ${total} items`}
+                showTotal={(total, range) =>
+                  `Showing ${range[0]}-${range[1]} of ${total} items`
+                }
               />
             )}
           </div>
         </div>
 
-          {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
-          </div>
-        ) : products.length > 0 ? (
-            <AnimatePresence mode="wait">
-              <motion.div
-                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
-                key={`${page}-${therapeuticAreaFilter}`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                {currentProducts.map((product, index) => (
-                  <ProductCard
-                    key={`${product.productUUID}-${page}`}
-                    product={product}
-                    handleViewDetails={handleViewDetails}
-                    page={page}
-                  />
-                ))}
-              </motion.div>
-            </AnimatePresence>
-          ) : (
+        {listLoading ? (
+          <FullPageSkeleton />
+        ) :
+         filterProducts.length > 0 ? (
+          <AnimatePresence mode="wait">
             <motion.div
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
+              key={`${page}-${therapeuticAreaFilter}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              {currentProducts.map((product, index) => (
+                <ProductCard
+                  key={`${product.productUUID}-${page}`}
+                  product={product}
+                  page={page}
+                />
+              ))}
+            </motion.div>
+          </AnimatePresence>
+        ) : (
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
@@ -351,13 +339,7 @@ export default function ProductsListing({ response }: ProductPromise) {
               Try adjusting your search or filters, or add a new product to get
               started
             </p>
-            <Button
-              type="primary"
-              icon={<Plus className="h-4 w-4" />}
-              onClick={() => setIsDrawerOpen(true)}
-            >
-              Add New Product
-            </Button>
+            
           </motion.div>
         )}
       </main>

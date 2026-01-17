@@ -1,15 +1,16 @@
 "use client";
-import { GlobalDate } from "@/Utils/helpers";
+import { fromByte, GlobalDate } from "@/Utils/helpers";
+import AppScrollbar from "@/components/AppScrollBar";
+import { toast } from '@/components/AppToaster/AppToaster';
 import Label from "@/components/Label/Label";
 import ModalWrapper from "@/components/Modal/Modal";
-import { baseURL } from "@/hooks/useAPI";
-import { useLoading } from "@/hooks/useLoading";
-import { useToken } from "@/hooks/useToken";
 import { APIPATH } from "@/shared/constants/url";
 import {
   AppstoreOutlined,
   BarsOutlined,
   CheckCircleOutlined,
+  CloseCircleOutlined,
+  DeleteOutlined,
   FileExcelOutlined,
   FileImageOutlined,
   FileOutlined,
@@ -18,33 +19,31 @@ import {
   FileWordOutlined,
   FileZipOutlined,
   FolderOpenOutlined,
-  FolderOutlined,
+  LoadingOutlined,
   PaperClipOutlined,
-  RightOutlined,
   SearchOutlined,
   StarFilled,
   StarOutlined,
-  UploadOutlined,
+  UploadOutlined
 } from "@ant-design/icons";
 import {
-  App,
   Badge,
-  Breadcrumb,
   Button,
   Empty,
   Input,
+  Progress,
   Segmented,
-  Spin,
   Tabs,
   Tag,
   Typography,
   Upload,
+  UploadFile
 } from "antd";
 import { UploadProps } from "antd/lib";
+import clsx from "clsx";
+import { AnimatePresence, motion } from "framer-motion";
 import { HardDrive } from "lucide-react";
-import { useSession } from "next-auth/react";
 import { JSX, memo, useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "react-toastify";
 
 const { Text, Title } = Typography;
 
@@ -62,12 +61,6 @@ interface Document {
   starred?: boolean;
 }
 
-interface DemoCategory {
-  id: string;
-  name: string;
-  documents: Document[];
-}
-
 interface EmailAttachment {
   filename: string;
   url: string;
@@ -75,6 +68,7 @@ interface EmailAttachment {
   size: number;
   mimeType: string;
 }
+
 
 interface AttachmentModalProps {
   visible: boolean;
@@ -696,6 +690,141 @@ const DocumentView = memo(
   }
 );
 
+const getStatusIcon = (file: UploadFile) => {
+  if (file.status === 'uploading') {
+    return <LoadingOutlined className="text-blue-500 text-lg" spin />;
+  }
+
+  if (file.status === 'error') {
+    return <CloseCircleOutlined className="!text-red-500 text-lg" />;
+  }
+  return getFileIcon(file.type?.split("/")[1] || 'unknown');
+};
+// Custom Upload List Component with Animations
+export const CustomUploadList = memo(
+  ({
+    fileList,
+    onRemove,
+    className
+  }: {
+    fileList: UploadFile[];
+    onRemove: (file: UploadFile) => void;
+    className?: string;
+  }) => {
+    if (fileList.length === 0) return null;
+
+
+    return (
+        <AppScrollbar className="max-h-[200px]">
+          <motion.div 
+            className={clsx("grid gap-4 py-2", className || "grid-cols-2")}
+            layout
+          >
+            <AnimatePresence mode="popLayout">
+              {fileList.map((file) => (
+                <motion.div
+                  key={file.uid}
+                  layout
+                  initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                  animate={{ 
+                    opacity: 1, 
+                    scale: 1, 
+                    y: 0,
+                    transition: {
+                      type: "spring",
+                      stiffness: 300,
+                      damping: 25,
+                    }
+                  }}
+                  exit={{ 
+                    opacity: 0, 
+                    scale: 0.8,
+                    transition: {
+                      duration: 0.2
+                    }
+                  }}
+                  className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 shadow-sm hover:shadow-md transition-colors relative overflow-hidden"
+                >
+                  {/* File Icon - No rotation, simple fade/scale */}
+                  <motion.div 
+                    className="flex-shrink-0"
+                    initial={{ scale: 0, rotate: -90 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{ delay: 0.1, type: "spring", stiffness: 200 }}
+                  >
+                    {getStatusIcon(file)}
+                  </motion.div>
+
+                  {/* File Info */}
+                  <div className="flex-1 min-w-0 flex flex-col justify-center">
+                    <div className="flex items-center justify-between mb-1">
+                      <Text className="text-sm font-medium truncate block" ellipsis>
+                        {file.name}
+                      </Text>
+                      <Text type="secondary" className="text-xs ml-2 flex-shrink-0">
+                        {fromByte(file.size||0,"MB",true)}
+                      </Text>
+                    </div>
+
+                    {/* Progress Bar */}
+                    {file.status === 'uploading' && (
+                      <motion.div 
+                        className="flex items-center gap-2"
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        transition={{ delay: 0.1 }}
+                      >
+                        <Progress
+                          percent={file.percent || 0}
+                          size="small"
+                          strokeColor={{
+                            '0%': '#108ee9',
+                            '100%': '#87d068',
+                          }}
+                          showInfo={false}
+                          className="flex-1"
+                        />
+                        <Text className="text-xs text-blue-500 font-medium flex-shrink-0 min-w-[35px] text-right">
+                          {Math.round(file.percent || 0)}%
+                        </Text>
+                      </motion.div>
+                    )}
+
+                    {/* Status Messages */}
+                    {(file.status === 'done' || file.status === 'error') && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.1 }}
+                      >
+                        <Text 
+                          type={file.status === 'done' ? 'success' : 'danger'} 
+                          className="text-xs"
+                        >
+                          {file.status === 'done' ? "" : 'Upload failed'}
+                        </Text>
+                      </motion.div>
+                    )}
+                  </div>
+
+                  {/* Remove Button - No rotation on hover, simple scale/color */}
+                  <Button
+                    danger
+                    size="small"
+                    type="text"
+                    onClick={() => onRemove(file)}
+                  >
+                    <DeleteOutlined className="text-gray-400 hover:text-red-500 transition-colors text-base" />
+                  </Button>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </motion.div>
+        </AppScrollbar>
+    );
+  }
+);
+
 const SelectedItems = memo(
   ({
     selectedDocs,
@@ -705,10 +834,10 @@ const SelectedItems = memo(
     onRemoveFile,
   }: {
     selectedDocs: Document[];
-    uploadedFiles: any[];
+    uploadedFiles: UploadFile[];
     onClearAll: () => void;
     onRemoveDoc: (docId: number) => void;
-    onRemoveFile: (fileUid: string) => void;
+    onRemoveFile: (file: UploadFile) => void;
   }) => {
     const totalSelectedCount = selectedDocs.length + uploadedFiles.length;
 
@@ -740,7 +869,7 @@ const SelectedItems = memo(
             <Tag
               key={`file-${file.uid}`}
               closable
-              onClose={() => onRemoveFile(file.uid)}
+              onClose={() => onRemoveFile(file)}
               icon={<UploadOutlined />}
               className="text-xs p-1 m-1"
             >
@@ -912,8 +1041,8 @@ const AttachmentModal = ({
   );
 
   const removeUploadedFile = useCallback(
-    (fileUid: string) => {
-      setUploadedFiles(uploadedFiles.filter((f) => f.uid !== fileUid));
+    (file: UploadFile) => {
+      setUploadedFiles(uploadedFiles.filter((f) => f.uid !== file.uid));
     },
     [uploadedFiles]
   );
@@ -923,17 +1052,15 @@ const AttachmentModal = ({
     setUploadedFiles([]);
   }, []);
 
-  const token = useSession().data?.accessToken
-
-  // Upload props
   const uploadProps: UploadProps = {
     multiple: true,
-    action:  `${baseURL}/api/upload`,
+    action: APIPATH.FILEUPLOAD,
     maxCount: 10,
     fileList: uploadedFiles,
     data: {
       moduleName: "email",
     },
+    showUploadList: false, // Hide default list, using custom component
 
     beforeUpload: (file: File) => {
       const isLt10M = file.size / 1024 / 1024 < MAX_FILE_SIZE_MB;
@@ -1057,6 +1184,12 @@ const AttachmentModal = ({
           Support for single or bulk upload. Max file size: {MAX_FILE_SIZE_MB}MB
         </p>
       </Upload.Dragger>
+      
+      {/* Custom Upload List */}
+      <CustomUploadList 
+        fileList={uploadedFiles} 
+        onRemove={removeUploadedFile}
+      />
     </div>
   );
 

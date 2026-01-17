@@ -8,7 +8,7 @@ import { useLoading } from '@/hooks/useLoading';
 export default function NProgressHandler() {
   const pathname = usePathname();
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const [loading,setLoading] = useLoading()
+  const [_,setLoading] = useLoading()
 
   useEffect(() => {
     setLoading(true)
